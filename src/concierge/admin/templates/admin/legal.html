@@ -1,0 +1,29 @@
+{% extends "admin/layout.html" %}
+{% set active = 'legal' %}
+{% block title %}{{ t.legal }}{% endblock %}
+{% block admin %}
+<h1>{{ t.legal }}</h1>
+<p class="banner">{{ t.draft_unreviewed }}</p>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% for r in rows %}
+<div class="card">
+  <h2>{{ r.key }} · {{ r.lang }} · v{{ r.version }} · <span class="{{ 'status-ok' if r.status == 'approved' else 'status-warn' }}">{{ r.status }}</span></h2>
+  {% if r.approved_by %}<p class="meta">{{ r.approved_by }} · {{ r.approved_at }}</p>{% endif %}
+  {% if is_owner %}
+  <form method="post" action="/admin/legal/{{ r.id }}/text" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="text-{{ r.id }}" class="sr-only">Text</label>
+    <textarea id="text-{{ r.id }}" name="text" rows="4">{{ r.text }}</textarea>
+    <button type="submit" class="secondary">{{ t.save }}</button>
+  </form>
+  {% if r.status != 'approved' %}
+  <form method="post" action="/admin/legal/{{ r.id }}/approve" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="approver-{{ r.id }}">{{ t.approver }}</label><input id="approver-{{ r.id }}" name="approver" required>
+    <button type="submit">{{ t.approve }}</button>
+  </form>
+  {% endif %}
+  {% else %}<p>{{ r.text }}</p>{% endif %}
+</div>
+{% endfor %}
+{% endblock %}

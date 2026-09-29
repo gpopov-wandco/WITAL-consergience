@@ -38,6 +38,7 @@ STANDARD_NAMES = (
     "gc_prearrival_7d",
     "gc_prearrival_2d",
     "gc_arrival_day",
+    "gc_key_safe",
     "gc_stay_check",
     "gc_checkout_reminder",
     "gc_review_request",

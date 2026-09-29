@@ -21,6 +21,17 @@ from concierge.clock import in_range, parse_hhmm, parse_range, to_local
 
 LANGS: tuple[str, ...] = ("de", "en", "ru", "uk", "tr", "it")
 Lang = Literal["de", "en", "ru", "uk", "tr", "it"]
+Source = Literal["beds24", "apaleo", "mews", "smoobu", "ibelsa", "ical", "manual", "none"]
+
+
+def _default_chain() -> list[Source]:
+    return ["manual", "none"]
+
+
+def _default_languages() -> list[Lang]:
+    return ["de", "en"]
+
+
 DAYS: tuple[str, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
@@ -84,9 +95,7 @@ class MewsConfig(Strict):
 
 
 class AvailabilityConfig(Strict):
-    chain: list[
-        Literal["beds24", "apaleo", "mews", "smoobu", "ibelsa", "ical", "manual", "none"]
-    ] = Field(default_factory=lambda: ["manual", "none"])
+    chain: list[Source] = Field(default_factory=_default_chain)
     stale_after_hours: int = Field(default=36, ge=1, le=720)
     booking_url: str = ""
     allow_pms_write: bool = False
@@ -177,6 +186,8 @@ class JourneysConfig(Strict):
     t_minus_7_at: str = "10:00"
     t_minus_2: TimedStep = TimedStep(at="10:00")
     t_0: TimedStep = TimedStep(at="10:00")
+    key_safe: TimedStep = TimedStep(at="12:00")
+    """Key-safe code on the arrival day, only after a late ETA in a verified conversation."""
     stay_check: StayCheckStep = StayCheckStep()
     checkout: CheckoutStep = CheckoutStep()
     review_request: ReviewStep = ReviewStep()
@@ -308,7 +319,7 @@ class TenantProfile(Strict):
     timezone: str = "Europe/Berlin"
     status: Literal["demo", "pilot", "active", "paused"] = "demo"
     ai_mode: Literal["full", "faq_only"] = "full"
-    languages: list[Lang] = Field(default_factory=lambda: ["de", "en"])
+    languages: list[Lang] = Field(default_factory=_default_languages)
     default_language: Lang = "de"
     machine_translation_allowed: bool = False
     contacts: Contacts = Contacts()

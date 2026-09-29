@@ -1,0 +1,13 @@
+{% extends "admin/layout.html" %}
+{% set active = 'registration' %}
+{% block title %}{{ t.registration }}{% endblock %}
+{% block admin %}
+<h1>{{ t.registration }}</h1>
+<p class="meta">{{ 'Aktiviert' if profile.registration.enabled else 'Nicht aktiviert' }} · {{ profile.registration.psp }} · {{ profile.registration.retention_days }} d</p>
+<form method="post" action="/admin/registration/export" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="start">{{ t.from }}</label><input id="start" name="start" type="date" value="{{ start }}" required>
+  <label for="end">{{ t.to }}</label><input id="end" name="end" type="date" value="{{ end }}" required>
+  <button type="submit">{{ t.export }} (JSON)</button>
+</form>
+{% endblock %}

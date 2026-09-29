@@ -1,0 +1,19 @@
+{% extends "admin/layout.html" %}
+{% set active = 'operator' %}
+{% block title %}{{ t.prices }}{% endblock %}
+{% block admin %}
+<h1>{{ t.prices }}</h1>
+<p class="banner">Meta changes conversation prices and template categories; re-check the price table after every Meta notice (VERIFY).</p>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<table><thead><tr><th>Region</th><th>Category</th><th>From</th><th>EUR</th><th>Free/month</th><th>Source</th></tr></thead><tbody>{% for r in rows %}<tr><td>{{ r.region }}</td><td>{{ r.category }}</td><td>{{ r.effective_from }}</td><td>{{ '%.4f'|format(r.price_micro_eur / 1000000) }}</td><td>{{ r.free_allowance_per_month }}</td><td>{{ r.source_url }}</td></tr>{% else %}<tr><td colspan="6">–</td></tr>{% endfor %}</tbody></table>
+<form method="post" action="/operator/prices" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="region">Region</label><input id="region" name="region" value="DE" size="4">
+  <label for="category">Category</label><select id="category" name="category"><option>utility</option><option>marketing</option><option>authentication</option><option>service</option></select>
+  <label for="effective_from">From</label><input id="effective_from" name="effective_from" type="date" required>
+  <label for="price_eur">EUR</label><input id="price_eur" name="price_eur" required size="8">
+  <label for="free_allowance">Free/month</label><input id="free_allowance" name="free_allowance" type="number" min="0" value="0" size="6">
+  <label for="source_url">Source</label><input id="source_url" name="source_url" size="30">
+  <button type="submit">{{ t.save }}</button>
+</form>
+{% endblock %}

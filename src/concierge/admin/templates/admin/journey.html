@@ -1,0 +1,12 @@
+{% extends "admin/layout.html" %}
+{% set active = 'reservations' %}
+{% block title %}Journey {{ reservation.res_id }}{% endblock %}
+{% block admin %}
+<h1>Journey · {{ reservation.res_id }}</h1>
+<p class="meta">{{ reservation.arrival }} → {{ reservation.departure }} · {{ reservation.lang }}{% if reservation.journey_paused %} · <span class="status-warn">paused</span>{% endif %}</p>
+<table>
+  <thead><tr><th>Step</th><th>Local</th><th>{{ t.template }}</th><th>Text</th></tr></thead>
+  <tbody>{% for line in lines %}<tr><td>{{ line.step }}</td><td>{{ line.local_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ line.template }} <span class="badge">{{ line.category }}</span></td><td>{{ line.text }}</td></tr>{% else %}<tr><td colspan="4">–</td></tr>{% endfor %}</tbody>
+</table>
+<p><a href="/admin/reservations">{{ t.reservations }}</a></p>
+{% endblock %}

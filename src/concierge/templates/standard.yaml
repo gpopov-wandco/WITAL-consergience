@@ -70,6 +70,17 @@ templates:
       uk: "Ласкаво просимо до {{hotel}}. Заїзд сьогодні можливий з {{checkin_from}}; рецепція доступна за телефоном {{phone}}. На запитання відповім тут у чаті (ШІ-асистент). Відповідайте STOP, щоб більше не отримувати повідомлення."
       tr: "{{hotel}} otelimize hoş geldiniz. Giriş bugün {{checkin_from}} itibaren mümkündür; resepsiyona {{phone}} numarasından ulaşabilirsiniz. Sorularınızı burada yanıtlarım (yapay zekâ asistanı). Bu mesajları almamak için STOP yanıtını verin."
       it: "Benvenuti presso {{hotel}}. Il check-in è possibile oggi dalle {{checkin_from}}; la reception è raggiungibile al {{phone}}. Rispondo alle domande qui in chat (assistente IA). Risponda STOP per non ricevere più messaggi."
+  gc_key_safe:
+    category: utility
+    variables: [hotel, latest_reception, code]
+    samples: {hotel: "Hotel Beispiel", latest_reception: "22:00", code: "0000"}
+    body:
+      de: "{{hotel}}: Sie kommen heute nach {{latest_reception}} Uhr an. Ihre Schlüsselkarte liegt im Schlüsselsafe, Code {{code}}. Bitte geben Sie den Code nicht weiter. Diese Nachricht stammt vom KI-Assistenten des Hotels. Antworten Sie mit STOP, um keine Nachrichten mehr zu erhalten."
+      en: "{{hotel}}: you arrive today after {{latest_reception}}. Your key card is in the key safe, code {{code}}. Please do not share the code. This message is sent by the hotel's AI assistant. Reply STOP to end these messages."
+      ru: "{{hotel}}: вы прибываете сегодня после {{latest_reception}}. Ваша ключ-карта находится в сейфе для ключей, код {{code}}. Пожалуйста, не передавайте код другим. Это сообщение отправлено ИИ-ассистентом отеля. Ответьте STOP, чтобы больше не получать сообщения."
+      uk: "{{hotel}}: ви прибуваєте сьогодні після {{latest_reception}}. Ваша ключ-картка знаходиться в сейфі для ключів, код {{code}}. Будь ласка, не передавайте код іншим. Це повідомлення надіслано ШІ-асистентом готелю. Відповідайте STOP, щоб більше не отримувати повідомлення."
+      tr: "{{hotel}}: bugün {{latest_reception}} sonrasında varıyorsunuz. Anahtar kartınız anahtar kasasındadır, kod {{code}}. Lütfen kodu kimseyle paylaşmayın. Bu mesaj otelin yapay zekâ asistanı tarafından gönderilmiştir. Bu mesajları almamak için STOP yanıtını verin."
+      it: "{{hotel}}: arriva oggi dopo le {{latest_reception}}. La Sua tessera chiave si trova nella cassetta delle chiavi, codice {{code}}. La preghiamo di non condividere il codice. Questo messaggio è inviato dall'assistente IA dell'hotel. Risponda STOP per non ricevere più messaggi."
   gc_stay_check:
     category: utility
     variables: [hotel]

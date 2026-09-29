@@ -15,6 +15,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
@@ -111,6 +112,9 @@ class InquiryForm:
     room_type: str = ""
 
 
+InquiryNotifier = Callable[[Tenant, TenantProfile, "InquiryForm", str], Awaitable[bool]]
+
+
 @dataclass
 class InquiryResult:
     request_id: str
@@ -135,6 +139,8 @@ class InquiryService:
         self.handoffs = handoffs
         self.availability = availability
         self.guardrails = guardrails or Guardrails()
+        self.notify: InquiryNotifier | None = None
+        """Queues the inquiry e-mail to the hotel; returns True when queued (F18)."""
 
     @staticmethod
     def idempotency_key(tenant_id: str, form: InquiryForm) -> str:
@@ -230,6 +236,10 @@ class InquiryService:
         pms_ref = await self._pms_inquiry(tenant, profile, form, key)
         if pms_ref:
             details["pms_ref"] = pms_ref
+        queued = False
+        if self.notify is not None:
+            queued = await self.notify(tenant, profile, form, key)
+        details["email_pending"] = not queued
         async with self.db.tenant_scope(tenant.id) as session:
             row = GuestRequest(
                 tenant_id=tenant.id,

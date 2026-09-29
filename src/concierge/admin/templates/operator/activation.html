@@ -1,0 +1,8 @@
+{% extends "admin/layout.html" %}
+{% set active = 'operator' %}
+{% block title %}{{ t.activation }} {{ slug }}{% endblock %}
+{% block admin %}
+<h1>{{ t.activation }} · {{ slug }}</h1>
+{% if report.ok %}<p class="status-ok">OK</p>{% else %}<ul>{% for f in report.failures %}<li class="status-warn">{{ f }}</li>{% endfor %}</ul>{% endif %}
+<p><a href="/operator/">{{ t.operator }}</a></p>
+{% endblock %}

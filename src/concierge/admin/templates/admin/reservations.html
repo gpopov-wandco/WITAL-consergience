@@ -1,0 +1,23 @@
+{% extends "admin/layout.html" %}
+{% set active = 'reservations' %}
+{% block title %}{{ t.reservations }}{% endblock %}
+{% block admin %}
+<h1>{{ t.reservations }}</h1>
+<table>
+  <thead><tr><th>Res.</th><th>{{ t.name }}</th><th>{{ t.from }}</th><th>{{ t.to }}</th><th>{{ t.language }}</th><th>Opt-in</th><th>Journey</th><th></th></tr></thead>
+  <tbody>
+  {% for item in items %}
+  <tr>
+    <td>{{ item.row.res_id }}<br><span class="meta">{{ item.row.status }} · {{ item.row.source }}</span></td>
+    <td>{{ item.name }}</td><td>{{ item.row.arrival }}</td><td>{{ item.row.departure }}</td><td>{{ item.row.lang }}</td>
+    <td>{{ 'WA' if item.row.whatsapp_optin else '–' }}{{ ' + M' if item.row.marketing_optin else '' }}</td>
+    <td>{% if item.row.journey_paused %}<span class="status-warn">paused</span>{% else %}{{ item.pending }} pending{% endif %}<br><span class="meta">{% for e in item.log %}{{ e.step }}: {{ e.outcome }} {% endfor %}</span></td>
+    <td>
+      <a href="/admin/reservations/{{ item.row.id }}/journey">{{ t.preview }}</a>
+      <form method="post" action="/admin/reservations/{{ item.row.id }}/pause" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}">{% if item.row.journey_paused %}<button type="submit" name="paused" value="0" class="secondary">{{ t.resume_journey }}</button>{% else %}<button type="submit" name="paused" value="1" class="secondary">{{ t.pause_journey }}</button>{% endif %}</form>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="8">–</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

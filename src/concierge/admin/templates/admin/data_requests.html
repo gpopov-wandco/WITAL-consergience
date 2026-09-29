@@ -1,0 +1,10 @@
+{% extends "admin/layout.html" %}
+{% set active = 'data_requests' %}
+{% block title %}{{ t.data_requests }}{% endblock %}
+{% block admin %}
+<h1>{{ t.data_requests }}</h1>
+<table>
+  <thead><tr><th>Kind</th><th>Subject</th><th>{{ t.status }}</th><th>Due</th><th>Tasks</th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ r.kind }}</td><td>{{ r.subject_kind }} ····{{ r.subject_bidx[-4:] }}</td><td>{{ r.status }}</td><td>{{ r.due_at }}</td><td>{{ r.tasks|length }}</td></tr>{% else %}<tr><td colspan="5">–</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}

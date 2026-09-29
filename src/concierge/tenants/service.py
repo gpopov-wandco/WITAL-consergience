@@ -9,6 +9,7 @@ dialled number. Activation refuses until every gate in F21 holds.
 
 from __future__ import annotations
 
+import builtins
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -292,7 +293,7 @@ class TenantService:
     @staticmethod
     async def _legal_gate(
         session: AsyncSession, tenant_id: str, profile: TenantProfile
-    ) -> list[str]:
+    ) -> builtins.list[str]:
         rows = (
             (await session.execute(select(LegalText).where(LegalText.tenant_id == tenant_id)))
             .scalars()
@@ -313,7 +314,9 @@ class TenantService:
         return failures
 
     @staticmethod
-    async def _kb_gate(session: AsyncSession, tenant_id: str, profile: TenantProfile) -> list[str]:
+    async def _kb_gate(
+        session: AsyncSession, tenant_id: str, profile: TenantProfile
+    ) -> builtins.list[str]:
         rows = (
             await session.execute(
                 select(KbEntry.key, KbEntry.lang).where(
@@ -332,7 +335,7 @@ class TenantService:
     @staticmethod
     async def _template_gate(
         session: AsyncSession, tenant_id: str, profile: TenantProfile
-    ) -> list[str]:
+    ) -> builtins.list[str]:
         rows = (
             (await session.execute(select(Template).where(Template.tenant_id == tenant_id)))
             .scalars()

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from fastapi import FastAPI
 
-from concierge.app import create_app
+from concierge.app import Startup, create_app
 from concierge.channels.whatsapp.graph import GraphClient, in_process_client
 from concierge.channels.whatsapp.port import WhatsAppPort
 from concierge.context import AppContext
@@ -69,7 +69,7 @@ def build_runtime(
     wa_port = build_wa_port(settings, graph_state=graph_state)
     services = build_services(ctx, llm=llm, wa_port=wa_port, demo=demo and llm is None)
     services.demo = demo
-    startup = []
+    startup: list[Startup] = []
     if demo:
 
         async def seed() -> None:

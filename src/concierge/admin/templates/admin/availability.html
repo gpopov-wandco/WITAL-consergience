@@ -1,0 +1,50 @@
+{% extends "admin/layout.html" %}
+{% set active = 'availability' %}
+{% block title %}{{ t.availability }}{% endblock %}
+{% block admin %}
+<h1>{{ t.availability }} · {{ month }}</h1>
+<h2>{{ t.source_health }}</h2>
+<ul>{% for h in health %}<li><strong>{{ h.source }}</strong>: <span class="{{ 'status-ok' if h.ok else 'status-warn' }}">{{ 'OK' if h.ok else '!' }}</span> {{ h.detail }}{% for w in h.warnings %} · {{ w }}{% endfor %}</li>{% endfor %}</ul>
+{% if csv_report %}
+<div class="card" role="status">
+  {% if csv_report.errors %}<ul>{% for e in csv_report.errors %}<li class="status-bad">{{ e }}</li>{% endfor %}</ul>{% endif %}
+  {% if csv_report.rows is defined %}<p>{{ csv_report.rows }} rows{% if csv_report.dry_run %} ({{ t.dry_run }}){% else %} · {{ csv_report.applied }} {{ t.apply|lower }}{% endif %}</p>{% endif %}
+</div>
+{% endif %}
+<form method="get" action="/admin/availability" class="inline"><label for="month">{{ t.month }}</label><input id="month" name="month" type="month" value="{{ month }}"><button type="submit" class="secondary">OK</button></form>
+{% for code, cells in grid.items() %}
+<h2>{{ code }}</h2>
+<div style="overflow-x: auto">
+<table>
+  <thead><tr><th>Tag/Day</th>{% for c in cells %}<th>{{ c.date.day }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  <tr><th>Units</th>{% for c in cells %}<td class="{{ 'status-bad' if c.units_available == 0 else '' }}">{{ c.units_available }}</td>{% endfor %}</tr>
+  <tr><th>Min</th>{% for c in cells %}<td>{{ c.min_stay }}</td>{% endfor %}</tr>
+  <tr><th>CA/CD</th>{% for c in cells %}<td>{{ 'A' if c.closed_arrival else '' }}{{ 'D' if c.closed_departure else '' }}</td>{% endfor %}</tr>
+  <tr><th>EUR</th>{% for c in cells %}<td>{{ (c.price_cents / 100)|int if c.price_cents is not none else '' }}</td>{% endfor %}</tr>
+  </tbody>
+</table>
+</div>
+{% endfor %}
+<h2>Bulk</h2>
+<form method="post" action="/admin/availability/bulk" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="room_type">Type</label><input id="room_type" name="room_type" required size="6">
+  <label for="start">{{ t.from }}</label><input id="start" name="start" type="date" required>
+  <label for="end">{{ t.to }}</label><input id="end" name="end" type="date" required>
+  <label for="units">Units</label><input id="units" name="units_available" type="number" min="0" size="4">
+  <label for="min_stay">Min</label><input id="min_stay" name="min_stay" type="number" min="1" size="3">
+  <label for="closed_arrival">CA</label><select id="closed_arrival" name="closed_arrival"><option value="">–</option><option value="1">ja</option><option value="0">nein</option></select>
+  <label for="closed_departure">CD</label><select id="closed_departure" name="closed_departure"><option value="">–</option><option value="1">ja</option><option value="0">nein</option></select>
+  <label for="price_eur">EUR</label><input id="price_eur" name="price_eur" size="7">
+  <button type="submit">{{ t.save }}</button>
+</form>
+<h2>{{ t.csv_upload }}</h2>
+<form method="post" action="/admin/availability/csv" enctype="multipart/form-data" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="file">CSV</label><input id="file" name="file" type="file" accept=".csv,text/csv" required>
+  <button type="submit" name="apply" value="0" class="secondary">{{ t.dry_run }}</button>
+  <button type="submit" name="apply" value="1">{{ t.apply }}</button>
+</form>
+<p class="meta">date;room_type;units_available;min_stay;closed_arrival;closed_departure;price_eur</p>
+{% endblock %}

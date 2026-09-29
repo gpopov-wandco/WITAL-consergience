@@ -1,0 +1,34 @@
+{% extends "admin/layout.html" %}
+{% set active = 'kb' %}
+{% block title %}{{ t.kb }}{% endblock %}
+{% block admin %}
+<h1>{{ t.kb }}</h1>
+<form method="get" action="/admin/kb" class="inline">
+  <label for="status">{{ t.status }}</label>
+  <select id="status" name="status"><option value="">–</option>{% for s in ['draft', 'pending_approval', 'approved', 'retired'] %}<option value="{{ s }}"{% if s == status %} selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+  <label for="lang">{{ t.language }}</label>
+  <select id="lang" name="lang"><option value="">–</option>{% for l in profile.languages %}<option value="{{ l }}"{% if l == kb_lang %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  <button type="submit" class="secondary">OK</button>
+</form>
+<table>
+  <thead><tr><th>Key</th><th>{{ t.language }}</th><th>v</th><th>{{ t.status }}</th><th>Text</th><th></th></tr></thead>
+  <tbody>
+  {% for e in entries %}
+  <tr>
+    <td>{{ e.key }}{% if e.sensitivity != 'public' %} <span class="badge">{{ e.sensitivity }}</span>{% endif %}</td>
+    <td>{{ e.lang }}</td><td>{{ e.version }}</td><td>{{ e.status }}</td>
+    <td>{{ e.text[:160] }}</td>
+    <td>
+      {% if is_owner and e.status in ['draft', 'draft_mt', 'pending_approval'] %}
+      <form method="post" action="/admin/kb/{{ e.id }}/status" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="approved"><label class="sr-only" for="approver-{{ e.id }}">{{ t.approver }}</label><input id="approver-{{ e.id }}" name="approver" placeholder="{{ t.approver }}"><button type="submit">{{ t.approve }}</button></form>
+      {% endif %}
+      {% if is_owner and e.status == 'approved' %}
+      <form method="post" action="/admin/kb/{{ e.id }}/status" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="retired"><button type="submit" class="secondary">{{ t.retire }}</button></form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if gaps %}<h2>Gaps</h2><ul>{% for g in gaps %}<li>{{ g.question if g.question is defined else g }}</li>{% endfor %}</ul>{% endif %}
+{% endblock %}

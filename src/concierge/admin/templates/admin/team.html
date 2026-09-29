@@ -1,0 +1,23 @@
+{% extends "admin/layout.html" %}
+{% set active = 'team' %}
+{% block title %}{{ t.team }}{% endblock %}
+{% block admin %}
+<h1>{{ t.team }}</h1>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if link %}<p class="notice" role="status">{{ t.invite }} (15 min): <code>{{ link }}</code></p>{% endif %}
+<table>
+  <thead><tr><th>{{ t.name }}</th><th>{{ t.email }}</th><th>{{ t.role }}</th><th>{{ t.status }}</th><th></th></tr></thead>
+  <tbody>{% for u in users %}<tr><td>{{ u.name }}</td><td>{{ u.email }}</td><td>{{ u.role }}</td><td>{{ 'active' if u.is_active else 'inactive' }}{% if not u.password_hash %} · invited{% endif %}</td><td>{% if is_owner and u.id != user.id %}<form method="post" action="/admin/team/{{ u.id }}/active" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}">{% if u.is_active %}<button type="submit" name="active" value="0" class="secondary">{{ t.deactivate }}</button>{% else %}<button type="submit" name="active" value="1" class="secondary">{{ t.activate }}</button>{% endif %}</form>{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+{% if is_owner %}
+<h2>{{ t.invite }}</h2>
+<form method="post" action="/admin/team/invite" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="name">{{ t.name }}</label><input id="name" name="name" required>
+  <label for="email">{{ t.email }}</label><input id="email" name="email" type="email" required>
+  <label for="role">{{ t.role }}</label><select id="role" name="role"><option value="staff">staff</option><option value="owner">owner</option></select>
+  <label for="locale">{{ t.language }}</label><select id="locale" name="locale"><option value="de">de</option><option value="en">en</option></select>
+  <button type="submit">{{ t.invite }}</button>
+</form>
+{% endif %}
+{% endblock %}

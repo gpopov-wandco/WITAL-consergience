@@ -15,13 +15,13 @@ from collections.abc import Sequence
 from sqlalchemy import select
 
 from concierge import audit
-from concierge.db.base import Base
+from concierge.db.base import TenantScoped
 from concierge.db.models import CallbackTask, Guest, Reservation, TenantSecret, User
 from concierge.db.session import Database
 from concierge.security.crypto import Keyring
 
 # (model, [(encrypted column, field name for AAD, blind-index column or None, kind)])
-ENCRYPTED_COLUMNS: list[tuple[type[Base], list[tuple[str, str, str | None, str]]]] = [
+ENCRYPTED_COLUMNS: list[tuple[type[TenantScoped], list[tuple[str, str, str | None, str]]]] = [
     (
         Guest,
         [

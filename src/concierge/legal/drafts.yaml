@@ -1,0 +1,48 @@
+# Legal text drafts (C10): every text ships as draft_unreviewed and never claims to be
+# compliant. The hotel approves each text with a name and a date before activation
+# (F21 gate). Placeholders: {hotel}, {privacy_url}, {imprint_url}, {phone}.
+version: 2026.09.29-1
+status: draft_unreviewed
+texts:
+  privacy_paragraph:
+    de: "Der Chat-Assistent von {hotel} verarbeitet Ihre Nachrichten, um Fragen zu Ihrem Aufenthalt zu beantworten. Verantwortlich ist {hotel}; technischer Dienstleister ist die WITALCO GmbH. Nachrichten werden 30 Tage nach dem letzten Kontakt gelöscht, buchungsbezogene Daten 30 Tage nach der Abreise. Einzelheiten und Ihre Rechte: {privacy_url}"
+    en: "The chat assistant of {hotel} processes your messages to answer questions about your stay. The controller is {hotel}; the technical service provider is WITALCO GmbH. Messages are deleted 30 days after the last contact, booking-related data 30 days after departure. Details and your rights: {privacy_url}"
+    ru: "Чат-ассистент {hotel} обрабатывает ваши сообщения, чтобы отвечать на вопросы о вашем проживании. Ответственный: {hotel}; технический поставщик услуг: WITALCO GmbH. Сообщения удаляются через 30 дней после последнего контакта, данные о бронировании — через 30 дней после выезда. Подробности и ваши права: {privacy_url}"
+    uk: "Чат-асистент {hotel} обробляє ваші повідомлення, щоб відповідати на запитання про ваше проживання. Відповідальний: {hotel}; технічний постачальник послуг: WITALCO GmbH. Повідомлення видаляються через 30 днів після останнього контакту, дані про бронювання — через 30 днів після виїзду. Деталі та ваші права: {privacy_url}"
+    tr: "{hotel} sohbet asistanı, konaklamanızla ilgili soruları yanıtlamak için mesajlarınızı işler. Sorumlu: {hotel}; teknik hizmet sağlayıcı: WITALCO GmbH. Mesajlar son iletişimden 30 gün sonra, rezervasyona ilişkin veriler çıkıştan 30 gün sonra silinir. Ayrıntılar ve haklarınız: {privacy_url}"
+    it: "L'assistente chat di {hotel} tratta i Suoi messaggi per rispondere a domande sul Suo soggiorno. Titolare è {hotel}; il fornitore tecnico è WITALCO GmbH. I messaggi vengono cancellati 30 giorni dopo l'ultimo contatto, i dati della prenotazione 30 giorni dopo la partenza. Dettagli e Suoi diritti: {privacy_url}"
+  ai_disclosure:
+    de: "Sie schreiben mit dem KI-Assistenten von {hotel}, nicht mit einer Person. Der Assistent bestätigt keine Buchungen, Preise oder Ausnahmen. Mit „Mitarbeiter“ erreichen Sie jederzeit das Team; telefonisch unter {phone}."
+    en: "You are writing with the AI assistant of {hotel}, not with a person. The assistant confirms no bookings, prices or exceptions. Write \"staff\" at any time to reach the team, or call {phone}."
+    ru: "Вы общаетесь с ИИ-ассистентом {hotel}, а не с человеком. Ассистент не подтверждает бронирования, цены или исключения. Напишите «сотрудник», чтобы связаться с командой, или позвоните по номеру {phone}."
+    uk: "Ви спілкуєтеся з ШІ-асистентом {hotel}, а не з людиною. Асистент не підтверджує бронювання, ціни чи винятки. Напишіть «працівник», щоб зв'язатися з командою, або зателефонуйте за номером {phone}."
+    tr: "{hotel} otelinin yapay zekâ asistanıyla yazışıyorsunuz, bir insanla değil. Asistan rezervasyon, fiyat veya istisna onaylamaz. Ekibe ulaşmak için istediğiniz zaman \"çalışan\" yazın veya {phone} numarasını arayın."
+    it: "Sta scrivendo con l'assistente IA di {hotel}, non con una persona. L'assistente non conferma prenotazioni, prezzi o eccezioni. Scriva \"personale\" in qualsiasi momento per raggiungere il team, oppure chiami il {phone}."
+  whatsapp_optin:
+    de: "Ja, {hotel} darf mir Nachrichten zu meiner Buchung per WhatsApp senden (Anreiseinformationen, Fragen zur Ankunft, Check-out-Erinnerung). Ich kann das jederzeit mit STOP beenden. Datenschutz: {privacy_url}"
+    en: "Yes, {hotel} may send me messages about my booking by WhatsApp (arrival information, arrival questions, check-out reminder). I can end this at any time with STOP. Privacy: {privacy_url}"
+    ru: "Да, {hotel} может отправлять мне сообщения о моём бронировании в WhatsApp (информация о заезде, вопросы о прибытии, напоминание о выезде). Я могу прекратить это в любой момент, отправив STOP. Конфиденциальность: {privacy_url}"
+    uk: "Так, {hotel} може надсилати мені повідомлення про моє бронювання у WhatsApp (інформація про заїзд, запитання про прибуття, нагадування про виїзд). Я можу припинити це будь-коли, надіславши STOP. Конфіденційність: {privacy_url}"
+    tr: "Evet, {hotel} rezervasyonumla ilgili mesajları WhatsApp üzerinden gönderebilir (giriş bilgileri, varış soruları, çıkış hatırlatması). Bunu istediğim zaman STOP ile sonlandırabilirim. Gizlilik: {privacy_url}"
+    it: "Sì, {hotel} può inviarmi messaggi sulla mia prenotazione via WhatsApp (informazioni sull'arrivo, domande sull'arrivo, promemoria del check-out). Posso interrompere in qualsiasi momento con STOP. Privacy: {privacy_url}"
+  chat_terms:
+    de: "Der Assistent gibt Auskünfte auf Grundlage der vom Hotel freigegebenen Informationen. Verbindliche Zusagen (Buchung, Preis, Erstattung, Ausnahmen) erteilt nur die Rezeption. Keine Kartendaten oder Ausweisdaten im Chat senden. Impressum: {imprint_url}"
+    en: "The assistant gives information based on the details approved by the hotel. Binding commitments (booking, price, refund, exceptions) are made only by the reception. Do not send card or ID details in the chat. Imprint: {imprint_url}"
+    ru: "Ассистент предоставляет информацию на основе сведений, утверждённых отелем. Обязательные подтверждения (бронирование, цена, возврат, исключения) даёт только ресепшен. Не отправляйте данные карт или документов в чате. Выходные данные: {imprint_url}"
+    uk: "Асистент надає інформацію на основі відомостей, затверджених готелем. Обов'язкові підтвердження (бронювання, ціна, повернення, винятки) надає лише рецепція. Не надсилайте дані карток чи документів у чаті. Вихідні дані: {imprint_url}"
+    tr: "Asistan, otel tarafından onaylanan bilgilere dayanarak bilgi verir. Bağlayıcı taahhütleri (rezervasyon, fiyat, iade, istisnalar) yalnızca resepsiyon verir. Sohbette kart veya kimlik bilgisi göndermeyin. Künye: {imprint_url}"
+    it: "L'assistente fornisce informazioni in base ai dati approvati dall'hotel. Impegni vincolanti (prenotazione, prezzo, rimborso, eccezioni) sono assunti solo dalla reception. Non inviare dati di carte o documenti in chat. Note legali: {imprint_url}"
+  emergency_script:
+    de: "Bei Feuer oder einem medizinischen Notfall rufen Sie sofort 112; bei Gefahr durch andere Personen 110. Das Hotelteam wird jetzt alarmiert."
+    en: "In case of fire or a medical emergency call 112 at once; for danger from other people call 110. The hotel team is being alerted now."
+    ru: "При пожаре или медицинской чрезвычайной ситуации немедленно звоните 112; при угрозе со стороны других людей — 110. Команда отеля уже оповещается."
+    uk: "У разі пожежі чи медичної надзвичайної ситуації негайно телефонуйте 112; у разі загрози з боку інших людей — 110. Команду готелю зараз сповіщають."
+    tr: "Yangın veya tıbbi acil durumda hemen 112'yi arayın; başka kişilerden kaynaklanan tehlike için 110. Otel ekibi şimdi uyarılıyor."
+    it: "In caso di incendio o emergenza medica chiami subito il 112; in caso di pericolo da parte di altre persone il 110. Il team dell'hotel viene avvisato ora."
+  complaint_script:
+    de: "Das tut mir leid. Bitte nennen Sie mir Ihre Zimmernummer und was genau nicht in Ordnung ist; das Team kümmert sich umgehend darum. Eine Entschädigung kann nur die Rezeption zusagen."
+    en: "I am sorry about that. Please tell me your room number and what exactly is wrong; the team will take care of it at once. Only the reception can promise any compensation."
+    ru: "Мне жаль. Пожалуйста, назовите номер комнаты и что именно не так; команда займётся этим немедленно. Компенсацию может обещать только ресепшен."
+    uk: "Мені шкода. Будь ласка, назвіть номер кімнати і що саме не так; команда займеться цим негайно. Компенсацію може обіцяти лише рецепція."
+    tr: "Üzgünüm. Lütfen oda numaranızı ve tam olarak neyin yolunda olmadığını yazın; ekip hemen ilgilenecektir. Herhangi bir tazminatı yalnızca resepsiyon taahhüt edebilir."
+    it: "Mi dispiace. Mi indichi il numero della camera e cosa esattamente non va; il team se ne occuperà subito. Solo la reception può promettere un eventuale indennizzo."

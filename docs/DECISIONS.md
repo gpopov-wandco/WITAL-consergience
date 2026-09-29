@@ -133,7 +133,8 @@ The prompt caps journey messages at "3 before arrival, 1 during, 2 after" while 
 default steps place three messages on or between arrival and departure (welcome, day-1
 check, checkout reminder). The engine therefore counts four phases: before arrival
 (booking follow-up, T-7, T-2, registration link; cap ``before``, T-7 dropped first,
-then the follow-up), the arrival-day welcome (one message by construction), during the
+then the follow-up), the arrival day (the welcome, plus the key-safe code at 12:00
+local only after a late ETA in a verified conversation, D-018), during the
 stay (day-1 check; cap ``during``) and departure day and later (checkout reminder,
 review request; cap ``after``, the review dropped first). The registration link is a
 message of its own because one message carries one topic. Job dedupe keys are
@@ -161,3 +162,49 @@ against the Meta documentation (unreachable during the build) and are exercised 
 ``doctor --live`` and the first sync. Every template tells the guest to reply STOP, so
 the Latin keyword ``stop`` was added to the Russian, Ukrainian and Turkish opt-out lists
 next to the native words.
+
+## D-017 Staff alert delivery and timers (F17, F18)
+
+A new handoff alerts every contact with an address by e-mail at every priority; by
+WhatsApp (``gc_staff_alert``) it alerts all contacts inside staffed hours and only the
+on-call contacts for a P0 outside them, exactly as F17 states. Alert texts carry the
+priority, the trigger summary, the local time and a link to the inbox, never the
+guest's number or message. The alert outbox rows are idempotent per handoff, level
+and recipient, so a restart never repeats an alert. Timers run as one job per tenant
+and minute (the dedupe key carries the due minute because a finished key never runs
+again): a breached SLA sets ``sla_breached`` and escalates, an unacknowledged P0
+repeats every ``p0_repeat_min`` minutes to the next contact. An emergency in a
+conversation someone already took over upgrades the case to P0, re-alerts and reopens
+it as escalated, because "acknowledged" must not silence a safety message.
+
+## D-018 Key-safe code and silence after the ETA (F11)
+
+The key-safe code is sent by a journey step at ``journeys.key_safe.at`` (12:00 local)
+on the arrival day, planned only once the guest announced a late arrival (the
+``after_22`` window or an ETA at or after the KB's ``late_arrival.latest_reception``)
+and sent only when a conversation is verified for that reservation; otherwise the step
+logs ``not_verified`` and nothing goes out. The code comes from the
+``verified_guest_only`` KB entry at send time and travels as a template parameter of
+``gc_key_safe``, never as template text. Two hours after the announced window ends,
+an ``eta_silence`` job creates a P1 for staff unless the guest wrote in the meantime;
+the job shares the reservation's job prefix so STOP and cancellation remove it.
+
+## D-019 Packs, the secret scan and Wi-Fi passwords (F21, C3)
+
+A pack refuses any key that looks like a credential (``secret``, ``token``,
+``password``, ``api_key``) in configuration files. In ``kb/entries.yaml`` the
+``password`` marker is not applied, because the Wi-Fi password is guest-facing hotel
+content with ``verified_guest_only`` sensitivity, not a system secret; credential-style
+keys stay refused there. Pack imports write KB and legal changes as new draft versions
+(the approved version keeps answering), report profile changes per top-level key, and
+are idempotent: a second import of the same pack lists no changes.
+
+## D-020 Demo accounts and in-memory e-mail (F29, C3)
+
+The offline demo seeds three fixture accounts (owner, staff, operator) with published
+demo passwords printed by ``concierge demo``; they exist only when ``GC_ENV`` is not
+production and are not credentials. In demo mode without a configured provider the
+e-mail port is the in-memory fake with the sender ``concierge@hotel-beispiel.invalid``,
+so alerts, invites, inquiries and the journey fallback stay visible offline; production
+needs ``GC_EMAIL_PROVIDER`` and ``GC_EMAIL_FROM`` or e-mail features report
+"not configured" instead of failing silently.

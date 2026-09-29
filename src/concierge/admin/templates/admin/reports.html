@@ -1,0 +1,12 @@
+{% extends "admin/layout.html" %}
+{% set active = 'reports' %}
+{% block title %}{{ t.reports }}{% endblock %}
+{% block admin %}
+<h1>{{ t.reports }} · {{ month }}</h1>
+<div class="grid">
+  <div class="card"><h2>{{ t.conversations }}</h2><p><strong>{{ conversations }}</strong></p></div>
+  <div class="card"><h2>{{ t.open_handoffs }}</h2><p>{% for p, n in handoffs.items() %}<span class="badge {{ p|lower }}">{{ p }} {{ n }}</span> {% endfor %}</p></div>
+</div>
+<h2>{{ t.usage }}</h2>
+<table><thead><tr><th>Kind</th><th>Events</th><th>Quantity</th><th>EUR</th></tr></thead><tbody>{% for u in usage %}<tr><td>{{ u.kind }}</td><td>{{ u.events }}</td><td>{{ u.quantity }}</td><td>{{ '%.2f'|format(u.eur) }}</td></tr>{% else %}<tr><td colspan="4">–</td></tr>{% endfor %}</tbody></table>
+{% endblock %}

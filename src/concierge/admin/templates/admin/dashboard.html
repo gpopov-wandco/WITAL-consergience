@@ -1,0 +1,19 @@
+{% extends "admin/layout.html" %}
+{% set active = 'dashboard' %}
+{% block title %}{{ t.dashboard }}{% endblock %}
+{% block admin %}
+<h1>{{ t.dashboard }}</h1>
+<p class="meta">{{ now_local }}</p>
+<div class="grid">
+  <div class="card"><h2>{{ t.open_handoffs }}</h2><p><strong>{{ open_total }}</strong></p><p>{% for p, n in by_priority.items() %}<span class="badge {{ p|lower }}">{{ p }} {{ n }}</span> {% endfor %}</p><a href="/admin/inbox">{{ t.inbox }}</a></div>
+  <div class="card"><h2>{{ t.conversations }} ({{ t.today }})</h2><p><strong>{{ conversations_today }}</strong></p></div>
+  <div class="card"><h2>{{ t.pending_kb }}</h2><p><strong>{{ pending_kb }}</strong></p><a href="/admin/kb?status=pending_approval">{{ t.kb }}</a></div>
+  <div class="card"><h2>{{ t.templates }}</h2><p><strong>{{ templates_approved }}/{{ templates_total }}</strong> APPROVED</p></div>
+  <div class="card"><h2>{{ t.dead_jobs }}</h2><p class="{{ 'status-bad' if dead_jobs else 'status-ok' }}"><strong>{{ dead_jobs }}</strong></p></div>
+</div>
+<h2>{{ t.integrations }}</h2>
+<table><thead><tr><th>Name</th><th>{{ t.status }}</th><th>Detail</th></tr></thead><tbody>
+{% for item in integrations %}<tr><td>{{ item.name }}</td><td class="{{ 'status-ok' if item.ok else 'status-warn' }}">{{ 'OK' if item.ok else '–' }}</td><td>{{ item.detail }}</td></tr>{% endfor %}
+</tbody></table>
+{% if overdue %}<h2>KB review</h2><ul>{% for e in overdue %}<li>{{ e.key }} ({{ e.lang }}) · {{ e.review_due }}</li>{% endfor %}</ul>{% endif %}
+{% endblock %}

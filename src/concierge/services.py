@@ -16,13 +16,14 @@ from typing import Any
 
 from sqlalchemy import select
 
+from concierge.admin.auth import AuthService
 from concierge.agent.brain import Brain, ModelConfig
 from concierge.agent.guardrails import Guardrails
 from concierge.agent.prompting import PromptAssembler, PromptTexts, canary_for
 from concierge.agent.responder import Responder
 from concierge.agent.texts import GuestTexts, guest_texts
 from concierge.availability.backends import ToolBackendBuilder
-from concierge.availability.booking import InquiryService
+from concierge.availability.booking import InquiryForm, InquiryService
 from concierge.availability.chain import AvailabilityService
 from concierge.availability.factory import AdapterFactory
 from concierge.availability.manual import ManualInventoryService
@@ -37,20 +38,29 @@ from concierge.conversations.service import ConversationService
 from concierge.db.models import Conversation, Job, OperatorAlert, Tenant, UsageEvent
 from concierge.handoff.requests import RequestService
 from concierge.handoff.service import HandoffService
+from concierge.handoff.timers import JOB_KIND as TIMERS_JOB_KIND
+from concierge.handoff.timers import HandoffTimers
 from concierge.ids import new_id
 from concierge.jobs.service import JobService
 from concierge.jobs.worker import JobWorker, RetryLater
+from concierge.journeys.service import ETA_SILENCE_KIND, JourneyEngine
 from concierge.journeys.service import JOB_KIND as JOURNEY_JOB_KIND
-from concierge.journeys.service import JourneyEngine
 from concierge.kb.store import KbService
+from concierge.legal.service import LegalService
 from concierge.llm.port import LLMPort, Usage
 from concierge.log import get_logger
 from concierge.metering.prices import to_micro
-from concierge.notify.port import EmailPort
+from concierge.notify.alerts import StaffAlerts
+from concierge.notify.email import build_email_port
+from concierge.notify.outbox import JOB_KIND as EMAIL_JOB_KIND
+from concierge.notify.outbox import EmailOutbox, RetryableEmail
+from concierge.notify.port import EmailPort, FakeEmail
 from concierge.registration.proof import FakeProof, PaymentProofPort
 from concierge.registration.service import RegistrationService
 from concierge.reservations.service import ReservationService
 from concierge.templates.service import TemplateService
+from concierge.tenants.packs import PackService
+from concierge.tenants.profile import TenantProfile
 from concierge.tenants.secrets import SecretStore
 from concierge.tenants.service import TenantService
 
@@ -86,12 +96,21 @@ class Services:
     journeys: JourneyEngine
     email: EmailPort | None
     registration: RegistrationService
+    email_outbox: EmailOutbox
+    alerts_out: StaffAlerts
+    timers: HandoffTimers
+    auth: AuthService
+    legal: LegalService
+    packs: PackService
     demo: bool = False
     alerts: list[tuple[str, str, dict[str, Any]]] = field(default_factory=list)
 
     async def close(self) -> None:
         await self.worker.stop()
         await self.ctx.close()
+
+
+DEMO_EMAIL_FROM = "concierge@hotel-beispiel.invalid"
 
 
 def build_services(
@@ -106,6 +125,10 @@ def build_services(
 ) -> Services:
     settings = ctx.settings
     texts = guest_texts()
+    if email is None:
+        # the offline demo keeps e-mail in memory; production needs a configured provider
+        email = FakeEmail() if demo else build_email_port(settings)
+    email_from = settings.gc_email_from or (DEMO_EMAIL_FROM if demo else "")
     tenants = TenantService(ctx.db, ctx.clock)
     secrets = SecretStore(ctx.db, ctx.keyring)
     kb = KbService(ctx.db, ctx.clock, tz=settings.gc_tz_default)
@@ -182,7 +205,7 @@ def build_services(
         keyring=ctx.keyring,
         texts=texts,
         email=email,
-        email_from=settings.gc_email_from,
+        email_from=email_from,
         alert_sink=alert_sink,
         public_base_url=settings.public_base_url(),
     )
@@ -196,6 +219,26 @@ def build_services(
         proof=proof or FakeProof(settings.public_base_url()),
     )
     journeys.registration_link = registration.link_builder
+    email_outbox = EmailOutbox(ctx.db, ctx.clock, jobs, email, sender=email_from)
+    staff_alerts = StaffAlerts(
+        clock=ctx.clock,
+        templates=templates,
+        wa_outbox=outbox,
+        email_outbox=email_outbox,
+        public_base_url=settings.public_base_url(),
+    )
+    timers = HandoffTimers(ctx.clock, jobs, tenants, handoffs, staff_alerts)
+    auth = AuthService(ctx.db, ctx.clock, signing_key=settings.signing_key())
+    legal = LegalService(ctx.db, ctx.clock)
+    packs = PackService(ctx.db, tenants, kb, legal, templates)
+
+    async def alert_staff(tenant_id: str, handoff: Any) -> None:
+        tenant = await tenants.get_by_id(tenant_id)
+        if tenant is None:
+            return
+        await staff_alerts.on_handoff(tenant, tenants.profile_of(tenant), handoff)
+
+    handoffs.on_created.append(alert_staff)
     brain.journey_replies = journeys
     brain.stop_hook = journeys.stop_for_subject
 
@@ -261,10 +304,58 @@ def build_services(
         await registration.purge()
         await schedule_registration_purge(jobs, ctx)
 
+    async def handle_email_send(job: Job) -> None:
+        try:
+            await email_outbox.send(str(job.payload["tenant_id"]), str(job.payload["outbox_id"]))
+        except RetryableEmail as exc:
+            raise RetryLater(str(exc)) from exc
+
+    async def handle_handoff_timers(job: Job) -> None:
+        await timers.run(job)
+
     worker.register("wa_inbound", handle_wa_inbound)
     worker.register("outbox_send", handle_outbox_send)
     worker.register(JOURNEY_JOB_KIND, handle_journey_step)
     worker.register("registration_purge", handle_registration_purge)
+    worker.register(EMAIL_JOB_KIND, handle_email_send)
+    worker.register(TIMERS_JOB_KIND, handle_handoff_timers)
+    worker.register(ETA_SILENCE_KIND, journeys.run_eta_silence)
+    reservations.on_eta.append(journeys.on_eta)
+
+    async def inquiry_email(
+        tenant: Tenant, profile: TenantProfile, form: InquiryForm, key: str
+    ) -> bool:
+        """Booking inquiry to the hotel's address with reply-to the guest (F10, F18)."""
+        if not email_outbox.configured or not profile.contacts.email:
+            return False
+        lines = [
+            f"Buchungsanfrage / booking inquiry ({form.lang})",
+            f"Anreise / arrival: {form.stay.arrival.isoformat()}",
+            f"Abreise / departure: {form.stay.departure.isoformat()}",
+            f"Erwachsene / adults: {form.occupancy.adults}, Kinder / children: {form.occupancy.children}",
+            f"Zimmer / room: {form.room_type or '-'}",
+            f"Name: {form.name.strip()}",
+            f"E-Mail: {form.email.strip() or '-'}",
+            f"WhatsApp: {form.phone.strip() or '-'}",
+            "",
+            form.wish.strip() or "-",
+        ]
+        await email_outbox.enqueue(
+            tenant.id,
+            profile,
+            to=profile.contacts.email,
+            subject=(
+                f"Buchungsanfrage / booking inquiry {form.stay.arrival.isoformat()} "
+                f"bis/to {form.stay.departure.isoformat()}"
+            ),
+            text="\n".join(lines),
+            idempotency_key=f"inquiry:{key[:24]}",
+            reply_to=form.email.strip() or None,
+            category="inquiry",
+        )
+        return True
+
+    inquiries.notify = inquiry_email
     return Services(
         ctx=ctx,
         llm=llm,
@@ -293,6 +384,12 @@ def build_services(
         journeys=journeys,
         email=email,
         registration=registration,
+        email_outbox=email_outbox,
+        alerts_out=staff_alerts,
+        timers=timers,
+        auth=auth,
+        legal=legal,
+        packs=packs,
         demo=demo,
         alerts=alerts,
     )

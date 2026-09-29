@@ -223,7 +223,8 @@ def _error_from_response(response: httpx2.Response) -> GraphError:
             -2, f"HTTP {response.status_code}", status=response.status_code, retry_after=retry_after
         )
     code = error.get("code")
-    details = error.get("error_data") if isinstance(error.get("error_data"), dict) else {}
+    error_data = error.get("error_data")
+    details: dict[str, Any] = error_data if isinstance(error_data, dict) else {}
     return GraphError(
         int(code) if isinstance(code, int) else -2,
         str(error.get("message", "Graph API error")),

@@ -22,6 +22,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from concierge import __version__
+from concierge.admin.deps import AdminGuard, Forbidden
+from concierge.admin.i18n import labels
+from concierge.admin.operator import build_router as build_operator_router
+from concierge.admin.routes import build_router as build_admin_router
+from concierge.admin.templating import templates
 from concierge.channels.web.routes import build_router as build_widget_router
 from concierge.channels.whatsapp.routes import build_router as build_wa_router
 from concierge.db.migrate import head_state
@@ -59,6 +64,7 @@ def create_app(
             await hook()
         if start_worker:
             await schedule_registration_purge(services.jobs, services.ctx)
+            await services.timers.schedule_all()
             services.worker.start()
         try:
             yield
@@ -81,6 +87,19 @@ def create_app(
             services.tenants, services.secrets, services.reservations, services.ctx.clock
         )
     )
+    guard = AdminGuard(services.auth, services.tenants)
+    app.include_router(build_admin_router(services, services.auth, guard))
+    app.include_router(build_operator_router(services, services.auth, guard))
+
+    @app.exception_handler(Forbidden)
+    async def forbidden(request: Request, exc: Forbidden) -> Response:
+        return templates.TemplateResponse(
+            request,
+            "admin/forbidden.html",
+            {"lang": "de", "t": labels("de"), "reason": str(exc)},
+            status_code=403,
+        )
+
     app.include_router(
         build_registration_router(
             services.registration,

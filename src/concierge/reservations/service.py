@@ -35,6 +35,7 @@ from concierge.security.crypto import Keyring
 
 log = get_logger(__name__)
 
+EtaHook = Callable[[str, Reservation], Awaitable[None]]
 ChangeHook = Callable[[str, Reservation, str], Awaitable[None]]
 CSV_COLUMNS = (
     "res_id",
@@ -179,6 +180,8 @@ class ReservationService:
         self.jobs = jobs
         self.phone_region = phone_region
         self.hooks: list[ChangeHook] = []
+        self.on_eta: list[EtaHook] = []
+        """Called after an ETA is stored (the journey engine plans the key-safe step)."""
 
     def on_change(self, hook: ChangeHook) -> None:
         """Register a listener called with (tenant_id, reservation, outcome) after commits."""
@@ -443,7 +446,9 @@ class ReservationService:
             )
             await session.commit()
             await session.refresh(row)
-            return row
+        for hook in self.on_eta:
+            await hook(tenant_id, row)
+        return row
 
     async def link_guest(self, tenant_id: str, reservation_id: str, guest_id: str) -> None:
         async with self.db.tenant_scope(tenant_id) as session:

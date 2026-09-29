@@ -14,6 +14,8 @@ import hmac
 import secrets
 from datetime import timedelta
 
+from starlette.responses import Response
+
 SESSION_COOKIE = "gc_session"
 SESSION_TTL = timedelta(hours=12)
 SESSION_IDLE_TTL = timedelta(hours=2)
@@ -44,11 +46,14 @@ def csrf_ok(session_hash: str, signing_key: bytes, presented: str | None) -> boo
     return hmac.compare_digest(csrf_token(session_hash, signing_key), presented.strip())
 
 
-def cookie_kwargs(secure: bool) -> dict[str, object]:
-    return {
-        "httponly": True,
-        "secure": secure,
-        "samesite": "lax",
-        "path": "/",
-        "max_age": int(SESSION_TTL.total_seconds()),
-    }
+def set_session_cookie(response: Response, token: str, *, secure: bool) -> None:
+    """HttpOnly, SameSite=Lax session cookie; ``secure`` follows the public base URL."""
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=int(SESSION_TTL.total_seconds()),
+        path="/",
+        secure=secure,
+        httponly=True,
+        samesite="lax",
+    )

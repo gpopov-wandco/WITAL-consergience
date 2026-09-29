@@ -11,17 +11,19 @@ staffed start. A missed timer escalates and sets ``sla_breached``.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
 
 from concierge.clock import Clock
-from concierge.db.models import Conversation, Handoff
+from concierge.db.models import Conversation, ConversationNote, Handoff
 from concierge.db.session import Database
 from concierge.tenants.profile import TenantProfile
 
 PRIORITY_ORDER = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
+CreatedHook = Callable[[str, Handoff], Awaitable[None]]
 
 
 @dataclass(frozen=True)
@@ -36,6 +38,8 @@ class HandoffService:
     def __init__(self, db: Database, clock: Clock) -> None:
         self.db = db
         self.clock = clock
+        self.on_created: list[CreatedHook] = []
+        """Called after a new handoff is committed (staff alerts register here)."""
 
     def sla_due(self, profile: TenantProfile, priority: str, now: datetime) -> datetime | None:
         sla = profile.handoff.sla
@@ -71,14 +75,24 @@ class HandoffService:
             )
             conversation = await session.get(Conversation, conversation_id)
             if existing is not None:
-                if PRIORITY_ORDER[priority] < PRIORITY_ORDER[existing.priority]:
+                upgraded = PRIORITY_ORDER[priority] < PRIORITY_ORDER[existing.priority]
+                if upgraded:
                     existing.priority = priority
                     existing.sla_due_at = self.sla_due(profile, priority, now)
                     existing.reason = reason
                     existing.trigger = trigger
+                    if priority == "P0":
+                        # an emergency re-alerts even when someone already took the case
+                        existing.next_alert_at = now
+                        if existing.status == "acknowledged":
+                            existing.status = "escalated"
                     if conversation is not None:
                         conversation.priority = priority
                     await session.commit()
+                    await session.refresh(existing)
+                if upgraded and priority == "P0":
+                    for hook in self.on_created:
+                        await hook(tenant_id, existing)
                 return HandoffCreated(
                     existing.id, existing.priority, existing.sla_due_at, created=False
                 )
@@ -99,7 +113,61 @@ class HandoffService:
                 conversation.priority = priority
             await session.commit()
             await session.refresh(handoff)
-            return HandoffCreated(handoff.id, priority, due, created=True)
+        for hook in self.on_created:
+            await hook(tenant_id, handoff)
+        return HandoffCreated(handoff.id, priority, due, created=True)
+
+    async def inbox(
+        self, tenant_id: str, *, statuses: tuple[str, ...] = ("open", "acknowledged", "escalated")
+    ) -> list[Handoff]:
+        async with self.db.tenant_scope(tenant_id) as session:
+            rows = list(
+                (
+                    await session.execute(
+                        select(Handoff).where(
+                            Handoff.tenant_id == tenant_id, Handoff.status.in_(list(statuses))
+                        )
+                    )
+                ).scalars()
+            )
+        rows.sort(key=lambda h: (PRIORITY_ORDER.get(h.priority, 9), h.sla_due_at or h.created_at))
+        return rows
+
+    async def get(self, tenant_id: str, handoff_id: str) -> Handoff | None:
+        async with self.db.tenant_scope(tenant_id) as session:
+            row = await session.get(Handoff, handoff_id)
+            return row if row is not None and row.tenant_id == tenant_id else None
+
+    async def add_note(
+        self, tenant_id: str, conversation_id: str, *, user_id: str, text: str
+    ) -> ConversationNote:
+        async with self.db.tenant_scope(tenant_id) as session:
+            note = ConversationNote(
+                tenant_id=tenant_id,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                text=text.strip()[:2000],
+                created_at=self.clock.now(),
+            )
+            session.add(note)
+            await session.commit()
+            await session.refresh(note)
+            return note
+
+    async def notes(self, tenant_id: str, conversation_id: str) -> list[ConversationNote]:
+        async with self.db.tenant_scope(tenant_id) as session:
+            return list(
+                (
+                    await session.execute(
+                        select(ConversationNote)
+                        .where(
+                            ConversationNote.tenant_id == tenant_id,
+                            ConversationNote.conversation_id == conversation_id,
+                        )
+                        .order_by(ConversationNote.created_at)
+                    )
+                ).scalars()
+            )
 
     async def open_for_conversation(self, tenant_id: str, conversation_id: str) -> Handoff | None:
         async with self.db.tenant_scope(tenant_id) as session:

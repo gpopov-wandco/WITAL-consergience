@@ -16,12 +16,16 @@ import sys
 from collections.abc import Coroutine
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
 import yaml
 
 from concierge import __version__
+
+if TYPE_CHECKING:
+    from concierge.context import AppContext
+    from concierge.services import Services
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="WITALCO Guest Concierge")
 db_app = typer.Typer(no_args_is_help=True, help="Database migrations")
@@ -43,6 +47,8 @@ app.add_typer(whatsapp_app, name="whatsapp")
 app.add_typer(journeys_app, name="journeys")
 app.add_typer(registration_app, name="registration")
 app.add_typer(demo_app, name="demo")
+pack_app = typer.Typer(no_args_is_help=True, help="Client packs: export, validate, diff, import")
+app.add_typer(pack_app, name="pack")
 
 
 def run[T](coro: Coroutine[Any, Any, T]) -> T:
@@ -183,7 +189,7 @@ def setup(
 
 
 # -------------------------------------------------------------------- tenants
-def _context() -> Any:
+def _context() -> AppContext:
     from concierge.context import AppContext
 
     return AppContext.build()
@@ -355,13 +361,9 @@ def tenant_activate(slug: str) -> None:
     async def _go() -> list[str]:
         ctx = _context()
         try:
-            doctor_ok: bool | None = None
-            try:
-                from concierge.tools.doctor import live_ok_for_tenant
+            from concierge.tools.doctor import live_ok_for_tenant
 
-                doctor_ok = await live_ok_for_tenant(ctx, slug)
-            except ImportError:
-                doctor_ok = None
+            doctor_ok = await live_ok_for_tenant(ctx, slug)
             report = await TenantService(ctx.db, ctx.clock).activate(
                 slug, actor="cli", doctor_live_ok=doctor_ok
             )
@@ -482,7 +484,7 @@ def secrets_rotate() -> None:
 
 
 # ----------------------------------------------------------- templates and journeys
-def _services(ctx: Any) -> Any:
+def _services(ctx: AppContext) -> Services:
     from concierge.channels.whatsapp.graph import GraphClient
     from concierge.services import build_services
 
@@ -671,6 +673,110 @@ def registration_export(
 
 
 # --------------------------------------------------------------------- serving
+# ---------------------------------------------------------------------- packs
+@pack_app.command("export")
+def pack_export(
+    tenant: str,
+    out: Path = typer.Option(..., "--out", help="directory (or .zip path) to write"),
+) -> None:
+    """Write a tenant's configuration pack (never secrets)."""
+    import tempfile
+
+    from concierge.tenants.packs import pack_to_zip
+
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go(directory: Path) -> list[str]:
+        row = await services.tenants.require(tenant)
+        return await services.packs.export(row, directory)
+
+    try:
+        if out.suffix.lower() == ".zip":
+            with tempfile.TemporaryDirectory(prefix="concierge-pack-") as tmp:
+                written = run(go(Path(tmp)))
+                out.write_bytes(pack_to_zip(Path(tmp)))
+        else:
+            written = run(go(out))
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    for rel in written:
+        typer.echo(rel)
+    typer.echo(f"pack written to {out}")
+
+
+@pack_app.command("validate")
+def pack_validate(source: Path) -> None:
+    """Validate a pack directory or zip; errors name the field path."""
+    from concierge.tenants.packs import open_pack, validate_pack
+
+    try:
+        errors = validate_pack(open_pack(source))
+    except ValueError as exc:
+        _fail(str(exc))
+    for error in errors:
+        typer.echo(error)
+    if errors:
+        raise typer.Exit(code=1)
+    typer.echo("pack ok")
+
+
+@pack_app.command("diff")
+def pack_diff(source: Path) -> None:
+    """Show what an import of the pack would change."""
+    from concierge.tenants.packs import open_pack
+
+    ctx = _context()
+    services = _services(ctx)
+    try:
+        report = run(
+            services.packs.import_pack(open_pack(source), dry_run=True, actor="cli:pack-diff")
+        )
+    except ValueError as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    for error in report.errors:
+        typer.echo(f"error: {error}")
+    for change in report.changes:
+        typer.echo(change)
+    if report.errors:
+        raise typer.Exit(code=1)
+    if not report.changes:
+        typer.echo("no changes")
+
+
+@pack_app.command("import")
+def pack_import(
+    source: Path,
+    apply: bool = typer.Option(False, "--apply", help="write the changes (default: dry run)"),
+) -> None:
+    """Import a pack: dry run by default, `--apply` writes and audits."""
+    from concierge.tenants.packs import open_pack
+
+    ctx = _context()
+    services = _services(ctx)
+    try:
+        report = run(
+            services.packs.import_pack(
+                open_pack(source), dry_run=not apply, actor="cli:pack-import"
+            )
+        )
+    except ValueError as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    for error in report.errors:
+        typer.echo(f"error: {error}")
+    for change in report.changes:
+        typer.echo(change)
+    if report.errors:
+        raise typer.Exit(code=1)
+    typer.echo("applied" if report.applied else "dry run: nothing written (use --apply)")
+
+
 def _reachable_host(host: str) -> str:
     """The host the process can reach itself on (an unspecified bind maps to loopback)."""
     import ipaddress
@@ -688,6 +794,7 @@ def _serve(*, demo: bool, host: str, port: int) -> None:
 
     from concierge.db.migrate import upgrade
     from concierge.db.session import Database
+    from concierge.demo.seed import DEMO_USERS
     from concierge.runtime import build_runtime
     from concierge.settings import get_settings
 
@@ -712,6 +819,11 @@ def _serve(*, demo: bool, host: str, port: int) -> None:
         )
         typer.echo(f"  widget test page: {bind_url}/demo/widget")
         typer.echo(f"  WhatsApp simulator: {bind_url}/demo/wa-sim")
+        typer.echo(f"  hotel admin: {bind_url}/admin/login")
+        typer.echo(f"  operator console: {bind_url}/operator/")
+        typer.echo("  fixture accounts (demo only, not credentials):")
+        for email, _role, password in DEMO_USERS:
+            typer.echo(f"    {email} / {password}")
         if not runtime.llm_configured:
             typer.echo(
                 "  no ANTHROPIC_API_KEY: the scripted responder answers, not the language model"

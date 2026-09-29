@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, Literal
 
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -14,7 +14,7 @@ from concierge.db.base import Base
 target_metadata = Base.metadata
 
 
-def _render_item(type_: str, obj: Any, autogen_context: Any) -> str | bool:
+def _render_item(type_: str, obj: Any, autogen_context: Any) -> str | Literal[False]:
     """Render project types with their import so generated files run as written."""
     if type_ == "type" and type(obj).__module__.startswith("concierge."):
         autogen_context.imports.add(f"import {type(obj).__module__}")

@@ -147,15 +147,7 @@ quote-style = "double"
 [tool.mypy]
 python_version = "3.13"
 mypy_path = "src"
-files = [
-  "src/concierge/security",
-  "src/concierge/agent",
-  "src/concierge/availability",
-  "src/concierge/reservations",
-  "src/concierge/handoff/requests.py",
-  "src/concierge/metering",
-  "src/concierge/jobs",
-]
+files = ["src/concierge"]
 strict = true
 warn_unreachable = true
 explicit_package_bases = true

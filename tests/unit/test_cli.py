@@ -105,7 +105,7 @@ def test_setup_non_interactive_writes_env_and_link(env: Path) -> None:
 def test_template_lint_and_list_commands(env: Path) -> None:
     runner = CliRunner()
     lint = runner.invoke(app, ["whatsapp", "templates", "lint"])
-    assert lint.exit_code == 0 and "54 templates lint clean" in lint.output
+    assert lint.exit_code == 0 and "60 templates lint clean" in lint.output
     assert runner.invoke(app, ["db", "upgrade"]).exit_code == 0
     profile = env / "tenant.yaml"
     profile.write_text(yaml.safe_dump(SAMPLE, allow_unicode=True), encoding="utf-8")
@@ -116,3 +116,43 @@ def test_template_lint_and_list_commands(env: Path) -> None:
     assert missing.exit_code == 1 and "not found" in missing.output
     advance_help = runner.invoke(app, ["demo", "advance", "--help"])
     assert advance_help.exit_code == 0 and "--days" in advance_help.output
+
+
+def test_pack_export_validate_diff_import(env: Path) -> None:
+    runner = CliRunner()
+    assert runner.invoke(app, ["db", "upgrade"]).exit_code == 0
+    profile = env / "tenant.yaml"
+    profile.write_text(yaml.safe_dump(SAMPLE), encoding="utf-8")
+    assert runner.invoke(app, ["tenant", "add", "--profile", str(profile)]).exit_code == 0
+    target = env / "pack"
+    exported = runner.invoke(app, ["pack", "export", "hotel-beispiel", "--out", str(target)])
+    assert exported.exit_code == 0, exported.output
+    assert "tenant.yaml" in exported.output and (target / "kb" / "entries.yaml").is_file()
+    valid = runner.invoke(app, ["pack", "validate", str(target)])
+    assert valid.exit_code == 0 and "pack ok" in valid.output
+    diff = runner.invoke(app, ["pack", "diff", str(target)])
+    assert diff.exit_code == 0 and "no changes" in diff.output
+
+    data = yaml.safe_load((target / "tenant.yaml").read_text(encoding="utf-8"))
+    data["name"] = "Hotel Beispiel Neu"
+    (target / "tenant.yaml").write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    diff = runner.invoke(app, ["pack", "diff", str(target)])
+    assert diff.exit_code == 0 and "profile.name: changed" in diff.output
+    dry = runner.invoke(app, ["pack", "import", str(target)])
+    assert dry.exit_code == 0 and "dry run" in dry.output
+    assert "profile.name: changed" in runner.invoke(app, ["pack", "diff", str(target)]).output
+    applied = runner.invoke(app, ["pack", "import", str(target), "--apply"])
+    assert applied.exit_code == 0 and "applied" in applied.output
+    assert "no changes" in runner.invoke(app, ["pack", "diff", str(target)]).output
+
+    archive = env / "hotel-beispiel.zip"
+    zipped = runner.invoke(app, ["pack", "export", "hotel-beispiel", "--out", str(archive)])
+    assert zipped.exit_code == 0 and archive.is_file()
+    assert runner.invoke(app, ["pack", "validate", str(archive)]).exit_code == 0
+
+    data["whatsapp"]["access_token"] = "leaked"
+    (target / "tenant.yaml").write_text(yaml.safe_dump(data), encoding="utf-8")
+    invalid = runner.invoke(app, ["pack", "validate", str(target)])
+    assert invalid.exit_code == 1 and "secrets never travel in a pack" in invalid.output
+    assert runner.invoke(app, ["pack", "import", str(target), "--apply"]).exit_code == 1
+    assert runner.invoke(app, ["pack", "validate", str(env / "nowhere")]).exit_code == 1

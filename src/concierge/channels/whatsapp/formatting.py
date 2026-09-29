@@ -78,7 +78,7 @@ def buttons_payload(to: str, body: str, buttons: list[tuple[str, str]]) -> dict[
     """Reply buttons (at most 3, titles up to 20 characters); ids get the ``gc:`` prefix."""
     if not buttons:
         return text_payload(to, body)
-    items = []
+    items: list[dict[str, Any]] = []
     seen: set[str] = set()
     for button_id, title in buttons:
         if len(items) >= BUTTON_MAX:

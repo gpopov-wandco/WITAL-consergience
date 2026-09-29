@@ -390,7 +390,12 @@ async def test_inquiry_consent_card_data_dedupe_handoff_and_write_gate(hotel: Ho
         and request.kind == "booking_inquiry"
         and "anna@example.invalid" not in str(request.details)
     )
-    assert request.details["arrival"] == "2026-10-06" and request.details["email_pending"] is True
+    # the inquiry e-mail to the hotel is queued through the outbox (reply-to the guest)
+    assert request.details["arrival"] == "2026-10-06" and request.details["email_pending"] is False
+    queued = await services.email_outbox.rows(hotel.tenant.id)
+    assert {r.category for r in queued} == {"inquiry", "alert"}  # plus the P2 staff alert
+    inquiry_mail = next(r for r in queued if r.category == "inquiry")
+    assert inquiry_mail.payload["reply_to"] == "anna@example.invalid"
     assert services.inquiries.contact_of(hotel.tenant.id, request) == {
         "name": "Anna Muster",
         "email": "anna@example.invalid",

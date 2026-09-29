@@ -1,0 +1,65 @@
+{% extends "admin/layout.html" %}
+{% set active = 'inbox' %}
+{% block title %}{{ t.conversations }}{% endblock %}
+{% block admin %}
+<h1>{{ t.guest }} ····{{ guest_ref }} · {{ conversation.channel }} · {{ guest_lang }}</h1>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+<div class="columns">
+  <section>
+    <p class="meta">{{ t.status }}: <strong>{{ conversation.status }}</strong>
+      {% if conversation.priority %}· <span class="badge {{ conversation.priority|lower }}">{{ conversation.priority }}</span>{% endif %}
+      · {{ t.window }}: {% if window == 'warn' %}<span class="status-warn">{{ t.window_warn }} ({{ window_until }})</span>{% elif window == 'closed' %}<span class="status-bad">{{ t.window_closed }}</span>{% elif window == 'open' %}<span class="status-ok">{{ t.window_open }} ({{ window_until }})</span>{% else %}–{% endif %}
+      {% if sla_text %}· {{ t.sla }}: {{ sla_text }}{% endif %}
+    </p>
+    <ul class="transcript" aria-label="Transcript">
+    {% for m in transcript %}
+      <li class="{{ m.direction }}"><span class="meta">{{ m.at }} · {{ m.kind }}{% if m.intent %} · {{ m.intent }}{% endif %} · {{ m.status }}</span><br>{{ m.text }}{% if m.translation %}<br><span class="meta">{{ m.translation }}</span>{% endif %}</li>
+    {% endfor %}
+    </ul>
+  </section>
+  <aside>
+    {% if handoff %}
+    <div class="card">
+      <p><span class="badge {{ handoff.priority|lower }}">{{ handoff.priority }}</span> {{ handoff.trigger }} · {{ handoff.status }}{% if handoff.sla_breached %} · <span class="status-bad">SLA</span>{% endif %}</p>
+      <p>{{ handoff.reason }}</p>
+      {% if handoff.status != 'acknowledged' %}
+      <form method="post" action="/admin/conversations/{{ conversation.id }}/acknowledge"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">{{ t.acknowledge }}</button></form>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div class="card">
+      <form method="post" action="/admin/conversations/{{ conversation.id }}/reply" class="stack">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label for="reply-text">{{ t.suggested_reply }}</label>
+        <textarea id="reply-text" name="text" rows="4">{{ suggested }}</textarea>
+        <div class="inline">
+          <label for="mode">{{ t.reply }}</label>
+          <select id="mode" name="mode">
+            <option value="text">Text</option>
+            {% if conversation.channel == 'whatsapp' %}<option value="template">{{ t.template }}</option>{% endif %}
+            {% if email_possible %}<option value="email">{{ t.email_fallback }}</option>{% endif %}
+          </select>
+          {% if template_rows %}<label for="template">{{ t.template }}</label><select id="template" name="template">{% for r in template_rows %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}</select>{% endif %}
+          <button type="submit">{{ t.send }}</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <form method="post" action="/admin/conversations/{{ conversation.id }}/resolve" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" name="return_to_bot" value="1">{{ t.return_to_bot }}</button>
+        <button type="submit" name="return_to_bot" value="0" class="secondary">{{ t.resolve }}</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>{{ t.note }}</h2>
+      <ul>{% for n in notes %}<li><span class="meta">{{ n.created_at }}</span> {{ n.text }}</li>{% endfor %}</ul>
+      <form method="post" action="/admin/conversations/{{ conversation.id }}/note" class="stack">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label for="note-text">{{ t.note }}</label><textarea id="note-text" name="text" rows="2"></textarea>
+        <button type="submit" class="secondary">{{ t.save }}</button>
+      </form>
+    </div>
+  </aside>
+</div>
+{% endblock %}

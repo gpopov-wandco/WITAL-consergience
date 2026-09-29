@@ -1,0 +1,32 @@
+{% extends "admin/layout.html" %}
+{% set active = 'inbox' %}
+{% block title %}{{ t.inbox }}{% endblock %}
+{% block admin %}
+<h1>{{ t.inbox }}</h1>
+<p class="meta">{{ t.no_promise }}</p>
+<form method="get" action="/admin/inbox" class="inline">
+  <label for="status">{{ t.status }}</label>
+  <select id="status" name="status">{% for s in ['open', 'acknowledged', 'escalated', 'resolved'] %}<option value="{{ s }}"{% if s == status %} selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+  <label for="priority">{{ t.priority }}</label>
+  <select id="priority" name="priority"><option value="">–</option>{% for p in ['P0', 'P1', 'P2', 'P3'] %}<option value="{{ p }}"{% if p == priority %} selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+  <button type="submit" class="secondary">OK</button>
+</form>
+<table>
+  <thead><tr><th>{{ t.priority }}</th><th>{{ t.guest }}</th><th>{{ t.language }}</th><th>{{ t.sla }}</th><th>{{ t.window }}</th><th>{{ t.status }}</th><th>{{ t.assigned }}</th></tr></thead>
+  <tbody>
+  {% for item in items %}
+  <tr>
+    <td><span class="badge {{ item.handoff.priority|lower }}">{{ item.handoff.priority }}</span></td>
+    <td><a href="/admin/conversations/{{ item.handoff.conversation_id }}">{{ item.snippet or item.handoff.reason }}</a><br><span class="meta">{{ item.handoff.trigger }}</span></td>
+    <td>{{ item.lang }}</td>
+    <td>{% if item.sla_minutes is not none %}<span class="{{ 'status-bad' if item.sla_minutes < 0 else ('status-warn' if item.sla_minutes < 15 else '') }}">{{ item.sla_minutes }} min</span> <span class="meta">{{ item.due_local }}</span>{% endif %}{% if item.handoff.sla_breached %} <span class="badge p0">SLA</span>{% endif %}</td>
+    <td>{% if item.window == 'warn' %}<span class="status-warn">{{ t.window_warn }}</span>{% elif item.window == 'closed' %}<span class="status-bad">{{ t.window_closed }}</span>{% elif item.window == 'open' %}<span class="status-ok">{{ t.window_open }}</span>{% else %}–{% endif %}</td>
+    <td>{{ item.handoff.status }}</td>
+    <td>{{ item.handoff.acknowledged_by or '–' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7">–</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

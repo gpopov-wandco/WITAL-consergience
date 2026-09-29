@@ -1,0 +1,23 @@
+{% extends "admin/layout.html" %}
+{% set active = 'settings' %}
+{% block title %}{{ t.settings }}{% endblock %}
+{% block admin %}
+<h1>{{ t.settings }}</h1>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<dl class="facts">
+  <dt>{{ t.staffed_hours }}</dt><dd>{% for k, v in profile.staffed_hours.items() %}{{ k }} {{ v }} {% endfor %}</dd>
+  <dt>{{ t.sla }}</dt><dd>P1 {{ profile.handoff.sla.p1_min }} min · P2 {{ profile.handoff.sla.p2_min }} min · P3 {{ profile.handoff.sla.p3 }}</dd>
+  <dt>{{ t.language }}</dt><dd>{{ profile.languages|join(', ') }} (default {{ profile.default_language }})</dd>
+  <dt>Time zone</dt><dd>{{ profile.timezone }}</dd>
+</dl>
+{% if is_owner %}
+<form method="post" action="/admin/settings/quiet-hours" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="quiet_hours">{{ t.quiet_hours }}</label><input id="quiet_hours" name="quiet_hours" value="{{ profile.journeys.quiet_hours }}" pattern="[0-2][0-9]:[0-5][0-9]-[0-2][0-9]:[0-5][0-9]" required>
+  <button type="submit">{{ t.save }}</button>
+</form>
+{% else %}<p>{{ t.quiet_hours }}: {{ profile.journeys.quiet_hours }}</p>{% endif %}
+<h2>{{ t.integrations }}</h2>
+<table><tbody>{% for item in integrations %}<tr><td>{{ item.name }}</td><td class="{{ 'status-ok' if item.ok else 'status-warn' }}">{{ 'OK' if item.ok else '–' }}</td><td>{{ item.detail }}</td></tr>{% endfor %}</tbody></table>
+<p class="meta">Secrets: `concierge secrets set` (write-only).</p>
+{% endblock %}

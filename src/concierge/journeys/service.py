@@ -27,7 +27,16 @@ from concierge.agent.texts import GuestTexts
 from concierge.channels.whatsapp.outbox import OutboxService
 from concierge.clock import Clock, format_date, in_range, local_to_utc, to_local, zone
 from concierge.conversations.service import ConversationService
-from concierge.db.models import Conversation, Guest, Handoff, Job, Reservation, Suppression, Tenant
+from concierge.db.models import (
+    Conversation,
+    Guest,
+    Handoff,
+    Job,
+    Message,
+    Reservation,
+    Suppression,
+    Tenant,
+)
 from concierge.db.session import Database
 from concierge.handoff.requests import RequestService
 from concierge.handoff.service import HandoffService
@@ -44,12 +53,15 @@ from concierge.tenants.service import TenantService
 log = get_logger(__name__)
 
 JOB_KIND = "journey_step"
+ETA_SILENCE_KIND = "eta_silence"
+ETA_SILENCE_AFTER = timedelta(hours=2)
 STEP_ORDER = (
     "booking_followup",
     "t_minus_7",
     "t_minus_2",
     "registration_link",
     "t_0",
+    "key_safe",
     "stay_check",
     "checkout",
     "review_request",
@@ -60,6 +72,7 @@ PHASES: dict[str, str] = {
     "t_minus_2": "before",
     "registration_link": "before",
     "t_0": "arrival",
+    "key_safe": "arrival",
     "stay_check": "during",
     "checkout": "after",
     "review_request": "after",
@@ -70,9 +83,15 @@ TEMPLATES: dict[str, str] = {
     "t_minus_2": "gc_prearrival_2d",
     "registration_link": "gc_registration_link",
     "t_0": "gc_arrival_day",
+    "key_safe": "gc_key_safe",
     "stay_check": "gc_stay_check",
     "checkout": "gc_checkout_reminder",
     "review_request": "gc_review_request",
+}
+ETA_WINDOW_END: dict[str, time] = {
+    "before_18": time(18, 0),
+    "18_22": time(22, 0),
+    "after_22": time(23, 59),
 }
 DROP_ORDER: dict[str, tuple[str, ...]] = {
     "before": ("t_minus_7", "booking_followup", "t_minus_2"),
@@ -196,6 +215,8 @@ class JourneyEngine:
                 )
         if journeys.t_0.enabled:
             candidates.append(("t_0", reservation.arrival, _hhmm(journeys.t_0.at)))
+        if journeys.key_safe.enabled and reservation.meta.get("late_arrival") is True:
+            candidates.append(("key_safe", reservation.arrival, _hhmm(journeys.key_safe.at)))
         if journeys.stay_check.enabled and nights >= journeys.stay_check.min_nights:
             candidates.append(
                 (
@@ -353,6 +374,9 @@ class JourneyEngine:
             reservation.lang if reservation.lang in profile.languages else profile.default_language
         )
         values = await self._values(tenant, profile, reservation, lang)
+        if step == "key_safe" and not values.get("code"):
+            await self._log(reservation, step, "no_code", "late_arrival.key_safe_code missing")
+            return
         personal = self.reservations.decrypt(reservation)
         phone = personal.get("phone")
         if not phone:
@@ -466,7 +490,23 @@ class JourneyEngine:
                 return "suppressed"
         if step == "review_request" and await self._open_complaint(tenant.id, reservation):
             return "open_complaint"
+        if step == "key_safe":
+            if reservation.meta.get("late_arrival") is not True:
+                return "no_late_eta"
+            if not await self._verified_conversation(tenant.id, reservation):
+                return "not_verified"
         return None
+
+    async def _verified_conversation(self, tenant_id: str, reservation: Reservation) -> bool:
+        """The key-safe code goes only into a conversation verified for this reservation."""
+        async with self.db.tenant_scope(tenant_id) as session:
+            row = await session.scalar(
+                select(Conversation.id).where(
+                    Conversation.tenant_id == tenant_id,
+                    Conversation.verified_reservation_id == reservation.id,
+                )
+            )
+        return row is not None
 
     async def _open_complaint(self, tenant_id: str, reservation: Reservation) -> bool:
         if reservation.guest_id is None:
@@ -577,9 +617,20 @@ class JourneyEngine:
             or "-",
             "review_url": profile.journeys.review_request.review_url,
             "link": "",
+            "latest_reception": "-",
+            "code": "",
         }
         if self.registration_link is not None and profile.registration.enabled:
             values["link"] = await self.registration_link(tenant, profile, reservation) or ""
+        late = await self.kb.lookup(tenant.id, "late_arrival", lang)
+        if late is not None:
+            values["latest_reception"] = str(late.value.get("latest_reception", "")) or "-"
+        if reservation.meta.get("late_arrival") is True:
+            code = await self.kb.lookup(
+                tenant.id, "late_arrival.key_safe_code", lang, verified=True
+            )
+            if code is not None:
+                values["code"] = str(code.value.get("code", ""))
         return values
 
     async def _log(
@@ -636,7 +687,136 @@ class JourneyEngine:
             idempotency_key=f"eta:{conversation.id}:{window}",
         )
         await self.reservations.link_guest(tenant.id, reservation.id, guest.id)
+        refreshed = await self.reservations.get(tenant.id, reservation.id)
+        if refreshed is not None:
+            await self.on_eta(tenant.id, refreshed)
         return self.texts.render("eta_window_saved", lang, window=label)
+
+    # -------------------------------------------------- ETA consequences
+    async def on_eta(self, tenant_id: str, reservation: Reservation) -> None:
+        """After an ETA: flag a late arrival, plan the key-safe step, schedule the silence check."""
+        tenant = await self.tenants.get_by_id(tenant_id)
+        if tenant is None:
+            return
+        profile = self.tenants.profile_of(tenant)
+        lang = (
+            reservation.lang if reservation.lang in profile.languages else profile.default_language
+        )
+        window = str(reservation.meta.get("eta_window") or "")
+        end = ETA_WINDOW_END.get(window) or reservation.eta
+        cutoff = await self._latest_reception(tenant_id, lang)
+        late = window == "after_22" or (
+            reservation.eta is not None and cutoff is not None and reservation.eta >= cutoff
+        )
+        async with self.db.tenant_scope(tenant_id) as session:
+            row = await session.get(Reservation, reservation.id)
+            if row is None:
+                return
+            row.meta = {**row.meta, "late_arrival": late}
+            await session.commit()
+            await session.refresh(row)
+        await self.plan(tenant, row)
+        if end is not None:
+            await self._schedule_eta_silence(tenant, profile, row, end)
+
+    async def _latest_reception(self, tenant_id: str, lang: str) -> time | None:
+        entry = await self.kb.lookup(tenant_id, "late_arrival", lang)
+        raw = str((entry.value if entry else {}).get("latest_reception", "")).strip()
+        if not raw:
+            return None
+        try:
+            return _hhmm(raw)
+        except ValueError:
+            return None
+
+    async def _schedule_eta_silence(
+        self, tenant: Tenant, profile: TenantProfile, reservation: Reservation, end: time
+    ) -> None:
+        """Two hours after the announced window a silent guest becomes a P1 for staff."""
+        tz = profile.timezone
+        window_end = local_to_utc(reservation.arrival, end, tz)
+        run_local = datetime.combine(reservation.arrival, end, tzinfo=zone(tz)) + ETA_SILENCE_AFTER
+        run_at = max(local_to_utc(run_local.date(), run_local.time(), tz), self.clock.now())
+        await self.jobs.enqueue(
+            ETA_SILENCE_KIND,
+            {
+                "tenant_id": tenant.id,
+                "reservation_id": reservation.id,
+                "res_id": reservation.res_id,
+                "arrival": reservation.arrival.isoformat(),
+                "window_end": window_end.isoformat(),
+            },
+            run_at=run_at,
+            tenant_id=tenant.id,
+            dedupe_key=(
+                f"{self.reservations.job_prefix(tenant.id, reservation.res_id)}"
+                f"eta_silence:{reservation.arrival.isoformat()}"
+            ),
+            max_attempts=3,
+        )
+
+    async def run_eta_silence(self, job: Job) -> None:
+        payload = job.payload
+        tenant_id = str(payload["tenant_id"])
+        tenant = await self.tenants.get_by_id(tenant_id)
+        reservation = await self.reservations.get(tenant_id, str(payload["reservation_id"]))
+        if tenant is None or reservation is None:
+            self._note("eta_silence", "missing", "tenant or reservation gone")
+            return
+        if reservation.status == "cancelled":
+            await self._log(reservation, "eta_silence", "cancelled")
+            return
+        if reservation.guest_id is None:
+            await self._log(reservation, "eta_silence", "no_conversation")
+            return
+        window_end = datetime.fromisoformat(str(payload["window_end"]))
+        async with self.db.tenant_scope(tenant_id) as session:
+            conversation = await session.scalar(
+                select(Conversation)
+                .where(
+                    Conversation.tenant_id == tenant_id,
+                    Conversation.guest_id == reservation.guest_id,
+                )
+                .order_by(Conversation.created_at.desc())
+            )
+            wrote = None
+            if conversation is not None:
+                wrote = await session.scalar(
+                    select(Message.id)
+                    .where(
+                        Message.tenant_id == tenant_id,
+                        Message.conversation_id == conversation.id,
+                        Message.direction == "in",
+                        Message.occurred_at >= window_end,
+                    )
+                    .limit(1)
+                )
+        if conversation is None:
+            await self._log(reservation, "eta_silence", "no_conversation")
+            return
+        if wrote is not None:
+            await self._log(reservation, "eta_silence", "guest_wrote")
+            return
+        profile = self.tenants.profile_of(tenant)
+        window = str(reservation.meta.get("eta_window") or "")
+        label = (
+            self._button_label("gc_prearrival_2d", f"eta_{window}", profile.default_language)
+            if window
+            else (reservation.eta.strftime("%H:%M") if reservation.eta else "-")
+        )
+        created = await self.handoffs.create(
+            tenant_id,
+            conversation.id,
+            priority="P1",
+            trigger="eta_silence",
+            reason="no message from the guest two hours after the announced arrival time",
+            profile=profile,
+            summary=(
+                f"Arrival announced for {label} on {reservation.arrival.isoformat()}, "
+                f"no word from the guest since (reservation {reservation.res_id})"
+            ),
+        )
+        await self._log(reservation, "eta_silence", "alerted", created.id)
 
     async def stay_feedback(
         self,

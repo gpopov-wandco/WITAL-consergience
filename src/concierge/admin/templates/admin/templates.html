@@ -1,0 +1,12 @@
+{% extends "admin/layout.html" %}
+{% set active = 'templates' %}
+{% block title %}{{ t.templates }}{% endblock %}
+{% block admin %}
+<h1>{{ t.templates }}</h1>
+{% if report %}<p class="notice" role="status">{{ report }}</p>{% endif %}
+{% if is_owner %}<form method="post" action="/admin/templates/sync"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">{{ t.sync }}</button></form>{% endif %}
+<table>
+  <thead><tr><th>Name</th><th>{{ t.language }}</th><th>Category</th><th>{{ t.status }}</th><th>Meta</th><th>Note</th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ r.name }}</td><td>{{ r.lang }}</td><td>{{ r.category }}{% if r.meta_category and r.meta_category != r.category %} <span class="status-warn">→ {{ r.meta_category }}</span>{% endif %}</td><td class="{{ 'status-ok' if r.status == 'APPROVED' else 'status-warn' }}">{{ r.status }}</td><td>{{ r.meta_template_id or '–' }}</td><td>{{ r.status_reason or '' }}</td></tr>{% else %}<tr><td colspan="6">–</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}

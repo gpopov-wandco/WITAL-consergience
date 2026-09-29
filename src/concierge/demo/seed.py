@@ -39,6 +39,7 @@ DEMO_SECRETS: dict[str, str] = {
 DEMO_USERS: tuple[tuple[str, str, str], ...] = (
     ("owner@hotel-beispiel.invalid", "owner", "demo-owner-password"),
     ("staff@hotel-beispiel.invalid", "staff", "demo-staff-password"),
+    ("operator@witalco.invalid", "operator", "demo-operator-password"),
 )
 
 
@@ -188,19 +189,26 @@ async def seed_demo(services: Services, *, slug: str = "hotel-beispiel") -> Seed
     if templates_created or created:
         # the mock Graph server approves at once; a real WABA answers PENDING first
         await services.templates.sync(tenant.id, profile.whatsapp.waba_id, actor="demo")
+    await services.legal.install_drafts(tenant.id, profile, actor="demo")
     if created:
         await seed_inventory(services, tenant.id, profile)
         await seed_reservations(services, tenant.id, profile)
     users: list[str] = []
     async with services.ctx.db.scope() as session:
         for email, role, password in DEMO_USERS:
+            tenant_ref = None if role == "operator" else tenant.id
             found = await session.scalar(
-                select(User).where(User.tenant_id == tenant.id, User.email_lower == email)
+                select(User).where(
+                    User.tenant_id.is_(None)
+                    if tenant_ref is None
+                    else User.tenant_id == tenant_ref,
+                    User.email_lower == email,
+                )
             )
             if found is None:
                 session.add(
                     User(
-                        tenant_id=tenant.id,
+                        tenant_id=tenant_ref,
                         email=email,
                         email_lower=email,
                         name=role.title() + " Beispiel",

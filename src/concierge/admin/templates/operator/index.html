@@ -1,0 +1,33 @@
+{% extends "admin/layout.html" %}
+{% set active = 'operator' %}
+{% block title %}{{ t.operator }}{% endblock %}
+{% block admin %}
+<h1>{{ t.operator }}</h1>
+<table>
+  <thead><tr><th>Tenant</th><th>{{ t.health }}</th><th>Webhook</th><th>{{ t.templates }}</th><th>Jobs</th><th>LLM</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td><strong>{{ r.tenant.name }}</strong><br><span class="meta">{{ r.tenant.slug }} · {{ r.status }}{% if r.paused %} · paused{% endif %}</span></td>
+    <td>{% if r.kill_switch %}<span class="status-bad">{{ t.kill_switch }}</span>{% elif r.token_invalid %}<span class="status-bad">token</span>{% elif r.breaker_open %}<span class="status-warn">breaker</span>{% else %}<span class="status-ok">OK</span>{% endif %}<br><span class="meta">{{ r.chain }} · {{ r.voice }}</span></td>
+    <td>{{ r.last_webhook or '–' }}</td>
+    <td>{{ r.templates }}</td>
+    <td class="{{ 'status-bad' if r.dead_jobs else '' }}">{{ r.dead_jobs }} dead</td>
+    <td>{{ r.budget }}</td>
+    <td>
+      <form method="post" action="/operator/switch/{{ r.tenant.slug }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="secondary">{{ t.switch }}</button></form>
+      <form method="post" action="/operator/tenants/{{ r.tenant.slug }}/kill-switch" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" name="on" value="{{ '0' if r.kill_switch else '1' }}">{{ t.kill_switch }} {{ 'off' if r.kill_switch else 'on' }}</button></form>
+      <a href="/operator/tenants/{{ r.tenant.slug }}/activation">{{ t.activation }}</a>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p><a href="/operator/prices">{{ t.prices }}</a> · E-mail: {{ 'OK' if email_configured else '–' }}</p>
+<h2>{{ t.alerts }}</h2>
+<table><thead><tr><th>Kind</th><th>Key</th><th>Count</th><th>First</th></tr></thead><tbody>{% for a in alerts %}<tr><td>{{ a.kind }}</td><td>{{ a.alert_key }}</td><td>{{ a.count }}</td><td>{{ a.first_seen_at }}</td></tr>{% else %}<tr><td colspan="4">–</td></tr>{% endfor %}</tbody></table>
+<h2>{{ t.subprocessors }}</h2>
+<table><thead><tr><th>Name</th><th>Purpose</th><th>Region</th><th>Transfer</th></tr></thead><tbody>{% for s in subprocessors %}<tr><td>{{ s.name }}</td><td>{{ s.purpose }}</td><td>{{ s.region }}</td><td>{{ s.transfer }}</td></tr>{% endfor %}</tbody></table>
+<h2>{{ t.backups }}</h2>
+<p class="meta">`concierge backup` (M10) – not configured yet.</p>
+{% endblock %}

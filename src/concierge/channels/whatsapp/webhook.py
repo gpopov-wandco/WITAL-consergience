@@ -12,7 +12,8 @@ id); the phone number is an optional attribute.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import dataclasses
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -37,7 +38,7 @@ class InboundMessage:
     location: dict[str, Any] | None = None
     context_wamid: str | None = None
     raw_type: str = ""
-    errors: list[dict[str, Any]] = field(default_factory=list)
+    errors: list[dict[str, Any]] = dataclasses.field(default_factory=list)
 
     @property
     def is_media(self) -> bool:
@@ -55,7 +56,7 @@ class StatusUpdate:
     billable: bool | None = None
     pricing_model: str | None = None
     pricing_type: str | None = None
-    errors: list[dict[str, Any]] = field(default_factory=list)
+    errors: list[dict[str, Any]] = dataclasses.field(default_factory=list)
 
 
 @dataclass
@@ -75,9 +76,9 @@ class ParsedChange:
     display_phone_number: str
     waba_id: str
     field: str
-    messages: list[InboundMessage] = field(default_factory=list)
-    statuses: list[StatusUpdate] = field(default_factory=list)
-    template_updates: list[TemplateStatusUpdate] = field(default_factory=list)
+    messages: list[InboundMessage] = dataclasses.field(default_factory=list)
+    statuses: list[StatusUpdate] = dataclasses.field(default_factory=list)
+    template_updates: list[TemplateStatusUpdate] = dataclasses.field(default_factory=list)
 
 
 def _ts(value: Any) -> datetime:
@@ -85,6 +86,11 @@ def _ts(value: Any) -> datetime:
         return datetime.fromtimestamp(int(value), tz=UTC)
     except (TypeError, ValueError, OverflowError):
         return datetime.now(UTC)
+
+
+def _dict(value: Any) -> dict[str, Any]:
+    """The value when it is a mapping, else an empty one (malformed pieces are skipped)."""
+    return value if isinstance(value, dict) else {}
 
 
 def parse_webhook(payload: Any) -> list[ParsedChange]:
@@ -103,7 +109,7 @@ def parse_webhook(payload: Any) -> list[ParsedChange]:
             if not isinstance(value, dict):
                 continue
             field_name = str(change.get("field", ""))
-            metadata = value.get("metadata") if isinstance(value.get("metadata"), dict) else {}
+            metadata = _dict(value.get("metadata"))
             parsed = ParsedChange(
                 phone_number_id=str(metadata.get("phone_number_id", "")),
                 display_phone_number=str(metadata.get("display_phone_number", "")),
@@ -151,7 +157,7 @@ def _profile_names(contacts: Any) -> dict[str, str]:
     for contact in contacts or []:
         if isinstance(contact, dict):
             wa_id = str(contact.get("wa_id", ""))
-            profile = contact.get("profile") if isinstance(contact.get("profile"), dict) else {}
+            profile = _dict(contact.get("profile"))
             if wa_id and profile.get("name"):
                 names[wa_id] = str(profile["name"])[:200]
     return names
@@ -178,18 +184,16 @@ def _message(message: dict[str, Any], names: dict[str, str]) -> InboundMessage:
         item.kind = "text"
         item.text = str(body or "")
     elif raw_type == "interactive":
-        interactive = (
-            message.get("interactive") if isinstance(message.get("interactive"), dict) else {}
-        )
+        interactive = _dict(message.get("interactive"))
         subtype = str(interactive.get("type", ""))
         if subtype == "button_reply":
-            reply = interactive.get("button_reply") or {}
+            reply = _dict(interactive.get("button_reply"))
             item.kind = "button"
             item.button_id = str(reply.get("id", ""))
             item.button_title = str(reply.get("title", ""))
             item.text = item.button_title
         elif subtype == "list_reply":
-            reply = interactive.get("list_reply") or {}
+            reply = _dict(interactive.get("list_reply"))
             item.kind = "list"
             item.list_id = str(reply.get("id", ""))
             item.button_title = str(reply.get("title", ""))
@@ -197,13 +201,13 @@ def _message(message: dict[str, Any], names: dict[str, str]) -> InboundMessage:
         else:
             item.kind = "unsupported"
     elif raw_type == "button":
-        button = message.get("button") if isinstance(message.get("button"), dict) else {}
+        button = _dict(message.get("button"))
         item.kind = "template_button"
         item.button_id = str(button.get("payload", ""))
         item.button_title = str(button.get("text", ""))
         item.text = item.button_title
     elif raw_type in MEDIA_TYPES:
-        media = message.get(raw_type) if isinstance(message.get(raw_type), dict) else {}
+        media = _dict(message.get(raw_type))
         item.kind = raw_type
         item.media_id = str(media.get("id", "")) or None
         item.mime_type = str(media.get("mime_type", "")) or None
@@ -211,7 +215,7 @@ def _message(message: dict[str, Any], names: dict[str, str]) -> InboundMessage:
         item.caption = str(media.get("caption", "")) or None
         item.text = item.caption or ""
     elif raw_type == "location":
-        location = message.get("location") if isinstance(message.get("location"), dict) else {}
+        location = _dict(message.get("location"))
         item.kind = "location"
         item.location = {k: location.get(k) for k in ("latitude", "longitude", "name", "address")}
     elif raw_type in {"contacts", "reaction", "order", "system"}:
@@ -225,11 +229,9 @@ def _message(message: dict[str, Any], names: dict[str, str]) -> InboundMessage:
 
 
 def _status(status: dict[str, Any]) -> StatusUpdate:
-    pricing = status.get("pricing") if isinstance(status.get("pricing"), dict) else {}
-    conversation = (
-        status.get("conversation") if isinstance(status.get("conversation"), dict) else {}
-    )
-    origin = conversation.get("origin") if isinstance(conversation.get("origin"), dict) else {}
+    pricing = _dict(status.get("pricing"))
+    conversation = _dict(status.get("conversation"))
+    origin = _dict(conversation.get("origin"))
     errors = status.get("errors")
     return StatusUpdate(
         wamid=str(status.get("id", "")),

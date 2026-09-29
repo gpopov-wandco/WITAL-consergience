@@ -470,11 +470,11 @@ async def test_template_refusal_uses_email_fallback_or_skips_with_alert(stack: S
 async def test_registry_sync_statuses_and_budget(stack: Stack) -> None:
     services = stack.services
     rows = await services.templates.rows(stack.tenant.id)
-    assert len(rows) == 54 and all(r.status == "APPROVED" for r in rows)
+    assert len(rows) == 60 and all(r.status == "APPROVED" for r in rows)
     assert await services.templates.install_standard(stack.tenant.id, actor="test") == 0
-    assert len(stack.graph.templates) == 54
+    assert len(stack.graph.templates) == 60
     report = await services.templates.sync(stack.tenant.id, "demo-waba", actor="test")
-    assert len(report.existing) == 54 and report.created == [] and report.errors == []
+    assert len(report.existing) == 60 and report.created == [] and report.errors == []
     rows = await services.templates.rows(stack.tenant.id)
     assert all(r.status == "PENDING" and r.meta_template_id for r in rows)
     assert await services.templates.approved(stack.tenant.id, "gc_stay_check", "it") is None
@@ -508,12 +508,12 @@ async def test_registry_sync_statuses_and_budget(stack: Stack) -> None:
         actor="test",
     )
     await services.secrets.set(other.id, "wa_access_token", "tok", actor="test")
-    assert await limited.install_standard(other.id, actor="test") == 54
+    assert await limited.install_standard(other.id, actor="test") == 60
     limited.limiter.hit(f"tpl:{other.id}", "100 per hour")
     for _ in range(99):
         limited.limiter.hit(f"tpl:{other.id}", "100 per hour")
     report = await limited.sync(other.id, "W2", actor="test")
-    assert len(report.skipped_budget) == 54 and report.created == []
+    assert len(report.skipped_budget) == 60 and report.created == []
 
 
 async def test_preview_and_test_send(stack: Stack) -> None:
@@ -534,3 +534,121 @@ async def test_preview_and_test_send(stack: Stack) -> None:
         and sent[0].payload["template"]["name"] == "gc_arrival_day"
         and "Welcome to Hotel Beispiel" in text
     )
+
+
+async def test_key_safe_code_only_after_late_eta_in_verified_conversation(stack: Stack) -> None:
+    """F11: the key-safe code goes out at T-0 12:00, only for a late ETA and a verified chat."""
+    services = stack.services
+    reservation = await stack.reservation()
+    assert (
+        "journey:" + stack.tenant.id + ":J-1:key_safe:2026-10-06" not in await stack.pending_keys()
+    )
+    result = await services.brain.respond(
+        stack.tenant,
+        Inbound(
+            channel="whatsapp",
+            channel_key=PHONE.lstrip("+"),
+            text="Nach 22 Uhr",
+            kind="button",
+            external_id=None,
+            phone=PHONE,
+            button_id="eta_after_22",
+        ),
+    )
+    row = await services.reservations.get(stack.tenant.id, reservation.id)
+    assert row is not None and row.meta["late_arrival"] is True and row.guest_id == result.guest_id
+    key = dedupe_key(stack.tenant.id, "J-1", "key_safe", date(2026, 10, 6))
+    assert key in await stack.pending_keys()
+    silence = await services.jobs.pending(tenant_id=stack.tenant.id, kind="eta_silence")
+    assert len(silence) == 1
+    # 23:59 local plus two hours -> 01:59 local on 2026-10-07 = 23:59 UTC on 2026-10-06
+    assert silence[0].run_at == datetime(2026, 10, 6, 23, 59, tzinfo=UTC)
+
+    # not verified: the step runs at 12:00 local and is refused
+    await stack.advance_to(datetime(2026, 10, 6, 10, 0, tzinfo=UTC))
+    outcomes = {(o.step, o.outcome) for o in services.journeys.outcomes}
+    assert ("key_safe", "not_verified") in outcomes
+    assert not any(
+        r.payload.get("template", {}).get("name") == "gc_key_safe"
+        for r in await stack.outbox_rows()
+    )
+
+    # a verified conversation with a late ETA receives the code from the KB
+    second = await stack.reservation(res_id="J-2", phone="+4915120000002")
+    late = await services.brain.respond(
+        stack.tenant,
+        Inbound(
+            channel="whatsapp",
+            channel_key="4915120000002",
+            text="Nach 22 Uhr",
+            kind="button",
+            external_id=None,
+            phone="+4915120000002",
+            button_id="eta_after_22",
+        ),
+    )
+    await services.conversations.update(
+        stack.tenant.id, late.conversation_id, verified_reservation_id=second.id
+    )
+    services.journeys.outcomes.clear()
+    await stack.advance_to(datetime(2026, 10, 6, 10, 1, tzinfo=UTC))
+    sent = [
+        r
+        for r in await stack.outbox_rows()
+        if r.payload.get("template", {}).get("name") == "gc_key_safe"
+    ]
+    assert len(sent) == 1
+    params = {
+        p["parameter_name"]: p["text"]
+        for c in sent[0].payload["template"]["components"]
+        for p in c.get("parameters", [])
+    }
+    assert params["code"] == "4711" and params["latest_reception"] == "22:00"
+    assert ("key_safe", "sent") in {(o.step, o.outcome) for o in services.journeys.outcomes}
+
+
+async def test_eta_silence_alerts_staff_unless_the_guest_wrote(stack: Stack) -> None:
+    services = stack.services
+    await stack.reservation()
+    quiet = await stack.reservation(res_id="J-2", phone="+4915120000002")
+    for phone, window in ((PHONE, "eta_18_22"), ("+4915120000002", "eta_18_22")):
+        await services.brain.respond(
+            stack.tenant,
+            Inbound(
+                channel="whatsapp",
+                channel_key=phone.lstrip("+"),
+                text="18 bis 22 Uhr",
+                kind="button",
+                external_id=None,
+                phone=phone,
+                button_id=window,
+            ),
+        )
+    jobs = await services.jobs.pending(tenant_id=stack.tenant.id, kind="eta_silence")
+    # 22:00 local plus two hours = 00:00 local on 2026-10-07 = 22:00 UTC on 2026-10-06
+    assert {j.run_at for j in jobs} == {datetime(2026, 10, 6, 22, 0, tzinfo=UTC)}
+    # the first guest writes after the window ended, the second stays silent
+    stack.clock.set(datetime(2026, 10, 6, 20, 30, tzinfo=UTC))
+    await services.brain.respond(
+        stack.tenant,
+        Inbound(
+            channel="whatsapp",
+            channel_key=PHONE.lstrip("+"),
+            text="Wir sind da, danke!",
+            kind="text",
+            external_id=None,
+            phone=PHONE,
+        ),
+    )
+    await stack.advance_to(datetime(2026, 10, 6, 22, 0, tzinfo=UTC))
+    async with services.ctx.db.scope() as session:
+        handoffs = list(
+            (
+                await session.execute(select(Handoff).where(Handoff.trigger == "eta_silence"))
+            ).scalars()
+        )
+    assert len(handoffs) == 1 and handoffs[0].priority == "P1"
+    assert quiet.res_id in handoffs[0].summary and "18" in handoffs[0].summary
+    outcomes = {(o.step, o.outcome) for o in services.journeys.outcomes}
+    assert ("eta_silence", "guest_wrote") in outcomes and ("eta_silence", "alerted") in outcomes
+    assert await services.jobs.pending(tenant_id=stack.tenant.id, kind="eta_silence") == []

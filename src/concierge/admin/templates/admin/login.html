@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ t.login }}{% endblock %}
+{% block content %}
+<h1>{{ t.login }}</h1>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/admin/login" class="card stack" style="max-width: 420px">
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="field"><label for="email">{{ t.email }}</label><input id="email" name="email" type="email" autocomplete="username" required></div>
+  <div class="field"><label for="password">{{ t.password }}</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+  <button type="submit">{{ t.login }}</button>
+</form>
+{% endblock %}

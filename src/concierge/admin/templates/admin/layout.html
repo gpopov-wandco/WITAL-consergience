@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block nav %}
+{% if tenant %}
+<a href="/admin/"{% if active == 'dashboard' %} aria-current="page"{% endif %}>{{ t.dashboard }}</a>
+<a href="/admin/inbox"{% if active == 'inbox' %} aria-current="page"{% endif %}>{{ t.inbox }}</a>
+<a href="/admin/kb"{% if active == 'kb' %} aria-current="page"{% endif %}>{{ t.kb }}</a>
+<a href="/admin/availability"{% if active == 'availability' %} aria-current="page"{% endif %}>{{ t.availability }}</a>
+<a href="/admin/reservations"{% if active == 'reservations' %} aria-current="page"{% endif %}>{{ t.reservations }}</a>
+<a href="/admin/templates"{% if active == 'templates' %} aria-current="page"{% endif %}>{{ t.templates }}</a>
+<a href="/admin/legal"{% if active == 'legal' %} aria-current="page"{% endif %}>{{ t.legal }}</a>
+<a href="/admin/team"{% if active == 'team' %} aria-current="page"{% endif %}>{{ t.team }}</a>
+<a href="/admin/settings"{% if active == 'settings' %} aria-current="page"{% endif %}>{{ t.settings }}</a>
+<a href="/admin/reports"{% if active == 'reports' %} aria-current="page"{% endif %}>{{ t.reports }}</a>
+<a href="/admin/data-requests"{% if active == 'data_requests' %} aria-current="page"{% endif %}>{{ t.data_requests }}</a>
+{% if is_owner %}<a href="/admin/registration"{% if active == 'registration' %} aria-current="page"{% endif %}>{{ t.registration }}</a>{% endif %}
+{% endif %}
+{% if is_operator %}<a href="/operator/"{% if active == 'operator' %} aria-current="page"{% endif %}>{{ t.operator }}</a>{% endif %}
+<form method="post" action="/admin/logout" class="inline-form"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="secondary">{{ t.logout }}</button></form>
+{% endblock %}
+{% block content %}
+{% if tenant %}<p class="meta">{{ tenant.name }}{% if tenant.status == 'demo' %} · Demo{% endif %}{% if tenant.kill_switch %} · <span class="status-bad">{{ t.kill_switch }}</span>{% endif %}</p>{% endif %}
+{% block admin %}{% endblock %}
+{% endblock %}
