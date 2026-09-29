@@ -1,0 +1,28 @@
+# WITALCO Guest Concierge (F33): systemd unit for the venv install.
+# Install: cp deploy/systemd/concierge.service /etc/systemd/system/ ; systemctl daemon-reload
+# The environment file /etc/gc/env (mode 0600, owner root) carries the variables of
+# docs/OPERATIONS.md; the data directory /var/lib/gc holds the SQLite file and backups.
+[Unit]
+Description=WITALCO Guest Concierge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gc
+Group=gc
+EnvironmentFile=/etc/gc/env
+WorkingDirectory=/var/lib/gc
+ExecStart=/opt/gc/.venv/bin/concierge serve --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ReadWritePaths=/var/lib/gc
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

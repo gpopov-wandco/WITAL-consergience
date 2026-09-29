@@ -55,6 +55,8 @@ usage_app = typer.Typer(no_args_is_help=True, help="Metering: monthly usage expo
 app.add_typer(usage_app, name="usage")
 gdpr_app = typer.Typer(no_args_is_help=True, help="GDPR: search, export, erase, retention")
 app.add_typer(gdpr_app, name="gdpr")
+wa_sim_app = typer.Typer(no_args_is_help=True, help="WhatsApp simulator against a running server")
+app.add_typer(wa_sim_app, name="wa-sim")
 golden_app = typer.Typer(no_args_is_help=True, help="Golden evaluation with the scripted model")
 app.add_typer(golden_app, name="golden")
 eval_app = typer.Typer(no_args_is_help=True, help="Live evaluation against the real model")
@@ -931,6 +933,78 @@ async def _record_backup_failure(ctx: Any, error: str) -> None:
     from concierge.services import record_alert
 
     await record_alert(ctx, "backup_failed", "", {"kind": "backup", "code": error[:80]})
+
+
+# ---------------------------------------------------------------------- doctor
+@app.command()
+def doctor(
+    live: bool = typer.Option(False, "--live", help="also probe every configured integration"),
+    tenant: str = typer.Option("", "--tenant", help="one tenant slug (default: all)"),
+    as_json: bool = typer.Option(False, "--json"),
+) -> None:
+    """Offline configuration checks; --live runs the section 7 probes and records the result."""
+    import json
+
+    from concierge.tools import doctor as doctor_tool
+
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> doctor_tool.DoctorReport:
+        if live:
+            from concierge.tools.livechecks import LiveProbes
+
+            return await doctor_tool.run_live(
+                ctx, services, tenant_slug=tenant or None, probes=LiveProbes()
+            )
+        return await doctor_tool.run_offline(ctx, services, tenant_slug=tenant or None)
+
+    try:
+        report = run(go())
+    finally:
+        run(ctx.db.dispose())
+    typer.echo(json.dumps(report.to_dict(), indent=2) if as_json else report.render())
+    if report.exit_code:
+        raise typer.Exit(code=report.exit_code)
+
+
+@wa_sim_app.command("send")
+def wa_sim_send(
+    text: str = typer.Option(..., "--text", help="the guest message"),
+    tenant: str = typer.Option("hotel-beispiel", "--tenant"),
+    base_url: str = typer.Option("http://127.0.0.1:8000", "--base-url"),
+    sender: str = typer.Option("4915112345678", "--from", help="guest number without +"),
+) -> None:
+    """Post one signed WhatsApp text webhook to the running server (demo or test WABA)."""
+    from concierge.demo.wa_sim import PayloadFactory, WaSimClient
+
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> tuple[int, str]:
+        try:
+            row = await services.tenants.require(tenant)
+            secret = await services.secrets.get(row.id, "wa_app_secret")
+            phone_number_id = row.phone_number_id or ""
+        finally:
+            await ctx.db.dispose()
+        if not secret or not phone_number_id:
+            _fail(f"tenant {tenant} has no wa_app_secret or phone_number_id")
+        client = WaSimClient(base_url, secret)
+        try:
+            response = await client.post(PayloadFactory(phone_number_id).text(sender, text))
+        finally:
+            await client.aclose()
+        return response.status_code, response.headers.get("x-events", "?")
+
+    try:
+        status, events = run(go())
+    except Exception as exc:
+        _fail(f"simulator failed: {exc}")
+    typer.echo(f"webhook answered {status}; events stored: {events}")
+    typer.echo(f"replies appear on {base_url}/demo/wa-sim and in the inbox {base_url}/admin/inbox")
+    if status != 200:
+        raise typer.Exit(code=1)
 
 
 # ------------------------------------------------------------------ evaluation

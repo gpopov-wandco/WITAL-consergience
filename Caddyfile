@@ -1,0 +1,18 @@
+# WITALCO Guest Concierge (F33): TLS from Let's Encrypt, HSTS at the edge, proxy to the app.
+# CONCIERGE_DOMAIN comes from the compose environment (or export it before `caddy run`).
+{$CONCIERGE_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	# WebSocket upgrades (voice) pass through reverse_proxy unchanged
+	reverse_proxy app:8000 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+	log {
+		output stderr
+		format console
+	}
+}

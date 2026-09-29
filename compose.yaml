@@ -1,0 +1,64 @@
+# WITALCO Guest Concierge (F33): app, PostgreSQL 18, Caddy with automatic TLS.
+# Copy .env.example to .env, fill the keys (concierge setup --non-interactive writes
+# them), set GC_PUBLIC_BASE_URL and CONCIERGE_DOMAIN, then: docker compose up -d
+services:
+  app:
+    build: .
+    image: witalco/concierge:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      GC_DATABASE_URL: postgresql+asyncpg://gc:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/gc
+      GC_ENV: production
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - app-data:/var/lib/gc
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/readyz').status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    expose:
+      - "8000"
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gc
+      POSTGRES_USER: gc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gc -d gc"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      CONCIERGE_DOMAIN: ${CONCIERGE_DOMAIN:?set CONCIERGE_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  app-data:
+  db-data:
+  caddy-data:
+  caddy-config:

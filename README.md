@@ -45,12 +45,16 @@ default location is `~/.witalco-concierge/`; `GC_DATABASE_URL` overrides it.
 
 | Command | Purpose |
 |---|---|
-| `concierge doctor` | offline configuration checks |
-| `concierge doctor --live --tenant hotel-beispiel` | live checks against every configured integration |
+| `concierge doctor` | offline configuration checks (exit 0 clean, 1 warnings, 2 failures) |
+| `concierge doctor --live --tenant hotel-beispiel` | live checks against every configured integration, recorded for the activation gate |
 | `concierge check` | all static gates in one table |
-| `pytest` | the offline test suite |
+| `pytest` | the offline test suite (unit, integration, golden, property, e2e) |
+| `pytest -m load tests/load -s` | the load smoke with its numbers |
+| `concierge golden run` | the golden cases outside pytest, one table |
 | `concierge serve` | start the service without seeding |
-| `concierge wa-sim send --tenant hotel-beispiel --text "Hallo"` | post a signed WhatsApp webhook to the running service |
+| `concierge wa-sim send --tenant hotel-beispiel --text "Gibt es einen Parkplatz?"` | post a signed WhatsApp webhook to the running service |
+| `concierge demo voice-sim --say "Gibt es einen Parkplatz?"` | play a phone call against the running demo |
+| `concierge demo advance --days 7` | warp the clock and run the journey steps that became due |
 | `concierge tenant add\|list\|pause\|activate` | tenant lifecycle |
 | `concierge secrets set <tenant> <name>` | enter a tenant secret with a hidden prompt |
 | `concierge pack export\|import\|validate\|diff` | client packs |
@@ -60,11 +64,14 @@ default location is `~/.witalco-concierge/`; `GC_DATABASE_URL` overrides it.
 
 ## Documentation
 
-`docs/ARCHITECTURE.md`, `docs/OPERATIONS.md`, `docs/SECURITY.md`, `docs/COMPLIANCE.md`,
-`docs/INTEGRATIONS.md`, `docs/CUSTOMISATION.md`, `docs/ACCESSIBILITY_TEST.md`,
-`docs/VERIFIED_FACTS.md`, `docs/DECISIONS.md`, `docs/BUILD_STATUS.md`,
-`docs/TRACEABILITY.md`, `docs/CHANGELOG.md`. The build specification is
-`docs/BUILD_PROMPT.md`.
+`docs/ARCHITECTURE.md`, `docs/OPERATIONS.md` (deploy, upgrade, rollback, backup,
+restore, key rotation, incidents), `docs/SECURITY.md`, `docs/COMPLIANCE.md`,
+`docs/INTEGRATIONS.md` (per integration: variables and where to get them),
+`docs/CUSTOMISATION.md`, `docs/ACCESSIBILITY_TEST.md`, `docs/VERIFIED_FACTS.md`,
+`docs/DECISIONS.md`, `docs/BUILD_STATUS.md`, `docs/TRACEABILITY.md`,
+`docs/COLD_START.md`, `docs/CHANGELOG.md`. The build specification is
+`docs/BUILD_PROMPT.md`. Deployment files: `Dockerfile`, `compose.yaml`, `Caddyfile`,
+`deploy/systemd/concierge.service`.
 
 ## Licence
 

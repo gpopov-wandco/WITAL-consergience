@@ -288,6 +288,8 @@ class LimitsConfig(Strict):
     reply_hard_cap_chars: int = Field(default=700, ge=200, le=1000)
     min_confidence: float = Field(default=0.5, ge=0.0, le=1.0)
     """A model reply below this confidence hands the conversation to staff (F17)."""
+    prompt_token_budget: int = Field(default=12000, ge=1000, le=150000)
+    """``concierge doctor`` warns when the cached prompt prefix exceeds this estimate."""
 
 
 class PricingConfig(Strict):
