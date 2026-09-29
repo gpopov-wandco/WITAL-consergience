@@ -1,0 +1,124 @@
+# Standard WhatsApp templates of the guest journey (F13, F14) in six languages.
+# Every business-initiated message names the sender and carries a stop instruction
+# (UWG § 7 Abs. 2 Nr. 3); the first template of a journey carries the AI disclosure
+# (C7). Variables are named ({{name}}) and every variable has a sample. Texts are
+# drafts (draft_unreviewed, C10) until the hotel approves them; nothing here is a hotel
+# fact, the values arrive as variables at send time.
+version: 2026.09.29-1
+templates:
+  gc_booking_followup:
+    category: utility
+    first_contact: true
+    variables: [guest_name, hotel, arrival, departure]
+    samples: {guest_name: "Anna", hotel: "Hotel Beispiel", arrival: "03.10.2026", departure: "05.10.2026"}
+    body:
+      de: "Guten Tag {{guest_name}}, vielen Dank für Ihre Buchung im {{hotel}} vom {{arrival}} bis {{departure}}. Hier schreibt der KI-Assistent des Hotels, keine Person. Fragen zur Anreise beantworte ich gern hier im Chat; mit „Mitarbeiter“ erreichen Sie das Team. Antworten Sie mit STOP, um keine Nachrichten mehr zu erhalten."
+      en: "Hello {{guest_name}}, thank you for your booking at {{hotel}} from {{arrival}} to {{departure}}. This is the hotel's AI assistant, not a person. I can answer questions about your arrival here in the chat; write \"staff\" to reach the team. Reply STOP to end these messages."
+      ru: "Здравствуйте, {{guest_name}}! Спасибо за бронирование в {{hotel}} с {{arrival}} по {{departure}}. Вам пишет ИИ-ассистент отеля, не человек. Я отвечу на вопросы о заезде здесь в чате; напишите «сотрудник», чтобы связаться с командой. Ответьте STOP, чтобы больше не получать сообщения."
+      uk: "Вітаємо, {{guest_name}}! Дякуємо за бронювання в {{hotel}} з {{arrival}} по {{departure}}. Вам пише ШІ-асистент готелю, не людина. Я відповім на запитання про заїзд тут у чаті; напишіть «працівник», щоб зв'язатися з командою. Відповідайте STOP, щоб більше не отримувати повідомлення."
+      tr: "Merhaba {{guest_name}}, {{hotel}} için {{arrival}} - {{departure}} tarihli rezervasyonunuz için teşekkür ederiz. Size otelin yapay zekâ asistanı yazıyor, bir insan değil. Girişle ilgili sorularınızı burada yanıtlayabilirim; ekibe ulaşmak için \"çalışan\" yazın. Bu mesajları almamak için STOP yanıtını verin."
+      it: "Buongiorno {{guest_name}}, grazie per la prenotazione presso {{hotel}} dal {{arrival}} al {{departure}}. Le scrive l'assistente IA dell'hotel, non una persona. Rispondo qui in chat alle domande sull'arrivo; scriva \"personale\" per raggiungere il team. Risponda STOP per non ricevere più messaggi."
+  gc_prearrival_7d:
+    category: utility
+    variables: [hotel, arrival, checkin_from, address]
+    samples: {hotel: "Hotel Beispiel", arrival: "03.10.2026", checkin_from: "15:00", address: "Beispielstraße 1, 60000 Frankfurt am Main"}
+    body:
+      de: "Ihr Aufenthalt im {{hotel}} beginnt am {{arrival}}. Check-in ist ab {{checkin_from}} Uhr möglich; die Adresse lautet {{address}}. Bei Fragen antworten Sie einfach hier (KI-Assistent). Antworten Sie mit STOP, um keine Nachrichten mehr zu erhalten."
+      en: "Your stay at {{hotel}} starts on {{arrival}}. Check-in is possible from {{checkin_from}}; the address is {{address}}. If you have questions, simply reply here (AI assistant). Reply STOP to end these messages."
+      ru: "Ваше проживание в {{hotel}} начинается {{arrival}}. Заезд возможен с {{checkin_from}}; адрес: {{address}}. Если есть вопросы, просто ответьте здесь (ИИ-ассистент). Ответьте STOP, чтобы больше не получать сообщения."
+      uk: "Ваше проживання в {{hotel}} починається {{arrival}}. Заїзд можливий з {{checkin_from}}; адреса: {{address}}. Якщо є запитання, просто відповідайте тут (ШІ-асистент). Відповідайте STOP, щоб більше не отримувати повідомлення."
+      tr: "{{hotel}} konaklamanız {{arrival}} tarihinde başlıyor. Giriş {{checkin_from}} itibaren mümkündür; adres: {{address}}. Sorularınız için buradan yanıtlayabilirsiniz (yapay zekâ asistanı). Bu mesajları almamak için STOP yanıtını verin."
+      it: "Il Suo soggiorno presso {{hotel}} inizia il {{arrival}}. Il check-in è possibile dalle {{checkin_from}}; l'indirizzo è {{address}}. Per domande risponda qui (assistente IA). Risponda STOP per non ricevere più messaggi."
+  gc_prearrival_2d:
+    category: utility
+    variables: [hotel, arrival]
+    samples: {hotel: "Hotel Beispiel", arrival: "03.10.2026"}
+    buttons:
+      ids: [eta_before_18, eta_18_22, eta_after_22]
+      de: ["Vor 18 Uhr", "18 bis 22 Uhr", "Nach 22 Uhr"]
+      en: ["Before 18:00", "18:00 to 22:00", "After 22:00"]
+      ru: ["До 18:00", "18:00–22:00", "После 22:00"]
+      uk: ["До 18:00", "18:00–22:00", "Після 22:00"]
+      tr: ["18:00'den önce", "18:00–22:00", "22:00'den sonra"]
+      it: ["Prima delle 18", "Dalle 18 alle 22", "Dopo le 22"]
+    body:
+      de: "Ihre Anreise im {{hotel}} ist am {{arrival}}. Wann erwarten Sie anzukommen? So kann die Rezeption Ihren Check-in vorbereiten (KI-Assistent). Antworten Sie mit STOP, um keine Nachrichten mehr zu erhalten."
+      en: "Your arrival at {{hotel}} is on {{arrival}}. When do you expect to arrive? This helps the reception prepare your check-in (AI assistant). Reply STOP to end these messages."
+      ru: "Ваш заезд в {{hotel}} — {{arrival}}. Когда вы планируете прибыть? Это поможет ресепшен подготовить ваш заезд (ИИ-ассистент). Ответьте STOP, чтобы больше не получать сообщения."
+      uk: "Ваш заїзд у {{hotel}} — {{arrival}}. Коли ви плануєте прибути? Це допоможе рецепції підготувати ваш заїзд (ШІ-асистент). Відповідайте STOP, щоб більше не отримувати повідомлення."
+      tr: "{{hotel}} girişiniz {{arrival}} tarihinde. Ne zaman varmayı bekliyorsunuz? Bu, resepsiyonun girişinizi hazırlamasına yardımcı olur (yapay zekâ asistanı). Bu mesajları almamak için STOP yanıtını verin."
+      it: "Il Suo arrivo presso {{hotel}} è previsto il {{arrival}}. A che ora pensa di arrivare? Aiuta la reception a preparare il check-in (assistente IA). Risponda STOP per non ricevere più messaggi."
+  gc_registration_link:
+    category: utility
+    variables: [hotel, arrival, link]
+    samples: {hotel: "Hotel Beispiel", arrival: "03.10.2026", link: "https://example.invalid/r/abc"}
+    body:
+      de: "Für Ihren Check-in im {{hotel}} am {{arrival}} können Sie den Meldeschein vorab ausfüllen: {{link}}. Abgefragt werden nur die gesetzlich vorgeschriebenen Angaben; bestätigt wird am Anreisetag. Antworten Sie mit STOP, um keine Nachrichten mehr zu erhalten."
+      en: "For your check-in at {{hotel}} on {{arrival}} you can complete the registration form in advance: {{link}}. Only the legally required details are requested; confirmation takes place on the day of arrival. Reply STOP to end these messages."
+      ru: "Для заезда в {{hotel}} {{arrival}} вы можете заранее заполнить регистрационную форму: {{link}}. Запрашиваются только данные, предусмотренные законом; подтверждение происходит в день заезда. Ответьте STOP, чтобы больше не получать сообщения."
+      uk: "Для заїзду в {{hotel}} {{arrival}} ви можете заздалегідь заповнити реєстраційну форму: {{link}}. Запитуються лише дані, передбачені законом; підтвердження відбувається в день заїзду. Відповідайте STOP, щоб більше не отримувати повідомлення."
+      tr: "{{hotel}} {{arrival}} tarihli girişiniz için kayıt formunu önceden doldurabilirsiniz: {{link}}. Yalnızca yasal olarak zorunlu bilgiler istenir; onay giriş gününde yapılır. Bu mesajları almamak için STOP yanıtını verin."
+      it: "Per il check-in presso {{hotel}} il {{arrival}} può compilare in anticipo la scheda di notifica: {{link}}. Vengono richiesti solo i dati previsti dalla legge; la conferma avviene il giorno dell'arrivo. Risponda STOP per non ricevere più messaggi."
+  gc_arrival_day:
+    category: utility
+    variables: [hotel, checkin_from, phone]
+    samples: {hotel: "Hotel Beispiel", checkin_from: "15:00", phone: "+49 69 000000"}
+    body:
+      de: "Willkommen im {{hotel}}. Check-in ist heute ab {{checkin_from}} Uhr möglich; die Rezeption erreichen Sie unter {{phone}}. Fragen beantworte ich hier im Chat (KI-Assistent). Antworten Sie mit STOP, um keine Nachrichten mehr zu erhalten."
+      en: "Welcome to {{hotel}}. Check-in is possible today from {{checkin_from}}; the reception can be reached at {{phone}}. I answer questions here in the chat (AI assistant). Reply STOP to end these messages."
+      ru: "Добро пожаловать в {{hotel}}. Заезд сегодня возможен с {{checkin_from}}; ресепшен доступен по телефону {{phone}}. На вопросы отвечу здесь в чате (ИИ-ассистент). Ответьте STOP, чтобы больше не получать сообщения."
+      uk: "Ласкаво просимо до {{hotel}}. Заїзд сьогодні можливий з {{checkin_from}}; рецепція доступна за телефоном {{phone}}. На запитання відповім тут у чаті (ШІ-асистент). Відповідайте STOP, щоб більше не отримувати повідомлення."
+      tr: "{{hotel}} otelimize hoş geldiniz. Giriş bugün {{checkin_from}} itibaren mümkündür; resepsiyona {{phone}} numarasından ulaşabilirsiniz. Sorularınızı burada yanıtlarım (yapay zekâ asistanı). Bu mesajları almamak için STOP yanıtını verin."
+      it: "Benvenuti presso {{hotel}}. Il check-in è possibile oggi dalle {{checkin_from}}; la reception è raggiungibile al {{phone}}. Rispondo alle domande qui in chat (assistente IA). Risponda STOP per non ricevere più messaggi."
+  gc_stay_check:
+    category: utility
+    variables: [hotel]
+    samples: {hotel: "Hotel Beispiel"}
+    buttons:
+      ids: [stay_ok, stay_issue]
+      de: ["Alles gut", "Es gibt ein Problem"]
+      en: ["All good", "There is a problem"]
+      ru: ["Всё хорошо", "Есть проблема"]
+      uk: ["Все добре", "Є проблема"]
+      tr: ["Her şey yolunda", "Bir sorun var"]
+      it: ["Tutto bene", "C'è un problema"]
+    body:
+      de: "Wie läuft Ihr Aufenthalt im {{hotel}} bisher? Wenn etwas nicht passt, kümmert sich das Team sofort darum (KI-Assistent). Antworten Sie mit STOP, um keine Nachrichten mehr zu erhalten."
+      en: "How is your stay at {{hotel}} going so far? If anything is not right, the team will take care of it at once (AI assistant). Reply STOP to end these messages."
+      ru: "Как проходит ваше проживание в {{hotel}}? Если что-то не так, команда сразу этим займётся (ИИ-ассистент). Ответьте STOP, чтобы больше не получать сообщения."
+      uk: "Як проходить ваше проживання в {{hotel}}? Якщо щось не так, команда одразу цим займеться (ШІ-асистент). Відповідайте STOP, щоб більше не отримувати повідомлення."
+      tr: "{{hotel}} konaklamanız şimdiye kadar nasıl gidiyor? Bir aksaklık varsa ekip hemen ilgilenir (yapay zekâ asistanı). Bu mesajları almamak için STOP yanıtını verin."
+      it: "Come procede il Suo soggiorno presso {{hotel}}? Se qualcosa non va, il team se ne occupa subito (assistente IA). Risponda STOP per non ricevere più messaggi."
+  gc_checkout_reminder:
+    category: utility
+    variables: [hotel, departure, checkout_until]
+    samples: {hotel: "Hotel Beispiel", departure: "05.10.2026", checkout_until: "11:00"}
+    body:
+      de: "Ihre Abreise aus dem {{hotel}} ist am {{departure}}; Check-out ist bis {{checkout_until}} Uhr. Wenn Sie etwas brauchen, antworten Sie hier (KI-Assistent). Antworten Sie mit STOP, um keine Nachrichten mehr zu erhalten."
+      en: "Your departure from {{hotel}} is on {{departure}}; check-out is until {{checkout_until}}. If you need anything, reply here (AI assistant). Reply STOP to end these messages."
+      ru: "Ваш выезд из {{hotel}} — {{departure}}; выезд до {{checkout_until}}. Если что-то нужно, ответьте здесь (ИИ-ассистент). Ответьте STOP, чтобы больше не получать сообщения."
+      uk: "Ваш виїзд із {{hotel}} — {{departure}}; виїзд до {{checkout_until}}. Якщо щось потрібно, відповідайте тут (ШІ-асистент). Відповідайте STOP, щоб більше не отримувати повідомлення."
+      tr: "{{hotel}} otelinden çıkışınız {{departure}} tarihinde; çıkış saati {{checkout_until}}'e kadardır. Bir şeye ihtiyacınız olursa buradan yanıtlayın (yapay zekâ asistanı). Bu mesajları almamak için STOP yanıtını verin."
+      it: "La Sua partenza da {{hotel}} è il {{departure}}; il check-out è entro le {{checkout_until}}. Se Le serve qualcosa, risponda qui (assistente IA). Risponda STOP per non ricevere più messaggi."
+  gc_review_request:
+    category: marketing
+    variables: [hotel, review_url]
+    samples: {hotel: "Hotel Beispiel", review_url: "https://example.invalid/review"}
+    body:
+      de: "Vielen Dank für Ihren Aufenthalt im {{hotel}}. Wenn Sie möchten, freuen wir uns über eine Bewertung: {{review_url}}. Diese Nachricht sendet der KI-Assistent des Hotels. Antworten Sie mit STOP, um keine Nachrichten mehr zu erhalten."
+      en: "Thank you for staying at {{hotel}}. If you like, we would appreciate a review: {{review_url}}. This message is sent by the hotel's AI assistant. Reply STOP to end these messages."
+      ru: "Спасибо, что остановились в {{hotel}}. Если хотите, мы будем рады вашему отзыву: {{review_url}}. Это сообщение отправлено ИИ-ассистентом отеля. Ответьте STOP, чтобы больше не получать сообщения."
+      uk: "Дякуємо, що зупинилися в {{hotel}}. Якщо бажаєте, ми будемо раді вашому відгуку: {{review_url}}. Це повідомлення надіслано ШІ-асистентом готелю. Відповідайте STOP, щоб більше не отримувати повідомлення."
+      tr: "{{hotel}} konaklamanız için teşekkür ederiz. Dilerseniz bir değerlendirme bırakabilirsiniz: {{review_url}}. Bu mesaj otelin yapay zekâ asistanı tarafından gönderilmiştir. Bu mesajları almamak için STOP yanıtını verin."
+      it: "Grazie per aver soggiornato presso {{hotel}}. Se desidera, saremo lieti di una Sua recensione: {{review_url}}. Questo messaggio è inviato dall'assistente IA dell'hotel. Risponda STOP per non ricevere più messaggi."
+  gc_staff_alert:
+    category: utility
+    variables: [hotel, alert, priority, link]
+    samples: {hotel: "Hotel Beispiel", alert: "Gast wartet auf Antwort", priority: "P1", link: "https://example.invalid/admin/inbox"}
+    body:
+      de: "{{hotel}} Concierge: {{alert}} (Priorität {{priority}}). Zum Posteingang: {{link}}. Antworten Sie mit STOP, um keine Benachrichtigungen mehr zu erhalten."
+      en: "{{hotel}} concierge: {{alert}} (priority {{priority}}). Open the inbox: {{link}}. Reply STOP to end these notifications."
+      ru: "{{hotel}}, консьерж: {{alert}} (приоритет {{priority}}). Открыть входящие: {{link}}. Ответьте STOP, чтобы больше не получать уведомления."
+      uk: "{{hotel}}, консьєрж: {{alert}} (пріоритет {{priority}}). Відкрити вхідні: {{link}}. Відповідайте STOP, щоб більше не отримувати сповіщення."
+      tr: "{{hotel}} concierge: {{alert}} (öncelik {{priority}}). Gelen kutusu: {{link}}. Bu bildirimleri almamak için STOP yanıtını verin."
+      it: "{{hotel}} concierge: {{alert}} (priorità {{priority}}). Apri la casella: {{link}}. Risponda STOP per non ricevere più notifiche."

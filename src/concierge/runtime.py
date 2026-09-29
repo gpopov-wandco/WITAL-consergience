@@ -15,10 +15,11 @@ from dataclasses import dataclass
 from fastapi import FastAPI
 
 from concierge.app import create_app
-from concierge.channels.whatsapp.graph import GraphClient
+from concierge.channels.whatsapp.graph import GraphClient, in_process_client
 from concierge.channels.whatsapp.port import WhatsAppPort
 from concierge.context import AppContext
 from concierge.demo.mock_graph import MockGraphState
+from concierge.demo.mock_graph import build_router as build_mock_graph_router
 from concierge.demo.seed import seed_demo
 from concierge.llm.port import LLMPort
 from concierge.services import Services, build_services
@@ -44,10 +45,13 @@ def build_llm(settings: Settings) -> LLMPort | None:
     return AnthropicAdapter(key, timeout_s=min(settings.gc_llm_turn_timeout_s, 20.0))
 
 
-def build_wa_port(settings: Settings, *, demo_base_url: str | None = None) -> WhatsAppPort:
-    if demo_base_url:
-        return GraphClient(
-            version=settings.gc_wa_graph_version, base_url=f"{demo_base_url}/mock-graph"
+def build_wa_port(settings: Settings, *, graph_state: MockGraphState | None = None) -> WhatsAppPort:
+    """The real Graph client; in demo mode its HTTP stack is routed into the mock server."""
+    if graph_state is not None:
+        mock_app = FastAPI()
+        mock_app.include_router(build_mock_graph_router(graph_state))
+        return in_process_client(
+            settings.gc_wa_graph_version, mock_app, base_url="http://mock-graph.invalid/mock-graph"
         )
     return GraphClient(version=settings.gc_wa_graph_version)
 
@@ -62,7 +66,7 @@ def build_runtime(
     ctx = AppContext.build(settings)
     llm = build_llm(settings)
     graph_state = MockGraphState() if demo else None
-    wa_port = build_wa_port(settings, demo_base_url=bind_url if demo else None)
+    wa_port = build_wa_port(settings, graph_state=graph_state)
     services = build_services(ctx, llm=llm, wa_port=wa_port, demo=demo and llm is None)
     services.demo = demo
     startup = []

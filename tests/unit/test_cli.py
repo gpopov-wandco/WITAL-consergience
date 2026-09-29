@@ -100,3 +100,19 @@ def test_setup_non_interactive_writes_env_and_link(env: Path) -> None:
     assert "/admin/bootstrap/" in result.output
     text = (env / "generated.env").read_text(encoding="utf-8")
     assert "GC_MASTER_KEYS=" in text and "GC_SIGNING_KEY=" in text
+
+
+def test_template_lint_and_list_commands(env: Path) -> None:
+    runner = CliRunner()
+    lint = runner.invoke(app, ["whatsapp", "templates", "lint"])
+    assert lint.exit_code == 0 and "54 templates lint clean" in lint.output
+    assert runner.invoke(app, ["db", "upgrade"]).exit_code == 0
+    profile = env / "tenant.yaml"
+    profile.write_text(yaml.safe_dump(SAMPLE, allow_unicode=True), encoding="utf-8")
+    assert runner.invoke(app, ["tenant", "add", "--profile", str(profile)]).exit_code == 0
+    listed = runner.invoke(app, ["whatsapp", "templates", "list", "hotel-beispiel"])
+    assert listed.exit_code == 0 and "no templates" in listed.output
+    missing = runner.invoke(app, ["journeys", "preview", "hotel-beispiel", "NOPE"])
+    assert missing.exit_code == 1 and "not found" in missing.output
+    advance_help = runner.invoke(app, ["demo", "advance", "--help"])
+    assert advance_help.exit_code == 0 and "--days" in advance_help.output

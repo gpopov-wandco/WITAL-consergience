@@ -92,7 +92,8 @@ async def test_simulator_conversation_through_real_graph_client(
     await sim.post(factory.text(GUEST, "Wann gibt es Frühstück?"))
     await services.worker.drain()
     counts = await services.outbox.counts(tenant.id)
-    assert counts.get("failed") == 1 and counts.get("sent") == 3
+    # the breakfast answer hits the injected error; the breakfast upsell offer that follows is sent
+    assert counts.get("failed") == 1 and counts.get("sent") == 4
     await sim.aclose()
 
 

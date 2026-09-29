@@ -184,6 +184,10 @@ async def seed_demo(services: Services, *, slug: str = "hotel-beispiel") -> Seed
         if await services.secrets.get(tenant.id, name) is None:
             await services.secrets.set(tenant.id, name, value, actor="demo")
     services.secret_cache.invalidate()
+    templates_created = await services.templates.install_standard(tenant.id, actor="demo")
+    if templates_created or created:
+        # the mock Graph server approves at once; a real WABA answers PENDING first
+        await services.templates.sync(tenant.id, profile.whatsapp.waba_id, actor="demo")
     if created:
         await seed_inventory(services, tenant.id, profile)
         await seed_reservations(services, tenant.id, profile)

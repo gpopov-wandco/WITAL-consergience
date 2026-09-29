@@ -31,6 +31,7 @@ REQUEST_KINDS: frozenset[str] = frozenset(
         "booking_change",
         "eta",
         "booking_inquiry",
+        "upsell",
         "other",
     }
 )

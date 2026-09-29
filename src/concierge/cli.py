@@ -30,6 +30,19 @@ secrets_app = typer.Typer(no_args_is_help=True, help="Per-tenant secrets (encryp
 app.add_typer(db_app, name="db")
 app.add_typer(tenant_app, name="tenant")
 app.add_typer(secrets_app, name="secrets")
+whatsapp_app = typer.Typer(no_args_is_help=True, help="WhatsApp: templates")
+templates_app = typer.Typer(no_args_is_help=True, help="Template registry: lint, list, sync")
+whatsapp_app.add_typer(templates_app, name="templates")
+journeys_app = typer.Typer(no_args_is_help=True, help="Guest journeys: preview, test-send")
+registration_app = typer.Typer(no_args_is_help=True, help="Registration (Meldeschein): export")
+demo_app = typer.Typer(
+    invoke_without_command=True,
+    help="Seed the fictional Hotel Beispiel and serve; `advance` warps the demo clock",
+)
+app.add_typer(whatsapp_app, name="whatsapp")
+app.add_typer(journeys_app, name="journeys")
+app.add_typer(registration_app, name="registration")
+app.add_typer(demo_app, name="demo")
 
 
 def run[T](coro: Coroutine[Any, Any, T]) -> T:
@@ -468,6 +481,195 @@ def secrets_rotate() -> None:
     typer.echo(f"re-encrypted {touched} rows under the active key")
 
 
+# ----------------------------------------------------------- templates and journeys
+def _services(ctx: Any) -> Any:
+    from concierge.channels.whatsapp.graph import GraphClient
+    from concierge.services import build_services
+
+    return build_services(
+        ctx,
+        llm=None,
+        wa_port=GraphClient(version=ctx.settings.gc_wa_graph_version),
+    )
+
+
+@templates_app.command("lint")
+def templates_lint() -> None:
+    """Lint the standard template set (names, limits, variables, cues, disclosure, STOP)."""
+    from concierge.templates.service import lint_all, load_standard
+
+    definitions = load_standard()
+    issues = lint_all(definitions)
+    if issues:
+        typer.echo(
+            _table(
+                ["template", "lang", "rule", "detail"],
+                [[i.name, i.lang, i.rule, i.detail[:60]] for i in issues],
+            )
+        )
+        _fail(f"{len(issues)} lint issues")
+    typer.echo(f"{len(definitions)} templates lint clean")
+
+
+@templates_app.command("list")
+def templates_list(tenant: str) -> None:
+    """List a tenant's templates with their Meta status."""
+
+    async def _go() -> list[list[str]]:
+        ctx = _context()
+        try:
+            services = _services(ctx)
+            rows = await services.templates.rows(await _tenant_id(ctx, tenant))
+            return [
+                [
+                    r.name,
+                    r.lang,
+                    r.category,
+                    r.status,
+                    r.meta_template_id or "",
+                    r.status_reason or "",
+                ]
+                for r in rows
+            ]
+        finally:
+            await ctx.close()
+
+    rows = run(_go())
+    typer.echo(
+        _table(["name", "lang", "category", "status", "meta id", "reason"], rows)
+        if rows
+        else "(no templates; run `concierge whatsapp templates sync`)"
+    )
+
+
+@templates_app.command("sync")
+def templates_sync(tenant: str) -> None:
+    """Install the standard set and create the missing templates at Meta."""
+    from concierge.tenants.service import TenantError, TenantService
+
+    async def _go() -> tuple[int, Any]:
+        ctx = _context()
+        try:
+            services = _services(ctx)
+            row = await TenantService(ctx.db, ctx.clock).require(tenant)
+            profile = TenantService.profile_of(row)
+            if not profile.whatsapp.waba_id:
+                raise TenantError("the tenant profile has no whatsapp.waba_id")
+            created = await services.templates.install_standard(row.id, actor="cli")
+            report = await services.templates.sync(row.id, profile.whatsapp.waba_id, actor="cli")
+            return created, report
+        finally:
+            await ctx.close()
+
+    try:
+        created, report = run(_go())
+    except TenantError as exc:
+        _fail(str(exc))
+        return
+    typer.echo(
+        f"installed {created} new registry rows; created at Meta: {len(report.created)}, "
+        f"existing: {len(report.existing)}, skipped (budget): {len(report.skipped_budget)}"
+    )
+    for error in report.errors:
+        typer.echo(f"error: {error}")
+    if report.errors:
+        _fail("sync finished with errors")
+
+
+@journeys_app.command("preview")
+def journeys_preview(tenant: str, res_id: str) -> None:
+    """Show the planned journey of a reservation with rendered texts."""
+    from concierge.tenants.service import TenantError, TenantService
+
+    async def _go() -> list[list[str]]:
+        ctx = _context()
+        try:
+            services = _services(ctx)
+            row = await TenantService(ctx.db, ctx.clock).require(tenant)
+            reservation = await services.reservations.by_res_id(row.id, res_id)
+            if reservation is None:
+                raise TenantError(f"reservation {res_id} not found")
+            lines = await services.journeys.preview(row, reservation)
+            return [
+                [line.step, line.local_at.strftime("%Y-%m-%d %H:%M"), line.template, line.text[:70]]
+                for line in lines
+            ]
+        finally:
+            await ctx.close()
+
+    try:
+        rows = run(_go())
+    except TenantError as exc:
+        _fail(str(exc))
+        return
+    typer.echo(_table(["step", "local time", "template", "text"], rows) if rows else "(no steps)")
+
+
+@journeys_app.command("test-send")
+def journeys_test_send(
+    tenant: str,
+    step: str,
+    to: str = typer.Option(..., "--to", help="staff phone in E.164"),
+    lang: str = typer.Option("de", "--lang"),
+) -> None:
+    """Send one journey step with sample values to a staff phone (needs an APPROVED template)."""
+    from concierge.templates.service import TemplateRefused
+    from concierge.tenants.service import TenantError, TenantService
+
+    async def _go() -> tuple[str, str, int]:
+        ctx = _context()
+        try:
+            services = _services(ctx)
+            row = await TenantService(ctx.db, ctx.clock).require(tenant)
+            outbox_id, text = await services.journeys.test_send(row, to, step, lang)
+            processed = await services.worker.drain()
+            return outbox_id, text, processed
+        finally:
+            await ctx.close()
+
+    try:
+        outbox_id, text, processed = run(_go())
+    except (TenantError, TemplateRefused, ValueError) as exc:
+        _fail(str(exc))
+        return
+    typer.echo(f"queued {outbox_id} ({processed} jobs processed)\n{text}")
+
+
+@registration_app.command("export")
+def registration_export(
+    tenant: str,
+    start: datetime = typer.Option(..., "--from", formats=["%Y-%m-%d"]),
+    end: datetime = typer.Option(..., "--to", formats=["%Y-%m-%d"]),
+    out: Path | None = typer.Option(None, "--out", help="write JSON to this file"),
+) -> None:
+    """Machine-readable Meldeschein export for the authorities (decrypted; handle with care)."""
+    import json
+
+    from concierge.tenants.service import TenantError
+
+    async def _go() -> list[dict[str, Any]]:
+        ctx = _context()
+        try:
+            services = _services(ctx)
+            return await services.registration.export(
+                await _tenant_id(ctx, tenant), start.date(), end.date()
+            )
+        finally:
+            await ctx.close()
+
+    try:
+        rows = run(_go())
+    except TenantError as exc:
+        _fail(str(exc))
+        return
+    payload = json.dumps(rows, ensure_ascii=False, indent=2)
+    if out is not None:
+        out.write_text(payload, encoding="utf-8")
+        typer.echo(f"{len(rows)} rows written to {out}")
+    else:
+        typer.echo(payload)
+
+
 # --------------------------------------------------------------------- serving
 def _reachable_host(host: str) -> str:
     """The host the process can reach itself on (an unspecified bind maps to loopback)."""
@@ -528,13 +730,78 @@ def serve(
     _serve(demo=False, host=host, port=port)
 
 
-@app.command()
+@demo_app.callback(invoke_without_command=True)
 def demo(
+    ctx: typer.Context,
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8000, "--port"),
 ) -> None:
     """Seed the fictional Hotel Beispiel and start the service in demo mode."""
+    if ctx.invoked_subcommand is not None:
+        return
     _serve(demo=True, host=host, port=port)
+
+
+@demo_app.command("advance")
+def demo_advance(
+    days: int = typer.Option(..., "--days", min=0, max=60, help="days to warp forward"),
+    at: str = typer.Option("10:00", "--at", help="local wall time of the warped clock (HH:MM)"),
+) -> None:
+    """Run every journey step due by the warped clock against the running demo server."""
+    from datetime import timedelta
+
+    from concierge.channels.whatsapp.graph import GraphClient
+    from concierge.clock import FakeClock, SystemClock, local_date, local_to_utc, parse_hhmm
+    from concierge.context import AppContext
+    from concierge.db.session import Database
+    from concierge.security.crypto import Keyring
+    from concierge.services import build_services
+    from concierge.settings import get_settings
+
+    settings = get_settings()
+    if settings.is_production:
+        _fail("the demo clock is refused when GC_ENV=production")
+    try:
+        wall = parse_hhmm(at)
+    except ValueError as exc:
+        _fail(str(exc))
+        return
+    tz = settings.gc_tz_default
+    day = local_date(SystemClock().now(), tz) + timedelta(days=days)
+    target = local_to_utc(day, wall, tz)
+    base = settings.public_base_url()
+
+    async def _go() -> tuple[int, list[list[str]]]:
+        ctx = AppContext(
+            settings=settings,
+            db=Database(settings.database_url()),
+            keyring=Keyring.from_settings(settings),
+            clock=FakeClock(target),
+        )
+        services = build_services(
+            ctx,
+            llm=None,
+            wa_port=GraphClient(
+                version=settings.gc_wa_graph_version, base_url=f"{base}/mock-graph"
+            ),
+            demo=True,
+        )
+        try:
+            processed = await services.worker.drain()
+            rows = [[o.step, o.outcome, o.detail[:60]] for o in services.journeys.outcomes]
+            counts = await services.outbox.counts()
+            rows.append(["outbox", ", ".join(f"{k}={v}" for k, v in sorted(counts.items())), ""])
+            return processed, rows
+        finally:
+            await services.close()
+
+    processed, rows = run(_go())
+    typer.echo(
+        f"demo clock warped to {day} {at} {tz} ({target:%Y-%m-%d %H:%M} UTC); "
+        f"{processed} jobs processed"
+    )
+    typer.echo(_table(["step", "outcome", "detail"], rows) if rows else "(nothing was due)")
+    typer.echo(f"sends are listed on {base}/demo/wa-sim while `concierge demo` is running")
 
 
 def main() -> None:

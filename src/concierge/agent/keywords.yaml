@@ -12,9 +12,9 @@ emergency:
 stop:
   de: [stop, stopp, abmelden, abbestellen, "keine nachrichten mehr", "nicht mehr schreiben", "bitte nicht mehr anschreiben"]
   en: [stop, unsubscribe, "no more messages", "stop messaging me", "stop texting me"]
-  ru: [стоп, отписаться, отписка, "не пишите", "больше не пишите"]
-  uk: [стоп, відписатися, "не пишіть", "більше не пишіть"]
-  tr: [dur, durdur, "abonelikten çık", "mesaj atmayın", "mesaj göndermeyin"]
+  ru: [стоп, stop, отписаться, отписка, "не пишите", "больше не пишите"]
+  uk: [стоп, stop, відписатися, "не пишіть", "більше не пишіть"]
+  tr: [dur, durdur, stop, "abonelikten çık", "mesaj atmayın", "mesaj göndermeyin"]
   it: [stop, "annulla iscrizione", "non scrivetemi più", "basta messaggi"]
 person:
   de: [mitarbeiter, mitarbeiterin, "echte person", "echten menschen", "mit einem menschen", "rezeption sprechen", "jemanden sprechen", "mit jemandem sprechen", "kein bot", "keinen bot", "mit einer person"]

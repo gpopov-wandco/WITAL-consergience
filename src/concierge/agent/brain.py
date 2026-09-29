@@ -20,7 +20,7 @@ import unicodedata
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Any
+from typing import Any, Protocol
 
 from pydantic import ValidationError
 
@@ -32,6 +32,7 @@ from concierge.agent.responder import Responder, ResponderContext, Slots, extrac
 from concierge.agent.schemas import AgentReply, Button, HandoffDecision, output_schema
 from concierge.agent.texts import GuestTexts
 from concierge.agent.tools import ToolBackends, ToolRunner, ToolSession
+from concierge.agent.upsells import Offer, UpsellContext, UpsellPolicy
 from concierge.agent.validators import ValidationContext, corrective_message, validate_reply
 from concierge.clock import Clock, local_date
 from concierge.conversations.service import BOT_SILENT_STATUSES, ConversationService, Inbound
@@ -80,8 +81,41 @@ CHAT_BUTTON_IDS = frozenset(
         "more",
         "verify",
         "privacy",
+        "eta_before_18",
+        "eta_18_22",
+        "eta_after_22",
+        "stay_ok",
+        "stay_issue",
+        "upsell_yes",
+        "upsell_no",
     }
 )
+JOURNEY_BUTTON_IDS = frozenset(
+    {"eta_before_18", "eta_18_22", "eta_after_22", "stay_ok", "stay_issue"}
+)
+
+
+class JourneyReplies(Protocol):
+    """Replies to journey template buttons (F13); implemented by the journey engine."""
+
+    async def eta_window(
+        self, tenant: Tenant, guest: Guest, conversation: Conversation, button_id: str, lang: str
+    ) -> str | None: ...
+
+    async def stay_feedback(
+        self,
+        tenant: Tenant,
+        profile: TenantProfile,
+        guest: Guest,
+        conversation: Conversation,
+        ok: bool,
+        lang: str,
+    ) -> tuple[str, str | None]: ...
+
+
+StopHook = Callable[[str, str | None], Awaitable[int]]
+UpsellRequestHook = Callable[[Tenant, Conversation, str, str], Awaitable[str]]
+"""(tenant, conversation, upsell id, lang) -> request id; records the guest's yes for staff."""
 
 
 @dataclass
@@ -158,6 +192,9 @@ class Brain:
         models: ModelConfig | None = None,
         backends_factory: BackendsFactory | None = None,
         availability_lookup: AvailabilityLookup | None = None,
+        journey_replies: JourneyReplies | None = None,
+        stop_hook: StopHook | None = None,
+        upsell_request: UpsellRequestHook | None = None,
         usage_sink: UsageSink | None = None,
         alert_sink: AlertSink | None = None,
         breaker: CircuitBreaker | None = None,
@@ -177,6 +214,10 @@ class Brain:
         self.models = models or ModelConfig()
         self.backends_factory = backends_factory
         self.availability_lookup = availability_lookup
+        self.journey_replies = journey_replies
+        self.stop_hook = stop_hook
+        self.upsell_request = upsell_request
+        self.upsells = UpsellPolicy(kb, texts)
         self.usage_sink = usage_sink
         self.alert_sink = alert_sink
         self.breaker = breaker or CircuitBreaker(clock)
@@ -348,6 +389,23 @@ class Brain:
                 "guest asked for a person",
             )
             result.messages.append(self._handoff_ack(profile, reply_lang, tenant.id))
+            return await self._finish(tenant, profile, conversation, result)
+
+        if (
+            inbound.button_id in JOURNEY_BUTTON_IDS
+            and self.journey_replies is not None
+            and await self._journey_button(
+                tenant, profile, guest, conversation, str(inbound.button_id), reply_lang, result
+            )
+        ):
+            return await self._finish(tenant, profile, conversation, result)
+
+        if inbound.button_id in {"upsell_yes", "upsell_no"} and conversation.meta.get(
+            "upsell_pending"
+        ):
+            await self._upsell_answer(
+                tenant, conversation, str(inbound.button_id) == "upsell_yes", reply_lang, result
+            )
             return await self._finish(tenant, profile, conversation, result)
 
         if guard.redactions:
@@ -807,6 +865,8 @@ class Brain:
             await self._handoff(tenant, profile, conversation, result, priority, trigger, reason)
             if code != "H" or reply.topic in {"kb_miss", "unresolved"}:
                 result.messages.append(self._handoff_ack(profile, reply_lang, tenant.id))
+        else:
+            await self._maybe_offer(tenant, conversation, reply, reply_lang, result)
         await self.conversations.merge_meta(
             tenant.id,
             conversation.id,
@@ -814,6 +874,63 @@ class Brain:
             repeat_count=repeats,
             unresolved_turns=unresolved,
             redirect_count=redirects,
+        )
+
+    async def _maybe_offer(
+        self,
+        tenant: Tenant,
+        conversation: Conversation,
+        reply: AgentReply,
+        lang: str,
+        result: BrainResult,
+    ) -> None:
+        if conversation.channel == "voice":
+            return
+        open_handoff = await self.handoffs.open_for_conversation(tenant.id, conversation.id)
+        ctx = UpsellContext(
+            conversation=conversation,
+            intent_code=reply.intent_code,
+            topic=reply.topic,
+            handoff_needed=reply.handoff.needed,
+            open_priority=open_handoff.priority if open_handoff else None,
+        )
+        offer: Offer | None = await self.upsells.offer(tenant.id, ctx, lang)
+        if offer is None:
+            return
+        result.messages.append(
+            Outbound(offer.text, lang, buttons=list(offer.buttons), intent="A:upsell")
+        )
+        result.events.append(f"upsell_offered:{offer.upsell_id}")
+        await self.conversations.update(tenant.id, conversation.id, upsell_offered=True)
+        await self.conversations.merge_meta(
+            tenant.id, conversation.id, upsell_pending=offer.upsell_id
+        )
+
+    async def _upsell_answer(
+        self,
+        tenant: Tenant,
+        conversation: Conversation,
+        accepted: bool,
+        lang: str,
+        result: BrainResult,
+    ) -> None:
+        upsell_id = str(conversation.meta.get("upsell_pending") or "")
+        if accepted and self.upsell_request is not None:
+            request_id = await self.upsell_request(tenant, conversation, upsell_id, lang)
+            result.events.append(f"upsell_requested:{upsell_id}:{request_id}")
+            result.messages.append(
+                Outbound(self.texts.render("request_recorded", lang), lang, intent="A:upsell")
+            )
+            await self.conversations.merge_meta(
+                tenant.id, conversation.id, upsell_pending=None, upsell_requested=upsell_id
+            )
+            return
+        result.events.append(f"upsell_declined:{upsell_id}")
+        result.messages.append(
+            Outbound(self.texts.render("upsell_declined_ack", lang), lang, intent="A:upsell")
+        )
+        await self.conversations.merge_meta(
+            tenant.id, conversation.id, upsell_pending=None, upsell_declined=True
         )
 
     async def _handoff(
@@ -877,6 +994,46 @@ class Brain:
                 )
             await session.commit()
         await self.conversations.update(tenant.id, conversation.id, stopped_at=self.clock.now())
+        if self.stop_hook is not None:
+            await self.stop_hook(tenant.id, inbound.phone)
+
+    async def _journey_button(
+        self,
+        tenant: Tenant,
+        profile: TenantProfile,
+        guest: Guest,
+        conversation: Conversation,
+        button_id: str,
+        lang: str,
+        result: BrainResult,
+    ) -> bool:
+        assert self.journey_replies is not None
+        if button_id.startswith("eta_"):
+            text = await self.journey_replies.eta_window(
+                tenant, guest, conversation, button_id, lang
+            )
+            if text is None:
+                return False
+            result.messages.append(Outbound(text, lang, intent="A:eta"))
+            result.events.append(f"journey:{button_id}")
+            return True
+        text, handoff_id = await self.journey_replies.stay_feedback(
+            tenant, profile, guest, conversation, button_id == "stay_ok", lang
+        )
+        buttons = self._buttons(["person"], lang, conversation.channel) if handoff_id else []
+        result.messages.append(
+            Outbound(
+                text,
+                lang,
+                intent="A:stay_ok" if handoff_id is None else "H:complaint",
+                buttons=buttons,
+            )
+        )
+        if handoff_id is not None:
+            result.handoff_id = handoff_id
+            result.events.append("handoff:P1:stay_check")
+        result.events.append(f"journey:{button_id}")
+        return True
 
     async def _finish(
         self,

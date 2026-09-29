@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ t.title }}{% endblock %}
+{% block content %}
+<h1>{{ t.title }}</h1>
+<p class="muted">{{ hotel }} · {{ arrival_text }}</p>
+{% if status == 'draft_unreviewed' %}<p class="badge">draft_unreviewed</p>{% endif %}
+<p>{{ t.intro }}</p>
+<p>{{ t.privacy }}{% if privacy_url %} <a href="{{ privacy_url }}">{{ privacy_url }}</a>{% endif %}</p>
+{% if not enabled %}
+<p class="error">{{ 'Nicht aktiviert.' if lang == 'de' else 'Not enabled.' }}</p>
+{% elif confirmed %}
+<p class="notice">{{ t.done }}</p>
+{% else %}
+{% if notice == 'done' %}<p class="notice">{{ t.saved }}</p>{% endif %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if saved %}
+<p class="notice">{{ t.saved }}</p>
+<p>{{ t.confirm_hint }}</p>
+<form method="post" action="/r/{{ token }}/confirm" class="card">
+  <button type="submit"{% if not arrival_day %} aria-describedby="arrival-hint"{% endif %}>{{ t.confirm }}</button>
+  {% if not arrival_day %}<p id="arrival-hint" class="muted">{{ t.not_arrival_day.replace('{arrival}', arrival_text) }}</p>{% endif %}
+</form>
+{% endif %}
+<form method="post" action="/r/{{ token }}" class="card">
+  {% for name in fields %}
+  <div class="field">
+    <label for="f-{{ name }}">{{ t.fields[name] }}</label>
+    {% if name in ['arrival', 'departure', 'birth_date'] %}
+    <input id="f-{{ name }}" name="{{ name }}" type="date" value="{{ data.get(name, '') }}" {% if name != 'departure' %}required{% endif %}>
+    {% elif name == 'companions_count' %}
+    <input id="f-{{ name }}" name="{{ name }}" type="number" min="0" max="20" value="{{ data.get(name, 0) }}">
+    {% else %}
+    <input id="f-{{ name }}" name="{{ name }}" type="text" value="{{ data.get(name, '') or '' }}" {% if name not in ['companions_nationality'] %}required{% endif %} autocomplete="off">
+    {% endif %}
+  </div>
+  {% endfor %}
+  <button type="submit">{{ t.save }}</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -231,7 +231,7 @@ async def test_refusal_and_invalid_json_fall_back_to_responder(
     h = _harness(db, keyring, clock, tenant, [Step.final("I refuse", stop_reason="refusal")])
     result = await h.say("Wann gibt es Frühstück?")
     assert result.mode == "responder" and "model_failure:stop_reason:refusal" in result.events
-    assert "07:00" in result.messages[-1].text
+    assert "07:00" in result.messages[-2].text and result.messages[-1].intent == "A:upsell"
     h2 = _harness(db, keyring, clock, tenant, [Step.final("not json"), Step.final(PARKING_REPLY)])
     result2 = await h2.say("Gibt es einen Parkplatz?", key="u2")
     assert result2.mode == "model" and len(h2.llm.requests) == 2  # type: ignore[union-attr]
@@ -429,7 +429,8 @@ async def test_unsupported_language_gets_english_note(
         e.startswith("unsupported_language:it") for e in result.events
     )
     assert any("Deutsch, English" in m.text for m in result.messages)
-    assert result.messages[-1].lang == "en" and "07:00" in result.messages[-1].text
+    assert result.messages[-2].lang == "en" and "07:00" in result.messages[-2].text
+    assert result.messages[-1].lang == "en" and result.messages[-1].intent == "A:upsell"
 
 
 async def test_same_question_off_topic_and_unresolved_turns(

@@ -132,6 +132,14 @@ texts:
     text: "Bu tarihler için müsait oda yok"
   avail_confirm_reception:
     text: "Lütfen müsaitliği resepsiyona teyit ettirin"
+  eta_window_saved:
+    text: "Teşekkürler, varış saatiniz olarak \"{window}\" notunu aldım. Resepsiyon bilgilendirildi."
+  eta_window_no_booking:
+    text: "\"{window}\" yanıtınız için teşekkürler. Bu numaraya ait bir rezervasyon bulamıyorum; lütfen rezervasyon numarası, soyadı ve giriş tarihini yazın."
+  upsell_offer_question:
+    text: "Bunu sizin için resepsiyondan talep edeyim mi? Talebi resepsiyon onaylar; ancak o zaman geçerli olur."
+  upsell_declined_ack:
+    text: "Anlaşıldı, sorun değil."
 
 buttons:
   person: Personel
@@ -145,3 +153,5 @@ buttons:
   more: Daha fazla
   verify: Rezervasyon kontrol
   privacy: Gizlilik
+  upsell_yes: "Evet, talep et"
+  upsell_no: "Hayır, teşekkürler"

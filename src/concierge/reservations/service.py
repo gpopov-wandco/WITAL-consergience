@@ -185,8 +185,8 @@ class ReservationService:
         self.hooks.append(hook)
 
     @staticmethod
-    def job_prefix(tenant_id: str, reservation_id: str) -> str:
-        return f"journey:{tenant_id}:{reservation_id}:"
+    def job_prefix(tenant_id: str, res_id: str) -> str:
+        return f"journey:{tenant_id}:{res_id}:"
 
     # ---------------------------------------------------------------- upsert
     async def upsert(
@@ -277,7 +277,7 @@ class ReservationService:
         cancelled_jobs = 0
         if dates_changed or cancelled:
             cancelled_jobs = await self.jobs.cancel(
-                dedupe_prefix=self.job_prefix(tenant_id, row.id)
+                dedupe_prefix=self.job_prefix(tenant_id, row.res_id)
             )
         result = UpsertResult(
             reservation=row,

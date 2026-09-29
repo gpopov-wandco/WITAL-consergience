@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Link{% endblock %}
+{% block content %}
+<h1>{{ 'Link ungültig oder abgelaufen' if lang == 'de' else 'Link invalid or expired' }}</h1>
+<p>{{ 'Bitte wenden Sie sich an die Rezeption.' if lang == 'de' else 'Please contact the reception.' }} ({{ reason }})</p>
+{% endblock %}

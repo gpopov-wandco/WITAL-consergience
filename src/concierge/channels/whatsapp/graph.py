@@ -20,6 +20,17 @@ from concierge.channels.whatsapp.port import GraphError, MediaInfo, SendResult, 
 DEFAULT_BASE_URL = "https://graph.facebook.com"
 
 
+def in_process_client(version: str, asgi_app: Any, *, base_url: str) -> GraphClient:
+    """A Graph client whose HTTP stack is routed into an ASGI app (the demo's mock server).
+
+    The full client code runs; only the socket is replaced, so a demo never depends on
+    the server accepting its own connections during startup.
+    """
+    return GraphClient(
+        version=version, base_url=base_url, transport=httpx2.ASGITransport(app=asgi_app)
+    )
+
+
 class GraphClient:
     def __init__(
         self,

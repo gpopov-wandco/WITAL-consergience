@@ -58,6 +58,21 @@ class JobService:
                         existing.run_at = when
                         existing.payload = payload or existing.payload
                         await session.commit()
+                        return Enqueued(existing.id, created=False)
+                    if existing.status == "cancelled":
+                        # a cancelled key may be planned again (re-booking); a done or
+                        # dead key never runs twice
+                        existing.status = "pending"
+                        existing.run_at = when
+                        existing.payload = payload or existing.payload
+                        existing.attempts = 0
+                        existing.last_error = None
+                        existing.done_at = None
+                        existing.lease_until = None
+                        existing.worker_id = None
+                        existing.max_attempts = max_attempts
+                        await session.commit()
+                        return Enqueued(existing.id, created=True)
                     return Enqueued(existing.id, created=False)
             job = Job(
                 tenant_id=tenant_id,

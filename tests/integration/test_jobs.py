@@ -124,3 +124,23 @@ async def test_heartbeat_and_snapshot(jobs: JobService, clock: FakeClock) -> Non
     clock.advance(timedelta(seconds=5))
     assert worker.heartbeat_age_s() == 5.0
     assert worker.snapshot()["processed"] == 0
+
+
+async def test_cancelled_key_is_revived_but_a_done_key_never_runs_twice(
+    jobs: JobService, clock: FakeClock
+) -> None:
+    first = await jobs.enqueue("k", {"n": 1}, dedupe_key="dup:1")
+    assert await jobs.cancel(dedupe_prefix="dup:") == 1
+    revived = await jobs.enqueue("k", {"n": 2}, dedupe_key="dup:1")
+    assert revived.created and revived.id == first.id
+    job = await jobs.get(first.id)
+    assert (
+        job is not None
+        and job.status == "pending"
+        and job.payload == {"n": 2}
+        and job.attempts == 0
+    )
+    await jobs.complete(first.id)
+    again = await jobs.enqueue("k", {"n": 3}, dedupe_key="dup:1")
+    assert not again.created and (await jobs.get(first.id)).status == "done"  # type: ignore[union-attr]
+    assert await jobs.pending() == []

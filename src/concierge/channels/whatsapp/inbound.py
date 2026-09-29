@@ -60,6 +60,13 @@ BUTTON_IDS = frozenset(
         "more",
         "verify",
         "privacy",
+        "eta_before_18",
+        "eta_18_22",
+        "eta_after_22",
+        "stay_ok",
+        "stay_issue",
+        "upsell_yes",
+        "upsell_no",
     }
 )
 MEDIA_MAX_BYTES = 16 * 1024 * 1024

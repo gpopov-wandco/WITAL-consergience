@@ -126,3 +126,38 @@ a provider request id (the scripted fake, or a provider that omits the header) i
 referenced by a fresh ULID instead of a clock timestamp; two calls in the same turn
 produced the same timestamp under the injected clock and the insert failed, which the
 tool-backend tests caught in M6.
+
+## D-014 Journey phases and caps (F13)
+
+The prompt caps journey messages at "3 before arrival, 1 during, 2 after" while its
+default steps place three messages on or between arrival and departure (welcome, day-1
+check, checkout reminder). The engine therefore counts four phases: before arrival
+(booking follow-up, T-7, T-2, registration link; cap ``before``, T-7 dropped first,
+then the follow-up), the arrival-day welcome (one message by construction), during the
+stay (day-1 check; cap ``during``) and departure day and later (checkout reminder,
+review request; cap ``after``, the review dropped first). The registration link is a
+message of its own because one message carries one topic. Job dedupe keys are
+``journey:{tenant}:{res_id}:{step}:{arrival}``; a re-booked reservation revives its
+cancelled keys, a done key never runs twice.
+
+## D-015 Registration confirmation and Stripe (F15)
+
+The electronic confirmation is a Stripe Checkout Session in payment mode with manual
+capture of ``preauth_cents`` (default 100) and 3-D Secure requested; the payment method
+id from ``checkout.session.completed`` is stored encrypted as the assignment number
+and the PaymentIntent is cancelled to release the hold. Whether this satisfies the
+"Zuordnungsnummer" requirement, the amount, the release and the account owner are
+VERIFY items for the PSP and counsel (compliance pack). The demo and the tests use
+``FakeProof``; nothing in the build ever calls Stripe. The BMG exemption of German
+citizens since 2025-01-01 is stated as "to be confirmed by the hotel" in every
+language and the texts stay ``draft_unreviewed``.
+
+## D-016 Named template parameters and the 24-hour STOP keyword (F14, C9)
+
+Templates use named parameters (``{{hotel}}``) with samples, sent as
+``parameter_name`` body parameters; quick-reply buttons carry ``gc:<id>`` payloads so a
+tap comes back as a button id. The exact creation and send payload shapes are VERIFY
+against the Meta documentation (unreachable during the build) and are exercised by
+``doctor --live`` and the first sync. Every template tells the guest to reply STOP, so
+the Latin keyword ``stop`` was added to the Russian, Ukrainian and Turkish opt-out lists
+next to the native words.

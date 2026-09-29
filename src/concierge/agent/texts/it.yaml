@@ -132,6 +132,14 @@ texts:
     text: "Per queste date non ci sono camere disponibili"
   avail_confirm_reception:
     text: "La preghiamo di far confermare la disponibilità dalla reception"
+  eta_window_saved:
+    text: "Grazie, ho annotato \"{window}\" come orario di arrivo. La reception è stata informata."
+  eta_window_no_booking:
+    text: "Grazie per \"{window}\". Non trovo una prenotazione per questo numero; mi indichi il numero di prenotazione, il cognome e la data di arrivo."
+  upsell_offer_question:
+    text: "Desidera che lo richieda per Lei alla reception? La reception conferma la richiesta; solo allora è valida."
+  upsell_declined_ack:
+    text: "D'accordo, nessun problema."
 
 buttons:
   person: Personale
@@ -145,3 +153,5 @@ buttons:
   more: Altro
   verify: Verifica dati
   privacy: Privacy
+  upsell_yes: "Sì, richiedi"
+  upsell_no: "No, grazie"

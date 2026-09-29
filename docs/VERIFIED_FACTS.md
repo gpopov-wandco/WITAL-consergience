@@ -85,6 +85,7 @@ All versions below install from wheels on Python 3.13.12 (Linux) into a clean ve
 |---|---|---|---|
 | Webhook signature | `Stripe-Signature` = `t={unix_seconds},v1={hex}`; digest = HMAC-SHA256(secret, `f"{t}.{payload}"`); default tolerance 300 s | `stripe` 15.6.1 wheel, `stripe/_webhook.py`, 2026-09-29 | verified |
 | Checkout Session, PaymentIntent, SCA, "Zuordnungsnummer" mapping, pre-authorisation | per the prompt (F15) | expected source stripe.com docs, PSP and lawyer | VERIFY |
+| Stripe endpoints used by `registration/stripe_proof.py` | `POST /v1/checkout/sessions` (form-encoded: `mode=payment`, `client_reference_id`, `payment_intent_data[capture_method]=manual`, `payment_method_options[card][request_three_d_secure]=any`, one `line_items[0][price_data]` of `preauth_cents`), `GET /v1/checkout/sessions/{id}`, `POST /v1/payment_intents/{id}/cancel`; webhook `checkout.session.completed` with `client_reference_id` and `payment_intent.payment_method` | build model's knowledge of the Stripe API; stripe.com unreachable during the build | VERIFY in test mode before go-live |
 
 ## Meta WhatsApp Cloud API
 
@@ -96,6 +97,7 @@ All versions below install from wheels on Python 3.13.12 (Linux) into a clean ve
 | Error codes | 0, 190, 4, 80007, 130429, 131047, 131048, 368, 131049, 131050, 131026, 131056, 132000, 132001, 132015, 132016 as in prompt 6.6 | prompt 6.6 | VERIFY; behaviour table in configuration |
 | Send idempotency | Meta documents no send idempotency key | prompt 6.6 | VERIFY; timeouts are `unknown`, reconciled by status webhooks |
 | Template limits | 100 creations per hour, 250 per unverified portfolio; body 1,024, header and footer 60, button 25, quick replies at most 3 | prompt F14 | VERIFY |
+| Template payloads used by `templates/service.py` | creation: `POST /{WABA_ID}/message_templates` with `name`, `language`, `category` (UTILITY, MARKETING), `components[]` (`BODY` with `example.body_text_named_params[] {param_name, example}`, `BUTTONS` with `QUICK_REPLY`); send: `template.components[]` with `{type: body, parameters: [{type: text, parameter_name, text}]}` and `{type: button, sub_type: quick_reply, index, parameters: [{type: payload, payload}]}`; status updates via `message_template_status_update` | implemented from the prompt and the build model's knowledge; developers.facebook.com unreachable during the build | VERIFY at the first sync and by `doctor --live` |
 
 ## PMS vendors
 

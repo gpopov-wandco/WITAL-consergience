@@ -29,8 +29,9 @@ from concierge.demo.mock_graph import MockGraphState
 from concierge.demo.mock_graph import build_router as build_mock_graph_router
 from concierge.demo.routes import build_router as build_demo_router
 from concierge.log import configure_logging, get_logger
+from concierge.registration.routes import build_router as build_registration_router
 from concierge.reservations.routes import build_router as build_reservation_router
-from concierge.services import Services
+from concierge.services import Services, schedule_registration_purge
 
 log = get_logger(__name__)
 
@@ -57,6 +58,7 @@ def create_app(
         for hook in startup or []:
             await hook()
         if start_worker:
+            await schedule_registration_purge(services.jobs, services.ctx)
             services.worker.start()
         try:
             yield
@@ -77,6 +79,14 @@ def create_app(
     app.include_router(
         build_reservation_router(
             services.tenants, services.secrets, services.reservations, services.ctx.clock
+        )
+    )
+    app.include_router(
+        build_registration_router(
+            services.registration,
+            services.tenants,
+            services.ctx.clock,
+            stripe_webhook_secret=services.ctx.settings.stripe_webhook_secret.get_secret_value(),
         )
     )
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

@@ -132,6 +132,14 @@ texts:
     text: "No rooms are available for these dates"
   avail_confirm_reception:
     text: "Please have the availability confirmed by the reception"
+  eta_window_saved:
+    text: "Thank you, I have noted \"{window}\" as your arrival time. The reception has been informed."
+  eta_window_no_booking:
+    text: "Thank you for \"{window}\". I cannot find a booking for this number; please tell me the booking reference, surname and arrival date."
+  upsell_offer_question:
+    text: "Shall I request this for you at the reception? The reception confirms the request; only then does it apply."
+  upsell_declined_ack:
+    text: "Understood, no problem."
 
 buttons:
   person: Staff
@@ -145,3 +153,5 @@ buttons:
   more: More
   verify: Check booking
   privacy: Privacy
+  upsell_yes: "Yes, request it"
+  upsell_no: "No, thanks"

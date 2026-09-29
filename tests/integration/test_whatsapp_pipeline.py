@@ -272,7 +272,8 @@ async def test_end_to_end_conversation_with_disclosure_reply_and_statuses(
     await pipeline.post(pipeline.text_event("Und wann gibt es Frühstück?"))
     await pipeline.drain()
     sent = pipeline.graph.messages_to(GUEST)
-    assert len(sent) == 3 and "07:00" in sent[2].text
+    assert len(sent) == 4 and "07:00" in sent[2].text
+    assert sent[3].payload["type"] == "interactive" and "16 EUR" in sent[3].text  # breakfast upsell
 
 
 async def test_window_closed_throttle_and_token_invalid(pipeline: Pipeline) -> None:
@@ -283,7 +284,7 @@ async def test_window_closed_throttle_and_token_invalid(pipeline: Pipeline) -> N
     rows = await pipeline.outbox_rows()
     assert [r.state for r in rows] == ["failed", "failed"] and rows[0].error_code == "131047"
     pipeline.graph.inject_error(130429, times=5)
-    await pipeline.post(pipeline.text_event("Wann gibt es Frühstück?"))
+    await pipeline.post(pipeline.text_event("Wie komme ich vom Flughafen zum Hotel?"))
     await pipeline.drain()
     row = (await pipeline.outbox_rows())[-1]
     assert row.state == "queued" and row.attempts == 1 and row.error_code == "130429"

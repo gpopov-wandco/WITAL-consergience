@@ -132,6 +132,14 @@ texts:
     text: "Für diese Daten sind keine Zimmer verfügbar"
   avail_confirm_reception:
     text: "Bitte lassen Sie die Verfügbarkeit von der Rezeption bestätigen"
+  eta_window_saved:
+    text: "Danke, ich habe „{window}“ als Ankunftszeit notiert. Die Rezeption weiß Bescheid."
+  eta_window_no_booking:
+    text: "Danke für die Angabe „{window}“. Ich finde dazu keine Buchung unter dieser Nummer; bitte nennen Sie Buchungsnummer, Nachname und Anreisedatum."
+  upsell_offer_question:
+    text: "Soll ich das für Sie bei der Rezeption anfragen? Die Rezeption bestätigt die Anfrage; erst dann gilt sie."
+  upsell_declined_ack:
+    text: "Alles klar, kein Problem."
 
 buttons:
   person: Mitarbeiter
@@ -145,3 +153,5 @@ buttons:
   more: Mehr
   verify: Buchung prüfen
   privacy: Datenschutz
+  upsell_yes: "Ja, anfragen"
+  upsell_no: "Nein, danke"
