@@ -62,7 +62,8 @@ default location is `~/.witalco-concierge/`; `GC_DATABASE_URL` overrides it.
 | `concierge kb import-url <url> --tenant X`, `kb import-file <path> --tenant X` | draft entries from public pages (SSRF guard) or text, Markdown and PDF files |
 | `concierge kb questionnaire items\|export\|import\|apply` | the 85-item questionnaire as YAML and its draft entries |
 | `concierge kb translate --tenant X --to ru,uk` and `kb coverage --tenant X` | machine-translation drafts through the model; go-live key coverage |
-| `concierge backup` and `concierge restore-test` | encrypted backups and restore rehearsal |
+| `concierge backup` and `concierge restore-test` | encrypted backups and restore rehearsal (row counts compared with the backup manifest) |
+| `concierge prices model set\|list` | dated model price rows in USD per million tokens |
 | `concierge handout build` | the PDF handout |
 | `concierge compliance pack --tenant X` | the compliance pack |
 

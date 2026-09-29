@@ -38,6 +38,13 @@ and the outcome per row; a failed row is a defect.
 matrix when a browser is available; the contrast of the brand tokens is asserted in
 `tests/integration/test_widget.py`.
 
+Run of 2026-09-29 (Chromium through Playwright, viewport 390 by 844, locale de-DE):
+2 passed. The first runs found three widget defects, all fixed before the green run:
+closing the panel did not hide it (the flex rule beat the `hidden` attribute), the
+launcher was not rendered again after the first open (no slot in the shadow root, so
+focus could not return to it), and focus moved into the input only after the session
+request had returned. Rows 4 to 7 and 9 to 19 remain manual checks.
+
 ## Accessibility statement
 
 The template lives in the legal drafts (`legal/drafts.yaml`, `accessibility`); the

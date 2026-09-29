@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, or_, select
 
 from concierge.clock import Clock
 from concierge.db.models import (
@@ -124,7 +124,11 @@ class RetentionService:
                         select(Reservation).where(
                             Reservation.tenant_id == tenant.id,
                             Reservation.departure <= cutoff,
-                            Reservation.phone_bidx.is_not(None),
+                            or_(
+                                Reservation.phone_enc.is_not(None),
+                                Reservation.name_enc.is_not(None),
+                                Reservation.email_enc.is_not(None),
+                            ),
                         )
                     )
                 ).scalars()

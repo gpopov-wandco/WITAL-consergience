@@ -31,7 +31,7 @@ PHONE = "+4915112345678"
 
 
 async def chat(stack: DemoStack, text: str) -> None:
-    factory = PayloadFactory(stack.tenant.phone_number_id or "")
+    factory = PayloadFactory(stack.tenant.phone_number_id or "", clock=stack.clock)
     sim = WaSimClient(
         "http://testserver", DEMO_SECRETS["wa_app_secret"], transport=stack.client._transport
     )

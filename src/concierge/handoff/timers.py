@@ -18,6 +18,7 @@ from concierge.handoff.service import HandoffService
 from concierge.jobs.service import JobService
 from concierge.log import get_logger
 from concierge.notify.alerts import StaffAlerts
+from concierge.tenants.profile import TenantProfile
 from concierge.tenants.service import TenantService
 
 log = get_logger(__name__)
@@ -69,6 +70,12 @@ class HandoffTimers:
         if tenant is None:
             return
         profile = self.tenants.profile_of(tenant)
+        try:
+            await self._tick(tenant, tenant_id, profile)
+        finally:
+            await self.schedule(tenant_id, delay=INTERVAL)  # a failure never stops the timers
+
+    async def _tick(self, tenant: Tenant, tenant_id: str, profile: TenantProfile) -> None:
         changed = await self.handoffs.check_timers(tenant_id, profile)
         for handoff in changed:
             await self.alerts.on_handoff(tenant, profile, handoff, level=handoff.escalation_level)
@@ -85,4 +92,3 @@ class HandoffTimers:
                 await hook(tenant)
             except Exception:  # one failing hook never stops the timers
                 log.exception("handoff_timers.hook_failed", tenant=tenant_id)
-        await self.schedule(tenant_id, delay=INTERVAL)

@@ -22,7 +22,8 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from concierge.clock import Clock, local_to_utc, to_local
+from concierge import audit
+from concierge.clock import Clock, local_date, local_to_utc, to_local
 from concierge.db.models import FxRate, ModelPrice, PriceTable, UsageEvent
 from concierge.db.session import Database
 from concierge.ids import new_id
@@ -256,21 +257,22 @@ class MeteringService:
                 price = await self.message_price(tenant_id, region, category, occurred.date())
                 if price is not None:
                     start = self.month_start(profile.timezone, occurred)
-                    used = int(
-                        await session.scalar(
-                            select(func.count())
-                            .select_from(UsageEvent)
-                            .where(
-                                UsageEvent.tenant_id == tenant_id,
-                                UsageEvent.kind == "whatsapp",
-                                UsageEvent.category == category,
-                                UsageEvent.occurred_at >= start,
-                                UsageEvent.occurred_at < occurred,
-                                UsageEvent.quantity == 1,
+                    # the allowance counts billable messages only, as the reconciliation does
+                    earlier: list[dict[str, Any]] = list(
+                        (
+                            await session.execute(
+                                select(UsageEvent.meta).where(
+                                    UsageEvent.tenant_id == tenant_id,
+                                    UsageEvent.kind == "whatsapp",
+                                    UsageEvent.category == category,
+                                    UsageEvent.occurred_at >= start,
+                                    UsageEvent.occurred_at < occurred,
+                                    UsageEvent.quantity == 1,
+                                )
                             )
-                        )
-                        or 0
+                        ).scalars()
                     )
+                    used = sum(1 for m in earlier if m.get("billable"))
                     cost = 0 if used < price.free_allowance_per_month else to_micro(price.price_eur)
             event = UsageEvent(
                 tenant_id=tenant_id,
@@ -299,12 +301,76 @@ class MeteringService:
             await session.refresh(event)
             return event
 
+    async def model_price_or_default(self, model: str, on: date) -> ModelPriceRow | None:
+        """The configured row for the day, else the built-in default (source ``default``)."""
+        return await self.model_price(model, on) or default_model_price(model)
+
+    async def set_model_price(
+        self,
+        model: str,
+        effective_from: date,
+        *,
+        input_usd: float,
+        output_usd: float,
+        cache_write_usd: float | None = None,
+        cache_read_usd: float | None = None,
+        source_url: str = "",
+        actor: str,
+    ) -> ModelPrice:
+        """Insert or replace the price row of a model from a date (operator action, audited)."""
+        async with self.db.scope() as session:
+            row = await session.scalar(
+                select(ModelPrice).where(
+                    ModelPrice.model == model, ModelPrice.effective_from == effective_from
+                )
+            )
+            if row is None:
+                row = ModelPrice(model=model, effective_from=effective_from)
+                session.add(row)
+            row.input_micro_usd_per_mtok = to_micro(input_usd)
+            row.output_micro_usd_per_mtok = to_micro(output_usd)
+            row.cache_write_micro_usd_per_mtok = to_micro(
+                input_usd * 1.25 if cache_write_usd is None else cache_write_usd
+            )
+            row.cache_read_micro_usd_per_mtok = to_micro(
+                input_usd * 0.1 if cache_read_usd is None else cache_read_usd
+            )
+            row.source_url = source_url
+            audit.record(
+                session,
+                actor=actor,
+                action="prices.model_set",
+                target=model,
+                details={
+                    "effective_from": effective_from.isoformat(),
+                    "input_usd": input_usd,
+                    "output_usd": output_usd,
+                },
+            )
+            await session.commit()
+            await session.refresh(row)
+            return row
+
+    async def llm_usd_today(self, tenant_id: str, tz: str) -> float:
+        """USD recorded for model calls since local midnight (primes the daily budget)."""
+        now = self.clock.now()
+        start = local_to_utc(local_date(now, tz), time(0, 0), tz)
+        async with self.db.tenant_scope(tenant_id) as session:
+            total = await session.scalar(
+                select(func.coalesce(func.sum(UsageEvent.cost_micro_usd), 0)).where(
+                    UsageEvent.tenant_id == tenant_id,
+                    UsageEvent.kind == "llm",
+                    UsageEvent.occurred_at >= start,
+                )
+            )
+        return int(total or 0) / MICRO
+
     async def record_llm(self, tenant_id: str, usage: Usage, meta: dict[str, Any]) -> UsageEvent:
         now = self.clock.now()
         model = str(meta.get("model", ""))
         usd = float(meta.get("usd", 0.0))
         if not usd:
-            price = await self.model_price(model, now.date())
+            price = await self.model_price_or_default(model, now.date())
             if price is not None:
                 usd = model_cost_usd(
                     price,

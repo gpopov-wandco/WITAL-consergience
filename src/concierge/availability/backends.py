@@ -19,13 +19,13 @@ from concierge.agent.texts import GuestTexts
 from concierge.agent.tools import ToolBackends, ToolError, ToolSession
 from concierge.availability.booking import booking_link
 from concierge.availability.chain import AvailabilityService
-from concierge.availability.models import Occupancy, Stay
+from concierge.availability.models import Occupancy, ReservationRecord, Stay
 from concierge.availability.policy import asks_for_units, summarize, tool_result
 from concierge.conversations.service import ConversationService
 from concierge.db.models import Conversation, Guest, Tenant
 from concierge.handoff.requests import RequestService
 from concierge.handoff.service import HandoffService
-from concierge.reservations.service import ReservationService
+from concierge.reservations.service import ReservationInput, ReservationService
 from concierge.tenants.profile import TenantProfile
 
 BackendsFactory = Callable[
@@ -115,8 +115,21 @@ class ToolBackendBuilder:
                 return None
             if record.surname.strip().lower() != surname.strip().split()[-1].lower():
                 return None
-            view = reservations.record_view(record)
-            return view
+            # keep the PMS record locally so the verification outlives this turn (F11, F12)
+            upserted = await reservations.upsert(
+                tenant.id,
+                _local_input(record, profile),
+                actor="verify_reservation",
+                phone_region=profile.contacts.phone_region,
+            )
+            row = upserted.reservation
+            await conversations.update(tenant.id, conversation.id, verified_reservation_id=row.id)
+            await conversations.merge_meta(
+                tenant.id, conversation.id, stay_date=row.arrival.isoformat()
+            )
+            await reservations.link_guest(tenant.id, row.id, guest.id)
+            state["reservation_id"] = str(row.id)
+            return reservations.tool_view(row)
 
         async def get_booking_link(
             arrival: date, departure: date, adults: int, children: int, room_type: str
@@ -224,3 +237,34 @@ class ToolBackendBuilder:
         summary["booking_url"] = booking_link(profile, stay, occupancy, lang)
         summary["window"] = profile.handoff.response_window_text.get(lang, "")
         return summary
+
+
+_PMS_STATUS = {
+    "cancelled": "cancelled",
+    "canceled": "cancelled",
+    "checked_in": "checked_in",
+    "in_house": "checked_in",
+    "checked_out": "checked_out",
+}
+
+
+def _local_input(record: ReservationRecord, profile: TenantProfile) -> ReservationInput:
+    """The local reservation row for a record the PMS returned (source ``pms``)."""
+    status = _PMS_STATUS.get(record.status.strip().lower().replace("-", "_"), "booked")
+    lang = record.lang.strip().lower()[:2]
+    return ReservationInput(
+        res_id=record.res_id.replace(" ", "") or record.confirmation_number.replace(" ", ""),
+        guest_name=f"{record.first_name} {record.surname}".strip(),
+        phone=record.phone or None,
+        email=record.email or None,
+        lang=lang if len(lang) == 2 and lang.isalpha() else profile.default_language,
+        arrival=record.arrival,
+        departure=record.departure,
+        room_type=record.room_type or None,
+        rate_plan=record.rate_plan or None,
+        source=f"pms:{record.source}"[:32] if record.source else "pms",
+        status=status,
+        adults=min(max(record.adults, 1), 20),
+        children=min(max(record.children, 0), 20),
+        meta={"confirmation_number": record.confirmation_number},
+    )

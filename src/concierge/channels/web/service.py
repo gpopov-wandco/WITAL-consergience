@@ -85,7 +85,7 @@ class WidgetService:
         self.brain = brain
         self.texts = texts
         self.clock = clock
-        self.own_origin = own_origin.rstrip("/")
+        self.own_origins: set[str] = {own_origin.rstrip("/")}
         self.limiter = limiter or MovingWindowLimiter()
 
     # ------------------------------------------------------------ tenants
@@ -99,7 +99,7 @@ class WidgetService:
         if not origin:
             return True  # same-origin fetches and non-browser clients send no Origin
         normalised = _normalise_origin(origin)
-        if normalised == _normalise_origin(self.own_origin):
+        if any(normalised == _normalise_origin(own) for own in self.own_origins):
             return True
         return any(normalised == _normalise_origin(o) for o in profile.widget.origins)
 

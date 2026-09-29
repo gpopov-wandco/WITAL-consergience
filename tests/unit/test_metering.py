@@ -222,3 +222,60 @@ async def test_month_report_and_reconciliation_append_corrections(
     assert corrections[0].occurred_at < datetime(2026, 10, 1, tzinfo=UTC)
     newest = await metering.newest_price_dates()
     assert newest[0] == date(2026, 10, 1) and newest[1] == date(2026, 9, 29)
+
+
+async def test_allowance_counts_billable_rows_only_and_prices_come_from_the_table(
+    db: Database, clock: FakeClock, tenant: Tenant
+) -> None:
+    metering = MeteringService(db, clock)
+    profile = TenantProfile.model_validate(SAMPLE)
+    async with db.scope() as session:
+        session.add(
+            PriceTable(
+                tenant_id=None,
+                region="DE",
+                category="utility",
+                effective_from=date(2026, 1, 1),
+                price_micro_eur=45_600,
+                free_allowance_per_month=2,
+                source_url="x",
+                updated_by="test",
+            )
+        )
+        await session.commit()
+    at = datetime(2026, 9, 10, 10, 0, tzinfo=UTC)
+    for index in range(3):  # status rows Meta marks as not billable do not use the allowance
+        free = await metering.record_whatsapp(
+            tenant.id,
+            profile,
+            details(f"nb:{index}", "utility", at + timedelta(minutes=index), billable=False),
+        )
+        assert free is not None and free.cost_micro_eur == 0
+    costs = []
+    for index in range(3):
+        event = await metering.record_whatsapp(
+            tenant.id, profile, details(f"b:{index}", "utility", at + timedelta(minutes=10 + index))
+        )
+        assert event is not None
+        costs.append(event.cost_micro_eur)
+    assert costs == [0, 0, 45_600]
+    assert await metering.reconcile_whatsapp(tenant.id, profile, 2026, 9) == 0  # both paths agree
+
+    default = await metering.model_price_or_default("claude-sonnet-5-5", date(2026, 9, 29))
+    assert default is not None and default.input_usd_per_mtok == 2.0
+    await metering.set_model_price(
+        "claude-sonnet-5-5", date(2026, 9, 1), input_usd=3.0, output_usd=15.0, actor="test"
+    )
+    configured = await metering.model_price_or_default("claude-sonnet-5-5", date(2026, 9, 29))
+    assert configured is not None and configured.input_usd_per_mtok == 3.0
+    assert configured.cache_write_usd_per_mtok == 3.75 and configured.cache_read_usd_per_mtok == 0.3
+    earlier = await metering.model_price_or_default("claude-sonnet-5-5", date(2026, 8, 1))
+    assert (
+        earlier is not None and earlier.input_usd_per_mtok == 2.0
+    )  # the row applies from its date
+    usage = Usage(input_tokens=1_000_000, output_tokens=0)
+    event = await metering.record_llm(
+        tenant.id, usage, {"model": "claude-sonnet-5-5", "request_id": "r1"}
+    )
+    assert event.cost_micro_usd == 3_000_000
+    assert await metering.llm_usd_today(tenant.id, profile.timezone) == pytest.approx(3.0)

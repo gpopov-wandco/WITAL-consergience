@@ -22,7 +22,7 @@ DESK_EMAIL = "desk@example.invalid"
 async def conversation_for(
     stack: DemoStack, text: str = "Gibt es einen Parkplatz?", *, guest_number: str = GUEST
 ) -> str:
-    factory = PayloadFactory(stack.tenant.phone_number_id or "")
+    factory = PayloadFactory(stack.tenant.phone_number_id or "", clock=stack.clock)
     sim = WaSimClient(
         "http://testserver", DEMO_SECRETS["wa_app_secret"], transport=stack.client._transport
     )

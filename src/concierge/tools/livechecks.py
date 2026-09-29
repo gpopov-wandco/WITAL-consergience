@@ -20,6 +20,7 @@ from typing import Any
 
 import httpx2
 
+from concierge.channels.voice.port import VOICE_SOCKET_SECRET
 from concierge.channels.whatsapp.graph import GraphClient
 from concierge.context import AppContext
 from concierge.db.models import Tenant
@@ -250,7 +251,17 @@ class LiveProbes:
             if settings.stripe_webhook_secret.get_secret_value():
                 checks.append(await self.stripe_webhook_check(client, base, settings))
             if profile.voice.provider == "retell":
-                checks.extend(await self.retell_checks(client, base, settings, tenant, profile))
+                checks.extend(
+                    await self.retell_checks(
+                        client,
+                        base,
+                        settings,
+                        tenant,
+                        profile,
+                        socket_secret=await services.secrets.get(tenant.id, VOICE_SOCKET_SECRET)
+                        or "",
+                    )
+                )
             if profile.voice.provider == "twilio_cr":
                 checks.extend(await self.twilio_checks(client, base, settings, slug))
         return checks
@@ -539,7 +550,14 @@ class LiveProbes:
         return Check("stripe.webhook", "pass", "signed test event accepted")
 
     async def retell_checks(
-        self, client: httpx2.AsyncClient, base: str, settings: Any, tenant: Tenant, profile: Any
+        self,
+        client: httpx2.AsyncClient,
+        base: str,
+        settings: Any,
+        tenant: Tenant,
+        profile: Any,
+        *,
+        socket_secret: str = "",
     ) -> list[Check]:
         slug = tenant.slug
         checks: list[Check] = []
@@ -593,7 +611,19 @@ class LiveProbes:
                 )
             )
         ws_url = base.replace("https://", "wss://").replace("http://", "ws://")
-        ws_url += f"/voice/retell/llm/{tenant.public_key}/doctor-probe"
+        ws_url += f"/voice/retell/llm/{tenant.public_key}/{socket_secret or 'missing'}/doctor-probe"
+        if not socket_secret:
+            checks.append(
+                Check(
+                    "retell.wss",
+                    "fail",
+                    "no voice socket secret stored for the tenant",
+                    fix=f"concierge voice provision {slug} (creates the secret and the agent)",
+                    doc=DOC_INTEGRATIONS,
+                    tenant=slug,
+                )
+            )
+            return checks
         try:
             if self.ws_connect is not None:
                 await self.ws_connect(ws_url)

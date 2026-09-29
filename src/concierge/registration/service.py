@@ -140,6 +140,7 @@ class RegistrationService:
         public_base_url: str,
         proof: PaymentProofPort,
         texts: RegistrationTexts | None = None,
+        allow_fake_proof: bool = True,
     ) -> None:
         self.db = db
         self.keyring = keyring
@@ -148,6 +149,8 @@ class RegistrationService:
         self.signing_key = signing_key
         self.public_base_url = public_base_url.rstrip("/")
         self.proof = proof
+        self.allow_fake_proof = allow_fake_proof
+        """False in production: a tenant configured for Stripe never confirms through the fake."""
         self.texts = texts or load_texts()
 
     # ---------------------------------------------------------------- links
@@ -276,6 +279,15 @@ class RegistrationService:
     ) -> ProofSession:
         if row.confirmed_at is not None:
             raise RegistrationError("confirmed", "already confirmed")
+        if (
+            profile.registration.psp == "stripe"
+            and self.proof.name != "stripe"
+            and not self.allow_fake_proof
+        ):
+            raise RegistrationError(
+                "psp_unavailable",
+                "the payment provider is not configured; the reception confirms the registration",
+            )
         if not self.arrival_day_ok(profile, row):
             raise RegistrationError(
                 "not_arrival_day",

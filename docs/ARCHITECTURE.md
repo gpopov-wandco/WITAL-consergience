@@ -13,7 +13,7 @@ Every business table carries a `tenant_id`; one installation serves many hotels.
 | `db/` | SQLAlchemy 2 async models, Alembic migrations, tenant isolation (`with_loader_criteria` plus a `before_flush` guard), append-only rows |
 | `tenants/` | profile schema (Appendix C), tenant service, secrets store, client packs |
 | `agent/` | the Brain (F01), tools (F02), guardrails (F03), the deterministic responder (F04), prompt assembly, validators, upsells, language detection |
-| `kb/` | knowledge base entries with statuses, sensitivity, validity windows and snapshots |
+| `kb/` | knowledge base entries with statuses, sensitivity, validity windows and snapshots; `questionnaire.py` (the 85 items and their answers), `intake.py` (page, file and translation drafts, coverage) |
 | `llm/` | the model port, the Anthropic adapter, the scripted fake, prompts |
 | `availability/` | availability port, chain with breaker and single flight, policy layer, adapters (Beds24, apaleo, Mews, iCal, manual, none), booking links, inquiries, the scripted PMS fake |
 | `channels/whatsapp`, `channels/web`, `channels/voice` | webhook ingress and worker pipeline, outbox and statuses, the widget API and static files, the voice engine with Retell and Twilio adapters |
@@ -56,8 +56,8 @@ off-topic redirects) and upsell rules.
 `POST /w/api/message` returns the whole validated reply; `GET /w/api/updates` is
 polled while staff handle the conversation.
 
-**Voice.** Retell's custom-LLM WebSocket or Twilio ConversationRelay speak the
-disclosure first, run the Brain with the voice profile (two sentences, no lists or
+**Voice.** Retell's custom-LLM WebSocket or Twilio ConversationRelay (both opened with
+the tenant's public key and its socket secret in the path) speak the disclosure first, run the Brain with the voice profile (two sentences, no lists or
 URLs), transfer during staffed hours or capture a callback, and end with a
 transcript, a German summary, a callback task and a usage event.
 

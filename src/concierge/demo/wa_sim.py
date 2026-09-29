@@ -9,6 +9,7 @@ service over HTTP (the CLI) or straight into the ingress (the demo page and test
 
 from __future__ import annotations
 
+import itertools
 import json
 import time
 from dataclasses import dataclass
@@ -16,7 +17,10 @@ from typing import Any
 
 import httpx2
 
+from concierge.clock import Clock
 from concierge.security.signatures import sign_meta
+
+_SEQ = itertools.count(1)  # simulated ids stay unique within a process, whatever the clock
 
 
 def _envelope(
@@ -35,13 +39,19 @@ def _envelope(
 
 @dataclass
 class PayloadFactory:
+    """Builds Meta-shaped payloads; ``clock`` stamps them with the injected time (C16)."""
+
     phone_number_id: str
     waba_id: str = "demo-waba"
     counter: int = 0
+    clock: Clock | None = None
+
+    def _now(self) -> int:
+        return int(self.clock.now().timestamp()) if self.clock else int(time.time())
 
     def _wamid(self) -> str:
         self.counter += 1
-        return f"wamid.sim.{int(time.time() * 1000)}.{self.counter}"
+        return f"wamid.sim.{int(time.time() * 1000)}.{next(_SEQ)}"
 
     def _message(
         self, sender: str, body: dict[str, Any], *, name: str | None, ts: int | None
@@ -50,7 +60,7 @@ class PayloadFactory:
         message = {
             "from": sender,
             "id": self._wamid(),
-            "timestamp": str(ts or int(time.time())),
+            "timestamp": str(ts or self._now()),
             **body,
         }
         return _envelope(
@@ -148,7 +158,7 @@ class PayloadFactory:
         entry = {
             "id": wamid,
             "status": status,
-            "timestamp": str(int(time.time())),
+            "timestamp": str(self._now()),
             "recipient_id": recipient,
             "conversation": {"id": "sim-conv", "origin": {"type": category}},
             "pricing": {

@@ -13,6 +13,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol
 
+# the name of the tenant secret, not a secret value
+VOICE_SOCKET_SECRET = "voice_socket_secret"  # nosec B105
+"""Tenant secret that the provider presents in the WebSocket path (set by provisioning)."""
+
 
 @dataclass(frozen=True)
 class CallStart:

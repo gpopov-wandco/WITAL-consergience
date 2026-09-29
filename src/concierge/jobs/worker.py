@@ -70,7 +70,9 @@ class JobWorker:
         try:
             handler = self.handlers.get(job.kind)
             if handler is None:
-                await self._dead(job, f"no handler for kind {job.kind}")
+                reason = f"no handler for kind {job.kind}"
+                await self.jobs.fail(job.id, reason, retry=False)  # dead in the table too
+                await self._dead(job, reason)
                 return True
             await handler(job)
         except RetryLater as exc:

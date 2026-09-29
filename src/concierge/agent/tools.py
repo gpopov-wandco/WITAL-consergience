@@ -300,9 +300,19 @@ class ToolRunner:
 
     async def _tool_search_kb(self, args: dict[str, Any], session: ToolSession) -> ToolOutcome:
         query = _string(args, "query", max_len=300)
-        views = await self.kb.search(
-            session.tenant_id, query, session.lang, verified=session.verified
-        )
+        views = [
+            v
+            for v in await self.kb.search(
+                session.tenant_id, query, session.lang, verified=session.verified
+            )
+            if not (
+                v.sensitivity == "verified_guest_only"
+                and v.key.startswith(ARRIVAL_DAY_PREFIX)
+                and not key_safe_released(
+                    session.stay_date, session.local_now, session.key_safe_from
+                )
+            )
+        ]
         return ToolOutcome(
             json.dumps(
                 {

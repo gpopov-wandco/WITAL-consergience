@@ -30,6 +30,39 @@ Scope: `src/concierge/{agent,channels,kb,tenants,security,jobs,metering,gdpr,adm
 | R23 | low | agent/resilience (F24) | `src/concierge/agent/resilience.py:55-70` | `DailyBudget` lives in process memory. Scenario: a deploy or crash at 14:00 resets the day's spend to 0 and the tenant can exceed `daily_llm_budget_usd` by one budget per restart. | Seed the day's spend from `usage_event` (kind `llm`, local day) on first use per tenant and day. |
 | R24 | low | agent/prompting versus validators | `src/concierge/agent/prompting.py:63-68` versus `src/concierge/agent/validators.py:182` | The HOTEL block offers the reception phone, e-mail and privacy URL to the model, but the validator's allowed facts come only from the KB snapshot, tool results, envelope and guest text. Scenario: a tenant whose KB entries do not repeat `contacts.reception_phone`; every reply quoting the phone fails "phone not in facts", regenerates and hands off. | Include the tenant block text in `ValidationContext` (or drop the contact lines from the prompt and rely on the KB). |
 
+## Resolution (same day)
+
+Every finding was read against the code before it was changed; each fix carries a
+regression test (`tests/unit/test_review_fixes.py`, `tests/integration/test_review_stack.py`
+and the named files). Line numbers above refer to the tree at review time.
+
+| Id | Outcome | Fix | Test |
+|---|---|---|---|
+| R1 | fixed | `runtime.build_proof` wires `StripeProof` when `STRIPE_SECRET_KEY` is set; `RegistrationService` refuses the fake for `psp: stripe` outside development (`allow_fake_proof`); doctor check `registration.proof` fails for a Stripe tenant without a key and for `psp: fake` in production | `test_registration_proof_provider_follows_the_settings`, `test_doctor_flags_a_stripe_tenant_without_a_key_and_a_fake_in_production`, `test_a_stripe_tenant_never_confirms_through_the_fake_in_production` |
+| R2 | fixed | the signature is verified against the resolved tenant's own secret, not the first matching index | `test_shared_app_secret_serves_every_tenant_and_a_bad_row_none_of_them` |
+| R3 | fixed | `SecretCache.rows` skips a tenant whose row cannot be decrypted (warning), the others are served | same test |
+| R4 | fixed | STOP is evaluated before the staff-silent branch: suppression, `stopped_at`, stop hook, one confirmation | `test_stop_is_honoured_while_staff_handle_the_case` |
+| R5 | fixed | `search_kb` drops `late_arrival.key_safe*` results until the release time, like `lookup_kb` | `test_search_kb_withholds_the_key_safe_code_before_the_release_time` |
+| R6 | fixed | every caller utterance passes the guardrails once; transcript, person and goodbye paths store the redacted text | `test_caller_card_numbers_are_redacted_before_storage` |
+| R7 | fixed | both sockets take `/{public_key}/{voice_socket_secret}/...`; the secret is a tenant secret created by `voice provision` (demo seed carries one), compared in constant time; provisioning, the simulator and the live doctor use it | `test_voice_socket_secret_is_compared_in_constant_time_and_required`, `test_twilio_routes_check_signatures_and_finish_calls` |
+| R8 | fixed | `WhatsAppInbound` skips the Brain when the wamid is already stored (retry after a late failure); no second reply, no spurious P2 | `test_a_retried_inbound_job_never_answers_twice` |
+| R9 | fixed | history ordered by `created_at` then id (ids are now monotonic within a millisecond), the current inbound excluded by id | `test_history_keeps_the_assistant_reply_when_the_guest_double_texts`, `test_ids_created_in_the_same_millisecond_keep_their_order` |
+| R10 | fixed | the write path counts billable rows only, as the reconciliation does | `test_allowance_counts_billable_rows_only_and_prices_come_from_the_table` |
+| R11 | fixed | the Brain prices through `MeteringService.model_price_or_default` (table row for the day, else the built-in default); `concierge prices model set|list` writes and shows rows | same test, `test_prices_model_set_and_list` |
+| R12 | fixed | webhook payloads are matched on the subject's channel keys (WhatsApp user id, phone digits) besides the internal ids, for export and erasure | `test_erasure_removes_webhook_payloads_that_carry_the_number` |
+| R13 | fixed | maintenance and handoff timers reschedule in `finally` | `test_a_failing_maintenance_run_still_schedules_the_next_one` |
+| R14 | fixed | staff templates are refused for a suppressed or stopped guest and during quiet hours unless a P0 case is open; the inbox shows why | `test_staff_templates_honour_stop_and_quiet_hours` |
+| R15 | fixed | `limits.messages_per_guest_per_hour` enforced in the Brain with a static reply (`rate_limited` in six languages); emergencies and STOP are handled before the limit | `test_guest_message_rate_limit_keeps_emergencies_open` |
+| R16 | fixed | guest text vouches for dates, times, party sizes and the guest's own contact details only; amounts are stripped before extraction; links never | `test_guest_text_never_vouches_for_prices_or_links` |
+| R17 | fixed | a PMS-verified reservation is stored locally (`source pms:<name>`) and linked, so the verification persists | `test_pms_verification_is_persisted_for_the_next_turn` |
+| R18 | fixed | `next` must match `^/(?![/\\])...`; backslashes, `//` and absolute URLs fall back to `/admin/` | `test_login_next_parameter_never_leaves_the_site` |
+| R19 | fixed | dashboard day boundary computed with `local_to_utc` | covered by the dashboard page test |
+| R20 | fixed | `resolve()` resets `unresolved_turns`, `repeat_count`, `redirect_count` in the conversation meta | existing handoff tests |
+| R21 | fixed | retention scrubs reservations with any of name, phone or e-mail set | `test_retention_scrubs_reservations_without_a_phone_number` |
+| R22 | fixed | a Luhn-valid run written as an international number (`+` or `00` prefix) that parses as a valid phone number is not a card; the inquiry form's phone field is not card-checked | `test_international_phone_numbers_are_not_redacted_as_cards` |
+| R23 | fixed | the daily budget is primed once per tenant and day from the stored usage (`llm_usd_today`) | `test_daily_budget_is_primed_once_per_day_from_stored_usage` |
+| R24 | fixed | the HOTEL block of the prompt is an allowed fact source for the validator | `test_hotel_block_contacts_are_allowed_facts` |
+
 ## Checked without findings
 
 - Webhook signature verification: Meta HMAC over raw bytes before parsing, Retell v/d header with tolerance and compact-JSON fallback, Twilio SHA1 with and without port and `bodySHA256`, Stripe strict and multi-signature forms, reservation push with per-tenant secret and window (`src/concierge/security/signatures.py`, `src/concierge/channels/voice/retell.py`, `src/concierge/channels/voice/twilio_cr.py`, `src/concierge/reservations/routes.py`, `src/concierge/registration/routes.py`).

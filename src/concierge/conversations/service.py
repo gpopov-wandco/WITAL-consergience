@@ -90,7 +90,12 @@ class ConversationService:
             now = self.clock.now()
             if guest is None:
                 guest = Guest(
-                    tenant_id=tenant_id, channel=channel, channel_key=channel_key, lang=lang
+                    tenant_id=tenant_id,
+                    channel=channel,
+                    channel_key=channel_key,
+                    lang=lang,
+                    created_at=now,  # the injected clock, not the wall clock (C16)
+                    updated_at=now,
                 )
                 session.add(guest)
             guest.last_seen_at = now
@@ -137,8 +142,14 @@ class ConversationService:
                 .order_by(Conversation.created_at.desc())
             )
             if conversation is None:
+                now = self.clock.now()
                 conversation = Conversation(
-                    tenant_id=tenant_id, guest_id=guest_id, channel=channel, lang=lang
+                    tenant_id=tenant_id,
+                    guest_id=guest_id,
+                    channel=channel,
+                    lang=lang,
+                    created_at=now,  # analytics windows follow the injected clock (C16)
+                    updated_at=now,
                 )
                 session.add(conversation)
                 await session.commit()
@@ -290,24 +301,46 @@ class ConversationService:
             return message
 
     async def history(
-        self, tenant_id: str, conversation_id: str, *, limit: int = 12
+        self,
+        tenant_id: str,
+        conversation_id: str,
+        *,
+        limit: int = 12,
+        exclude_id: str | None = None,
     ) -> list[tuple[str, str]]:
-        """Text-only turns, oldest first: (role, text)."""
+        """Text-only turns in processing order (oldest first): (role, text).
+
+        ``created_at`` orders the turns as the service handled them: a guest's second
+        message arrives with Meta's send time, which can lie before the reply to the
+        first one; the id (monotonic within a process) breaks ties. ``exclude_id``
+        leaves out the message currently being answered.
+        """
         async with self.db.tenant_scope(tenant_id) as session:
-            rows = (
-                await session.execute(
-                    select(Message, MessageText)
-                    .join(MessageText, MessageText.id == Message.id)
-                    .where(
-                        Message.tenant_id == tenant_id, Message.conversation_id == conversation_id
-                    )
-                    .order_by(Message.occurred_at.desc(), Message.created_at.desc())
-                    .limit(limit)
-                )
-            ).all()
+            stmt = (
+                select(Message, MessageText)
+                .join(MessageText, MessageText.id == Message.id)
+                .where(Message.tenant_id == tenant_id, Message.conversation_id == conversation_id)
+                .order_by(Message.created_at.desc(), Message.id.desc())
+                .limit(limit)
+            )
+            if exclude_id:
+                stmt = stmt.where(Message.id != exclude_id)
+            rows = (await session.execute(stmt)).all()
         turns = [("user" if m.direction == "in" else "assistant", t.text) for m, t in rows]
         turns.reverse()
         return turns
+
+    async def inbound_recorded(self, tenant_id: str, wamid: str) -> bool:
+        """True when a guest message with this WhatsApp id was already stored (retry)."""
+        async with self.db.tenant_scope(tenant_id) as session:
+            found = await session.scalar(
+                select(Message.id).where(
+                    Message.tenant_id == tenant_id,
+                    Message.wamid == wamid,
+                    Message.direction == "in",
+                )
+            )
+            return found is not None
 
     async def apply_status(self, tenant_id: str, wamid: str, status: str) -> Message | None:
         """Highest status rank wins; ``failed`` is terminal."""

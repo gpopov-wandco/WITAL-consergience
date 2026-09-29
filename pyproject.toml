@@ -94,6 +94,9 @@ filterwarnings = ["error::DeprecationWarning:concierge.*"]
 [tool.coverage.run]
 branch = true
 source = ["concierge"]
+# SQLAlchemy's asyncio bridge switches greenlets; without this, coverage loses every
+# line that runs after the first database call in a coroutine (see BUILD_STATUS).
+concurrency = ["thread", "greenlet"]
 omit = ["src/concierge/db/migrations/versions/*"]
 
 [tool.coverage.report]

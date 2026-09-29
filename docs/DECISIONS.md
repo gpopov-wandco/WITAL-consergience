@@ -400,5 +400,63 @@ median and p99; it fails on the targets. The fast path stores the event and the 
 in one transaction with Core inserts behind a write lock, and the security headers
 are a pure ASGI middleware.
 Consequence: numbers depend on the machine (in the build sandbox median 202 to 307 ms,
-p99 372 to 527 ms across runs); the test is a smoke, not a benchmark.
+p99 372 to 527 ms across the M12 runs; on the final day two runs on a quiet machine
+gave median 257.9 and 261.8 ms with p99 525.1 and 529.4 ms, so the median target was
+missed by about 10 ms while the p99 target held); the test is a smoke, not a
+benchmark, and it was not loosened. The acknowledgement path serialises one SQLite
+commit per webhook; PostgreSQL or a batched ingress commit is the lever if the number
+matters on the production host.
 
+## D-034 Review fixes with behaviour changes (12.1)
+
+Context: the fresh-context review found one high and sixteen medium defects; some
+fixes change behaviour that earlier decisions had left open.
+Decision: (1) the voice sockets require a per-tenant socket secret in the path, created
+by provisioning and seeded in the demo; a tenant without one has no voice socket
+until `concierge voice provision` runs. (2) A retried inbound job whose guest message
+is already stored skips the Brain; the rare reply lost between the turn and the outbox
+is accepted over a double answer and a spurious P2. (3) Guest text is a fact source
+for dates, times, party sizes and the guest's own contact details only; a price
+quoted by the guest is not a fact and makes the reply fail validation. (4) The fake
+payment proof is refused for `psp: stripe` tenants outside development; `psp: fake`
+stays an explicit choice for demos, flagged by the doctor in production. (5) Staff
+templates follow the same STOP and quiet-hour rules as journeys, with an open P0 case
+as the only night-time exception. (6) Identifiers stay ULIDs but are monotonic within
+a millisecond in one process, so rows written together can be ordered by id.
+Consequence: `docs/REVIEW_FINDINGS.md` lists every finding with its fix and test; the
+handout and the cold-start flow are unchanged except for the socket path.
+
+
+## D-035 Rows carry the injected clock (C16)
+
+Context: the ORM mixin gives `created_at` and `updated_at` a wall-clock default so
+that the schema is complete on its own. Services that create rows without stamping
+them therefore mixed two clocks: a report window computed from the injected clock
+missed conversations and handoffs written moments earlier under the wall clock, which
+surfaced as an analytics test that passed in the morning and failed after 10:01 UTC.
+Decision: every service that creates a business row stamps `created_at` and
+`updated_at` from the injected clock (guests, conversations, handoffs join messages,
+outbox rows, usage events and requests, which already did). The mixin default stays
+as the schema's fallback and for rows the tooling writes outside a service.
+The WhatsApp simulator follows the same rule: `PayloadFactory` takes the clock and
+stamps messages and statuses with it, and the inbound pipeline opens the 24-hour
+window at Meta's timestamp clamped to the service clock, so a stamp ahead of the
+service (clock skew, or a simulator on another clock) never extends the window.
+Consequence: frozen-clock tests see consistent windows; a new service that forgets the
+stamp shows up in the analytics tests rather than in production reports.
+
+## D-036 Coverage is measured across greenlet switches (10.1)
+
+Context: the first full coverage run reported 84.1 percent for `src/concierge` and
+under 30 percent for admin handlers that the integration tests demonstrably drove
+(their redirect notices only exist in the handler bodies). A probe inside a handler
+showed the code running in the traced thread with a trace function installed, yet
+every line after the first database call stayed unrecorded. SQLAlchemy's asyncio
+bridge runs the synchronous driver layer in a greenlet, and coverage does not follow a
+greenlet switch unless configured to.
+Decision: `[tool.coverage.run] concurrency = ["thread", "greenlet"]` in `pyproject.toml`; the
+measurement change is recorded as a defect in `docs/BUILD_STATUS.md`, and the G3
+figures come from a run with the corrected configuration. No test or threshold was
+changed.
+Consequence: coverage numbers before this decision undercount coroutine code that
+touches the database; later runs are comparable with each other, not with the first.

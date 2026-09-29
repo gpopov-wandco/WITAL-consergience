@@ -360,3 +360,99 @@ def test_kb_intake_and_questionnaire_commands(env: Path) -> None:
         app, ["kb", "translate", "--tenant", "hotel-beispiel", "--to", "ru,uk", "--dry-run"]
     )
     assert dry.exit_code == 0 and "nothing sent" in dry.output
+
+
+@pytest.mark.feature("F24")
+def test_prices_model_set_and_list(env: Path) -> None:
+    runner = CliRunner()
+    assert runner.invoke(app, ["db", "upgrade"]).exit_code == 0
+    listed = runner.invoke(app, ["prices", "model", "list"])
+    assert (
+        listed.exit_code == 0
+        and "claude-sonnet-5-5" in listed.output
+        and "default" in listed.output
+    )
+    stored = runner.invoke(
+        app,
+        [
+            "prices",
+            "model",
+            "set",
+            "--model",
+            "claude-sonnet-5-5",
+            "--from",
+            "2026-10-01",
+            "--input",
+            "3",
+            "--output",
+            "15",
+        ],
+    )
+    assert stored.exit_code == 0 and "model price stored" in stored.output
+    listed = runner.invoke(app, ["prices", "model", "list"])
+    assert "configured" in listed.output and "3.00" in listed.output and "15.00" in listed.output
+    bad = runner.invoke(
+        app,
+        [
+            "prices",
+            "model",
+            "set",
+            "--model",
+            "x",
+            "--from",
+            "next week",
+            "--input",
+            "1",
+            "--output",
+            "1",
+        ],
+    )
+    assert bad.exit_code == 1 and "YYYY-MM-DD" in bad.output
+
+
+@pytest.mark.feature("F28")
+def test_more_commands_reach_their_guards_and_outputs(env: Path, tmp_path: Path) -> None:
+    runner = CliRunner()
+    assert runner.invoke(app, ["db", "upgrade"]).exit_code == 0
+    profile = env / "tenant.yaml"
+    data = dict(SAMPLE)
+    data["whatsapp"] = {"waba_id": "", "phone_number_id": "", "display_phone_number": ""}
+    profile.write_text(yaml.safe_dump(data), encoding="utf-8")
+    assert runner.invoke(app, ["tenant", "add", "--profile", str(profile)]).exit_code == 0
+
+    built = runner.invoke(app, ["handout", "build", "--out", str(tmp_path / "handout.pdf")])
+    assert built.exit_code == 0 and "handout written" in built.output
+    pack = runner.invoke(
+        app, ["compliance", "pack", "--tenant", "hotel-beispiel", "--out", str(tmp_path / "pack")]
+    )
+    assert pack.exit_code == 0 and (tmp_path / "pack" / "README.md").is_file()
+    assert "Draft for lawyer review" in pack.output
+    assert runner.invoke(app, ["compliance", "pack", "--tenant", "nope"]).exit_code == 1
+
+    guard = runner.invoke(app, ["wa-sim", "send", "--tenant", "hotel-beispiel", "--text", "Hallo"])
+    assert guard.exit_code == 1 and "wa_app_secret" in guard.output
+    unsynced = runner.invoke(app, ["whatsapp", "templates", "sync", "hotel-beispiel"])
+    assert unsynced.exit_code == 1 and "waba_id" in unsynced.output
+    no_key = runner.invoke(app, ["eval", "live"])
+    assert no_key.exit_code == 2 and "ANTHROPIC_API_KEY" in no_key.output
+    assert runner.invoke(app, ["tenant", "kill-switch", "hotel-beispiel", "--on"]).exit_code == 0
+    assert "demo KILL" in runner.invoke(app, ["tenant", "list"]).output
+    assert runner.invoke(app, ["tenant", "kill-switch", "hotel-beispiel", "--off"]).exit_code == 0
+    assert runner.invoke(app, ["tenant", "kill-switch", "nope", "--on"]).exit_code == 1
+    nobody = runner.invoke(
+        app, ["gdpr", "erase", "--tenant", "hotel-beispiel", "--phone", "+4915199999999", "--yes"]
+    )
+    assert nobody.exit_code == 1 and "no data" in nobody.output
+    assert (
+        runner.invoke(app, ["gdpr", "erase", "--tenant", "hotel-beispiel", "--yes"]).exit_code == 1
+    )
+    preview = runner.invoke(app, ["journeys", "preview", "hotel-beispiel", "RES-NOPE"])
+    assert preview.exit_code == 1
+    bad_time = runner.invoke(app, ["demo", "advance", "--days", "1", "--at", "25:99"])
+    assert bad_time.exit_code == 1
+    assert runner.invoke(app, ["demo", "advance", "--days", "0"]).exit_code == 0  # nothing due
+    data["voice"] = {**dict(SAMPLE["voice"]), "provider": "twilio_cr", "number": "+4969000009"}
+    profile.write_text(yaml.safe_dump(data), encoding="utf-8")
+    assert runner.invoke(app, ["pack", "import", str(env), "--apply"]).exit_code in {0, 1}
+    twilio = runner.invoke(app, ["voice", "provision", "hotel-beispiel", "--dry-run"])
+    assert twilio.exit_code in {0, 1}

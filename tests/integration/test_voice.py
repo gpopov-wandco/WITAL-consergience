@@ -20,7 +20,15 @@ from concierge.channels.voice.port import CallEnd
 from concierge.channels.whatsapp.fake import FakeGraph
 from concierge.clock import FakeClock
 from concierge.context import AppContext
-from concierge.db.models import CallbackTask, Handoff, Message, Tenant, UsageEvent, VoiceCall
+from concierge.db.models import (
+    CallbackTask,
+    Handoff,
+    Message,
+    MessageText,
+    Tenant,
+    UsageEvent,
+    VoiceCall,
+)
 from concierge.db.session import Database
 from concierge.demo.seed import seed_demo
 from concierge.demo.voice_sim import RetellSimClient, TwilioSimClient
@@ -560,7 +568,8 @@ async def test_twilio_routes_check_signatures_and_finish_calls(voice: VoiceStack
     )
     assert "<ConversationRelay" in response.text
     assert (
-        f'url="ws://127.0.0.1:8000/voice/twilio/relay/{voice.tenant.public_key}"' in response.text
+        f'url="ws://127.0.0.1:8000/voice/twilio/relay/{voice.tenant.public_key}/demo-voice-socket-secret"'
+        in response.text
     )
     assert 'language="de-DE"' in response.text
 
@@ -610,3 +619,15 @@ async def test_stored_end_without_live_state_and_unknown_call(voice: VoiceStack)
         )
         is None
     )
+
+
+async def test_caller_card_numbers_are_redacted_before_storage(voice: VoiceStack) -> None:
+    async with RetellSimClient(voice.services.voice, voice.tenant) as call:
+        chunks = await call.say("Meine Karte ist 4111 1111 1111 1111, ich möchte einen Mitarbeiter")
+        assert chunks[-1]["content"]
+    async with voice.services.ctx.db.scope() as session:
+        texts = [t.text for t in (await session.execute(select(MessageText))).scalars()]
+    inbound = [t for t in texts if "Karte" in t]
+    assert inbound and all("4111" not in t and "[redacted]" in t for t in inbound)
+    for row in await voice.calls():
+        assert "4111" not in json.dumps(row.transcript) and "4111" not in (row.summary_de or "")

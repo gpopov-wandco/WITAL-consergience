@@ -86,7 +86,9 @@ def build_router(widget: WidgetService) -> APIRouter:
         except WidgetError:
             return Response(
                 status_code=204,
-                headers=_cors(origin) if origin and origin.rstrip("/") == widget.own_origin else {},
+                headers=_cors(origin)
+                if origin and origin.rstrip("/") in widget.own_origins
+                else {},
             )
         if widget.origin_allowed(profile, origin):
             return Response(status_code=204, headers=_cors(origin))

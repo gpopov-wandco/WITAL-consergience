@@ -29,6 +29,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 1rem; }
 .banner { background: #fff3cd; border: 1px solid #e0c36a; color: #5c4400; padding: .5rem .75rem; border-radius: 6px; }
 .columns { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .stack { display: flex; flex-direction: column; gap: .5rem; }
+.narrow { max-width: 420px; }
+.scroll-x { overflow-x: auto; }
 .inline { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin: .5rem 0; }
 label { font-weight: 600; }
 input, select, textarea, button { font: inherit; min-height: 40px; }

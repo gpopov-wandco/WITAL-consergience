@@ -18,6 +18,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
+import phonenumbers
 import yaml
 
 KEYWORDS_PATH = Path(__file__).resolve().parent / "keywords.yaml"
@@ -49,13 +50,30 @@ def luhn_ok(digits: str) -> bool:
     return total % 10 == 0
 
 
+def _is_phone_number(text: str, match: re.Match[str]) -> bool:
+    """A digit run written as an international number (+ or 00 prefix) that parses as a
+    valid phone number is a phone number, not a card, whatever Luhn says."""
+    digits = re.sub(r"\D", "", match.group(0))
+    before = text[max(0, match.start() - 1) : match.start()]
+    if before == "+":
+        candidate = "+" + digits
+    elif digits.startswith("00"):
+        candidate = "+" + digits[2:]
+    else:
+        return False
+    try:
+        return phonenumbers.is_valid_number(phonenumbers.parse(candidate, None))
+    except phonenumbers.NumberParseException:
+        return False
+
+
 def redact_sensitive(text: str) -> tuple[str, list[str]]:
     """Replace card numbers (Luhn-valid), IBANs, CVVs and ID numbers in context."""
     found: list[str] = []
 
     def card(match: re.Match[str]) -> str:
         digits = re.sub(r"\D", "", match.group(0))
-        if luhn_ok(digits):
+        if luhn_ok(digits) and not _is_phone_number(text, match):
             found.append("card")
             return REDACTED
         return match.group(0)

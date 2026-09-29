@@ -28,6 +28,7 @@
     link.rel = "stylesheet";
     link.href = `${state.opts.base}/w/gc-widget.css`;
     root.appendChild(link);
+    root.appendChild(document.createElement("slot")); // keeps the light-DOM launcher rendered after close
     const panel = document.createElement("section");
     panel.className = "gc";
     panel.dataset.position = position;
@@ -209,9 +210,9 @@
     opts.launcher.hidden = true;
     opts.launcher.disabled = false;
     opts.launcher.setAttribute("aria-expanded", "true");
+    state.els.input.focus(); // focus moves into the dialog as it opens, before any network round trip
     try { await ensureSession(); } catch { append("system", labels().error, state.lang); }
     if (state.lastId) poll();
-    state.els.input.focus();
   }
 
   window.GCWidget = { open, close, version: "2026.09.29" };

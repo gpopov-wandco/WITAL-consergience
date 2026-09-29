@@ -27,7 +27,7 @@ from pydantic import ValidationError
 
 from concierge.agent.guardrails import Guardrails
 from concierge.agent.languages import choose_language, unsupported_note_languages
-from concierge.agent.prompting import PromptAssembler
+from concierge.agent.prompting import PromptAssembler, tenant_block
 from concierge.agent.resilience import CircuitBreaker, DailyBudget
 from concierge.agent.responder import Responder, ResponderContext, Slots, extract_slots
 from concierge.agent.schemas import AgentReply, Button, HandoffDecision, output_schema
@@ -50,8 +50,9 @@ from concierge.llm.port import (
     Usage,
 )
 from concierge.log import get_logger
-from concierge.metering.prices import default_model_price, model_cost_usd
+from concierge.metering.prices import ModelPriceRow, default_model_price, model_cost_usd
 from concierge.security.crypto import Keyring
+from concierge.security.limiter import MovingWindowLimiter
 from concierge.tenants.profile import TenantProfile
 
 log = get_logger(__name__)
@@ -119,6 +120,12 @@ UpsellRequestHook = Callable[[Tenant, Conversation, str, str], Awaitable[str]]
 """(tenant, conversation, upsell id, lang) -> request id; records the guest's yes for staff."""
 
 
+PriceLookup = Callable[[str, date], Awaitable["ModelPriceRow | None"]]
+"""The model price valid on a day (the metering table, then the built-in defaults)."""
+SpentLoader = Callable[[str, str], Awaitable[float]]
+"""USD already spent today by a tenant (tenant id, time zone), read once per day."""
+
+
 @dataclass
 class ModelConfig:
     primary: str = "claude-sonnet-5-5"
@@ -156,6 +163,8 @@ class BrainResult:
     usage: list[Usage] = field(default_factory=list)
     models: list[str] = field(default_factory=list)
     silent: bool = False
+    inbound_message_id: str | None = None
+    """The stored row of the guest message being answered (excluded from the history)."""
 
 
 class BrainFailure(Exception):
@@ -205,6 +214,8 @@ class Brain:
         budget: DailyBudget | None = None,
         demo_banner: bool = False,
         qa_sink: QaSink | None = None,
+        price_lookup: PriceLookup | None = None,
+        spent_loader: SpentLoader | None = None,
     ) -> None:
         self.kb = kb
         self.conversations = conversations
@@ -227,7 +238,10 @@ class Brain:
         self.alert_sink = alert_sink
         self.breaker = breaker or CircuitBreaker(clock)
         self.budget = budget or DailyBudget(clock)
+        self.guest_limiter = MovingWindowLimiter()
         self.demo_banner = demo_banner
+        self.price_lookup = price_lookup
+        self.spent_loader = spent_loader
         self.qa_sink = qa_sink
 
     # ------------------------------------------------------------ entry
@@ -282,10 +296,11 @@ class Brain:
         stored = Inbound(**{**inbound.__dict__, "text": guard.text})
         if special:
             stored.meta = {**stored.meta, "special_category": True}
-        await self.conversations.record_inbound(
+        inbound_row = await self.conversations.record_inbound(
             tenant.id, conversation.id, stored, lang=lang, retention_days=retention
         )
         result = BrainResult(conversation.id, guest.id, reply_lang, "static", [])
+        result.inbound_message_id = inbound_row.id
         if special:
             result.events.append("special_category")
             await self.conversations.merge_meta(tenant.id, conversation.id, special_category=True)
@@ -347,6 +362,17 @@ class Brain:
             )
             return await self._finish(tenant, profile, conversation, result)
 
+        # STOP is honoured in every conversation state, also while staff handle the case (C9)
+        if guard.kind == "stop":
+            await self._suppress(tenant, conversation, inbound)
+            result.messages.append(
+                Outbound(
+                    self.texts.render("opt_out_confirm", reply_lang), reply_lang, intent="A:opt_out"
+                )
+            )
+            result.events.append("stop")
+            return await self._finish(tenant, profile, conversation, result)
+
         if conversation.status in BOT_SILENT_STATUSES:
             result.mode = "silent"
             result.silent = True
@@ -361,14 +387,17 @@ class Brain:
                 await self.conversations.merge_meta(tenant.id, conversation.id, staff_ack_sent=True)
             return await self._finish(tenant, profile, conversation, result)
 
-        if guard.kind == "stop":
-            await self._suppress(tenant, conversation, inbound)
+        per_hour = profile.limits.messages_per_guest_per_hour
+        limiter_key = f"{tenant.id}:{inbound.channel}:{inbound.channel_key}"
+        if not self.guest_limiter.hit(limiter_key, f"{per_hour}/hour"):
             result.messages.append(
                 Outbound(
-                    self.texts.render("opt_out_confirm", reply_lang), reply_lang, intent="A:opt_out"
+                    self.texts.render("rate_limited", reply_lang),
+                    reply_lang,
+                    intent="A:rate_limited",
                 )
             )
-            result.events.append("stop")
+            result.events.append("rate_limited")
             return await self._finish(tenant, profile, conversation, result)
 
         if guard.kind == "other_guest":
@@ -468,6 +497,11 @@ class Brain:
             result.mode = "degraded"
             return await self._finish(tenant, profile, conversation, result)
 
+        if self.spent_loader is not None and self.budget.needs_prime(tenant.id, profile.timezone):
+            # after a restart the in-memory total starts from the stored usage of the day
+            self.budget.prime(
+                tenant.id, profile.timezone, await self.spent_loader(tenant.id, profile.timezone)
+            )
         use_model = (
             self.llm is not None
             and tenant.ai_mode == "full"
@@ -564,8 +598,10 @@ class Brain:
             channel=inbound.channel,
             guest_kind="verified" if verified else "unknown",
         )
-        history = await self.conversations.history(tenant.id, conversation.id, limit=12)
-        messages = _history_messages(history[:-1] if history else [])
+        history = await self.conversations.history(
+            tenant.id, conversation.id, limit=12, exclude_id=result.inbound_message_id
+        )
+        messages = _history_messages(history)
         messages.append(Message("user", [TextPart(envelope + "\n\n" + guest_text)]))
         tool_session = ToolSession(
             tenant_id=tenant.id,
@@ -669,6 +705,7 @@ class Brain:
                         tool_texts=tool_texts,
                         envelope=envelope,
                         guest_text=guest_text,
+                        hotel_text=tenant_block(profile, persona, policy),
                         channel=inbound.channel,
                         allow_binding_words=allow_binding,
                         max_chars=limits.reply_max_chars,
@@ -753,7 +790,11 @@ class Brain:
         usage: Usage,
         request_id: str | None,
     ) -> None:
-        row = default_model_price(model)
+        row = (
+            await self.price_lookup(model, self.clock.now().date())
+            if self.price_lookup is not None
+            else default_model_price(model)
+        )
         usd = 0.0
         if row is not None:
             usd = model_cost_usd(

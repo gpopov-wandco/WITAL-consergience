@@ -12,9 +12,10 @@ Cyrillic output never fails under a legacy Windows code page.
 from __future__ import annotations
 
 import asyncio
+import secrets as _pysecrets
 import sys
 from collections.abc import Coroutine
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn
 
@@ -1219,10 +1220,11 @@ def voice_provision(
             if not profile.voice.number or not profile.voice.voice_id:
                 _fail("voice.number and voice.voice_id are required in the tenant profile")
             ws_base = public.replace("https://", "wss://", 1).replace("http://", "ws://", 1)
+            socket_secret = await _ensure_voice_socket_secret(services, row.id, dry_run=dry_run)
             result = await retell.provision(
                 profile,
                 api_key=settings.retell_api_key.get_secret_value(),
-                websocket_url=f"{ws_base}/voice/retell/llm/{row.public_key}/{{call_id}}",
+                websocket_url=f"{ws_base}/voice/retell/llm/{row.public_key}/{socket_secret}/{{call_id}}",
                 webhook_url=f"{public}/voice/retell/webhook",
                 sip_user=await services.secrets.get(row.id, "voice_sip_user") or "",
                 sip_password=await services.secrets.get(row.id, "voice_sip_password") or "",
@@ -1231,6 +1233,7 @@ def voice_provision(
         elif provider == "twilio_cr":
             if not profile.voice.number:
                 _fail("voice.number is required in the tenant profile")
+            await _ensure_voice_socket_secret(services, row.id, dry_run=dry_run)
             result = await twilio_cr.provision(
                 profile,
                 account_sid=settings.twilio_account_sid,
@@ -1369,6 +1372,20 @@ def pack_import(
     typer.echo("applied" if report.applied else "dry run: nothing written (use --apply)")
 
 
+async def _ensure_voice_socket_secret(services: Any, tenant_id: str, *, dry_run: bool) -> str:
+    """The per-tenant secret in the provider's WebSocket path; created once at provisioning."""
+    from concierge.channels.voice.port import VOICE_SOCKET_SECRET
+
+    existing = await services.secrets.get(tenant_id, VOICE_SOCKET_SECRET)
+    if existing:
+        return str(existing)
+    value = _pysecrets.token_urlsafe(24)
+    if dry_run:
+        return "<socket-secret-created-at-provisioning>"
+    await services.secrets.set(tenant_id, VOICE_SOCKET_SECRET, value, actor="cli:voice-provision")
+    return value
+
+
 def _reachable_host(host: str) -> str:
     """The host the process can reach itself on (an unspecified bind maps to loopback)."""
     import ipaddress
@@ -1454,6 +1471,7 @@ def demo_voice_sim(
     from_number: str = typer.Option("+4915120000009", "--from"),
 ) -> None:
     """Simulate a Retell call against the running server and print the spoken lines."""
+    from concierge.channels.voice.port import VOICE_SOCKET_SECRET
     from concierge.demo.voice_sim import live_call
 
     ctx = _context()
@@ -1463,9 +1481,14 @@ def demo_voice_sim(
             services = _services(ctx)
             row = await services.tenants.require(tenant)
             public_key = row.public_key
+            socket_secret = await services.secrets.get(row.id, VOICE_SOCKET_SECRET) or ""
         finally:
             await ctx.db.dispose()
-        return await live_call(base_url, public_key, list(say), from_number=from_number)
+        if not socket_secret:
+            _fail("no voice socket secret for the tenant: run `concierge voice provision`")
+        return await live_call(
+            base_url, public_key, socket_secret, list(say), from_number=from_number
+        )
 
     try:
         lines = run(go())
@@ -1534,6 +1557,102 @@ def demo_advance(
     )
     typer.echo(_table(["step", "outcome", "detail"], rows) if rows else "(nothing was due)")
     typer.echo(f"sends are listed on {base}/demo/wa-sim while `concierge demo` is running")
+
+
+# ------------------------------------------------------------------ prices
+prices_app = typer.Typer(no_args_is_help=True, help="Price tables (F24)")
+app.add_typer(prices_app, name="prices")
+model_prices_app = typer.Typer(
+    no_args_is_help=True, help="Model prices per million tokens (USD), dated rows"
+)
+prices_app.add_typer(model_prices_app, name="model")
+
+
+@model_prices_app.command("set")
+def prices_model_set(
+    model: str = typer.Option(..., "--model", help="model id, for example claude-sonnet-5-5"),
+    effective_from: str = typer.Option(..., "--from", help="first day the row applies, YYYY-MM-DD"),
+    input_usd: float = typer.Option(..., "--input", help="USD per million input tokens"),
+    output_usd: float = typer.Option(..., "--output", help="USD per million output tokens"),
+    cache_write_usd: float | None = typer.Option(
+        None, "--cache-write", help="USD per million cache-write tokens (default 1.25 x input)"
+    ),
+    cache_read_usd: float | None = typer.Option(
+        None, "--cache-read", help="USD per million cache-read tokens (default 0.1 x input)"
+    ),
+    source: str = typer.Option("", "--source", help="where the figures come from (URL)"),
+) -> None:
+    """Insert or replace a dated model price row; usage from that day is priced with it."""
+    from concierge.metering.service import MeteringService
+
+    try:
+        day = date.fromisoformat(effective_from)
+    except ValueError:
+        _fail("--from expects YYYY-MM-DD")
+    if min(input_usd, output_usd) < 0:
+        _fail("prices are USD amounts of zero or more")
+    ctx = _context()
+    try:
+        row = run(
+            MeteringService(ctx.db, ctx.clock).set_model_price(
+                model,
+                day,
+                input_usd=input_usd,
+                output_usd=output_usd,
+                cache_write_usd=cache_write_usd,
+                cache_read_usd=cache_read_usd,
+                source_url=source,
+                actor="cli:prices",
+            )
+        )
+    finally:
+        run(ctx.db.dispose())
+    typer.echo(f"model price stored: {row.model} from {row.effective_from.isoformat()}")
+
+
+@model_prices_app.command("list")
+def prices_model_list() -> None:
+    """The configured model price rows and the built-in defaults they override."""
+    from concierge.db.models import ModelPrice
+    from concierge.metering.prices import DEFAULT_MODEL_PRICES
+
+    ctx = _context()
+
+    async def go() -> list[list[str]]:
+        from sqlalchemy import select
+
+        async with ctx.db.scope() as session:
+            rows = (
+                await session.execute(
+                    select(ModelPrice).order_by(ModelPrice.model, ModelPrice.effective_from)
+                )
+            ).scalars()
+            return [
+                [
+                    r.model,
+                    r.effective_from.isoformat(),
+                    f"{r.input_micro_usd_per_mtok / 1_000_000:.2f}",
+                    f"{r.output_micro_usd_per_mtok / 1_000_000:.2f}",
+                    "configured",
+                ]
+                for r in rows
+            ]
+
+    try:
+        rows = run(go())
+    finally:
+        run(ctx.db.dispose())
+    rows += [
+        [
+            d.model,
+            d.effective_from.isoformat(),
+            f"{d.input_usd_per_mtok:.2f}",
+            f"{d.output_usd_per_mtok:.2f}",
+            "default",
+        ]
+        for d in DEFAULT_MODEL_PRICES
+    ]
+    typer.echo(_table(["model", "from", "input USD/M", "output USD/M", "source"], rows))
 
 
 # ------------------------------------------------------------------ kb intake

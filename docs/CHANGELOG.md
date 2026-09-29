@@ -22,11 +22,27 @@ Built in one continuous run from `docs/BUILD_PROMPT.md`; milestones and evidence
   test, metrics, operator alerts.
 - Evaluation: 104 golden cases, property tests, failure-injection map, load smoke,
   end-to-end conversations per language, live evaluation command.
+- Self-review (docs/REVIEW_FINDINGS.md): 24 findings, every high and medium one
+  fixed with a regression test (STOP while staff handle a case, per-guest message
+  limit, voice socket secret and transcript redaction, Stripe proof wiring, shared
+  Meta app secrets, retried inbound jobs, history order, billable allowance, model
+  price rows, erasure of webhook payloads, rescheduling after failures, staff
+  templates under STOP and quiet hours, guest text as a fact source, persisted PMS
+  verification) plus the low ones that were cheap (open redirect, local midnight,
+  counters on resolve, retention without a phone, phone numbers versus cards,
+  primed daily budget, hotel contacts as facts).
 - Knowledge-base intake: the 85-item questionnaire (admin page, YAML in the pack,
   draft entries), page import through the SSRF guard, text, Markdown and PDF
   import, machine-translation drafts, coverage report.
 - Doctor (offline and live), setup wizard, demo with mock Graph and simulators,
   deployment files (systemd, Docker, Compose, Caddy), documentation.
+- Browser suite (Playwright, Chromium) for the widget and the admin; it found and
+  led to fixes for a panel that stayed visible after close, a launcher that vanished
+  after the first open and late focus. Rows created by the services carry the
+  injected clock (D-035); the simulator stamps payloads with it and the 24-hour
+  window never opens later than the service clock. A job without a registered
+  handler is marked dead in the table, not only reported. Coverage is measured
+  across greenlet switches (D-036).
 
 Not built: the (S) items Smoobu, ibelsa, `openai_compat` voice, TOTP, HubSpot, Stripe
 usage export, SMS or call for P0 (reasons in `docs/BUILD_STATUS.md`).

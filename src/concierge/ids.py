@@ -4,23 +4,37 @@ Implements: F31
 
 Identifiers are ULIDs (48-bit millisecond timestamp plus 80 random bits, Crockford
 base32) with a short type prefix, for example ``conv_01j8...``. They sort by creation
-time, carry no guest data and are unguessable.
+time, carry no guest data and are unguessable. Within one process, ids created in the
+same millisecond stay in creation order (the random part is incremented), so rows
+written together can be ordered by id.
 """
 
 from __future__ import annotations
 
 import secrets
+import threading
 import time
 
 _CROCKFORD = "0123456789abcdefghjkmnpqrstvwxyz"
+_RANDOM_BITS = 80
+_lock = threading.Lock()
+_last: tuple[int, int] = (-1, 0)
 
 
 def ulid(timestamp_ms: int | None = None) -> str:
     """A 26-character lowercase ULID."""
+    global _last
     ts = time.time_ns() // 1_000_000 if timestamp_ms is None else timestamp_ms
     if ts < 0 or ts >= 1 << 48:
         raise ValueError("timestamp out of range")
-    value = (ts << 80) | int.from_bytes(secrets.token_bytes(10), "big")
+    with _lock:
+        last_ts, last_random = _last
+        if ts == last_ts and last_random + 1 < (1 << _RANDOM_BITS):
+            random_part = last_random + 1  # monotonic within the millisecond
+        else:
+            random_part = int.from_bytes(secrets.token_bytes(10), "big")
+        _last = (ts, random_part)
+    value = (ts << _RANDOM_BITS) | random_part
     chars = []
     for _ in range(26):
         chars.append(_CROCKFORD[value & 31])

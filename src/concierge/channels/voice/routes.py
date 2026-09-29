@@ -10,12 +10,14 @@ signature-checked against the public URL and resolve by the dialled number.
 
 from __future__ import annotations
 
+import hmac
 import json
 from typing import Any
 
 from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect
 
 from concierge.channels.voice import retell, twilio_cr
+from concierge.channels.voice.port import VOICE_SOCKET_SECRET
 from concierge.channels.voice.postcall import PostCall
 from concierge.channels.voice.retell import RetellProtocol
 from concierge.channels.voice.session import VoiceEngine
@@ -24,6 +26,7 @@ from concierge.clock import Clock
 from concierge.db.models import Tenant
 from concierge.log import get_logger
 from concierge.settings import Settings
+from concierge.tenants.secrets import SecretStore
 from concierge.tenants.service import TenantService
 
 log = get_logger(__name__)
@@ -48,6 +51,13 @@ class StarletteSocket:
         await self.websocket.send_text(json.dumps(message, ensure_ascii=False))
 
 
+def socket_secret_ok(expected: str | None, presented: str) -> bool:
+    """Constant-time check of the per-tenant socket secret; no secret means no socket."""
+    if not expected or not presented or len(presented) > 128:
+        return False
+    return hmac.compare_digest(expected.encode("utf-8"), presented.encode("utf-8"))
+
+
 def build_router(
     *,
     engine: VoiceEngine,
@@ -55,9 +65,20 @@ def build_router(
     tenants: TenantService,
     settings: Settings,
     clock: Clock,
+    secrets: SecretStore,
 ) -> APIRouter:
     api = APIRouter(prefix="/voice")
     public = settings.public_base_url()
+
+    async def _socket_tenant(public_key: str, presented: str) -> Tenant | None:
+        tenant = await tenants.by_public_key(public_key)
+        if tenant is None:
+            return None
+        expected = await secrets.get(tenant.id, VOICE_SOCKET_SECRET)
+        if not socket_secret_ok(expected, presented):
+            log.warning("voice.socket_secret_rejected", tenant=tenant.id)
+            return None
+        return tenant
 
     async def _tenant_for_call(agent_id: str | None, number: str | None) -> Tenant | None:
         return await tenants.by_voice(agent_id=agent_id, number=number)
@@ -87,9 +108,11 @@ def build_router(
             await postcall.end_by_provider(tenant, event.end)
         return Response(content='{"ok":true}', media_type="application/json")
 
-    @api.websocket("/retell/llm/{public_key}/{call_id}")
-    async def retell_llm(websocket: WebSocket, public_key: str, call_id: str) -> None:
-        tenant = await tenants.by_public_key(public_key)
+    @api.websocket("/retell/llm/{public_key}/{socket_secret}/{call_id}")
+    async def retell_llm(
+        websocket: WebSocket, public_key: str, socket_secret: str, call_id: str
+    ) -> None:
+        tenant = await _socket_tenant(public_key, socket_secret)
         if tenant is None or not call_id or len(call_id) > 128:
             await websocket.close(code=4404)
             return
@@ -120,18 +143,22 @@ def build_router(
         if tenant is None:
             return Response(twilio_cr.hangup_twiml(), media_type="application/xml", status_code=404)
         profile = tenants.profile_of(tenant)
+        socket_secret = await secrets.get(tenant.id, VOICE_SOCKET_SECRET)
+        if not socket_secret:
+            log.warning("voice.socket_secret_missing", tenant=tenant.id)
+            return Response(twilio_cr.hangup_twiml(), media_type="application/xml", status_code=503)
         ws_base = public.replace("https://", "wss://", 1).replace("http://", "ws://", 1)
         twiml = twilio_cr.relay_twiml(
-            websocket_url=f"{ws_base}/voice/twilio/relay/{tenant.public_key}",
+            websocket_url=f"{ws_base}/voice/twilio/relay/{tenant.public_key}/{socket_secret}",
             action_url=f"{public}/voice/twilio/handoff",
             language=profile.default_language,
             status_callback=f"{public}/voice/twilio/status",
         )
         return Response(twiml, media_type="application/xml")
 
-    @api.websocket("/twilio/relay/{public_key}")
-    async def twilio_relay(websocket: WebSocket, public_key: str) -> None:
-        tenant = await tenants.by_public_key(public_key)
+    @api.websocket("/twilio/relay/{public_key}/{socket_secret}")
+    async def twilio_relay(websocket: WebSocket, public_key: str, socket_secret: str) -> None:
+        tenant = await _socket_tenant(public_key, socket_secret)
         if tenant is None:
             await websocket.close(code=4404)
             return

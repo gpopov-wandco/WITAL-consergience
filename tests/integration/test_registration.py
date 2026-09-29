@@ -335,3 +335,29 @@ async def test_stripe_adapter_and_webhook(
         == "pm_9"
     )
     await client.aclose()
+
+
+async def test_a_stripe_tenant_never_confirms_through_the_fake_in_production(
+    stack: tuple[Services, Tenant, FakeProof], clock: FakeClock
+) -> None:
+    services, tenant, _proof = stack
+    registration = services.registration
+    reservation = await _reservation(services, tenant)
+    profile = TenantProfile.model_validate(tenant.profile)
+    stripe_profile = profile.model_copy(
+        update={"registration": profile.registration.model_copy(update={"psp": "stripe"})}
+    )
+    row = await registration.save(
+        tenant, profile, reservation, registration.parse(RAW), actor="guest"
+    )
+    clock.set(datetime(2026, 10, 5, 23, 30, tzinfo=UTC))  # the arrival day, local time
+    registration.allow_fake_proof = False  # what production sets
+    with pytest.raises(RegistrationError) as refused:
+        await registration.start_confirmation(
+            tenant, stripe_profile, row, success_url="s", cancel_url="c"
+        )
+    assert refused.value.code == "psp_unavailable"
+    session = await registration.start_confirmation(
+        tenant, profile, row, success_url="s", cancel_url="c"
+    )  # psp fake stays allowed: the profile chose it
+    assert session.redirect_url.startswith("http://127.0.0.1:8000/r/proof/fake/")

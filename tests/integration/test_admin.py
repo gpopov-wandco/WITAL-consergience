@@ -68,7 +68,7 @@ async def csrf(client: httpx2.AsyncClient, path: str = "/admin/") -> str:
 
 async def guest_conversation(stack: DemoStack, text: str) -> str:
     """Send one guest message through the simulator; returns the conversation id."""
-    factory = PayloadFactory(stack.tenant.phone_number_id or "")
+    factory = PayloadFactory(stack.tenant.phone_number_id or "", clock=stack.clock)
     sim = WaSimClient(
         "http://testserver", DEMO_SECRETS["wa_app_secret"], transport=stack.client._transport
     )

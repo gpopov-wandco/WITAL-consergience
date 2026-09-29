@@ -174,7 +174,7 @@ class InquiryService:
             raise InquiryError(
                 "contact_required", "an e-mail address or a WhatsApp number is required"
             )
-        for text in (form.wish, form.name, form.email, form.phone):
+        for text in (form.wish, form.name, form.email):  # the phone field is a phone number
             outcome = self.guardrails.check(text, form.lang)
             if outcome.redactions:
                 raise InquiryError("card_data", "card or ID data is not accepted in an inquiry")

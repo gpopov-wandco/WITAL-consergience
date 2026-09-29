@@ -76,6 +76,8 @@ async def test_static_files_and_inert_loader(widget: tuple[httpx2.AsyncClient, S
         and "prefers-reduced-motion" in css.text
         and "prefers-color-scheme: dark" in css.text
     )
+    # the panel's flex rule must not beat the hidden attribute (found by the browser suite)
+    assert ".gc[hidden] { display: none; }" in css.text
     js = await client.get("/w/gc-widget.js")
     assert (
         js.status_code == 200
@@ -83,6 +85,8 @@ async def test_static_files_and_inert_loader(widget: tuple[httpx2.AsyncClient, S
         and "aria-live" in js.text
         and "Escape" in js.text
     )
+    # the light-DOM launcher needs a slot to stay rendered once the shadow root exists
+    assert 'createElement("slot")' in js.text
     assert "localStorage" not in js.text and "document.cookie" not in js.text
     assert (await client.get("/w/nope.js")).status_code == 404
     total = sum(

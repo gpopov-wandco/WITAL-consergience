@@ -89,7 +89,10 @@ class MaintenanceScheduler:
         if tenant is None:
             return
         handler = self.handlers.get(job.kind)
-        if handler is not None:
-            await handler(tenant)
-            log.info("maintenance.ran", kind=job.kind, tenant=tenant.id)
-        await self.schedule(tenant, job.kind)
+        try:
+            if handler is not None:
+                await handler(tenant)
+                log.info("maintenance.ran", kind=job.kind, tenant=tenant.id)
+        finally:
+            # one failing run never ends the chain: the next occurrence is queued first
+            await self.schedule(tenant, job.kind)

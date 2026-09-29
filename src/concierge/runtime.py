@@ -22,6 +22,7 @@ from concierge.demo.mock_graph import MockGraphState
 from concierge.demo.mock_graph import build_router as build_mock_graph_router
 from concierge.demo.seed import seed_demo
 from concierge.llm.port import LLMPort
+from concierge.registration.proof import FakeProof, PaymentProofPort
 from concierge.services import Services, build_services
 from concierge.settings import Settings
 
@@ -43,6 +44,16 @@ def build_llm(settings: Settings) -> LLMPort | None:
     from concierge.llm.anthropic_adapter import AnthropicAdapter
 
     return AnthropicAdapter(key, timeout_s=min(settings.gc_llm_turn_timeout_s, 20.0))
+
+
+def build_proof(settings: Settings) -> PaymentProofPort:
+    """Stripe when a key is configured, else the fake (demo and development only)."""
+    key = settings.stripe_secret_key.get_secret_value()
+    if key:
+        from concierge.registration.stripe_proof import StripeProof
+
+        return StripeProof(key)
+    return FakeProof(settings.public_base_url())
 
 
 def build_wa_port(settings: Settings, *, graph_state: MockGraphState | None = None) -> WhatsAppPort:
@@ -67,8 +78,12 @@ def build_runtime(
     llm = build_llm(settings)
     graph_state = MockGraphState() if demo else None
     wa_port = build_wa_port(settings, graph_state=graph_state)
-    services = build_services(ctx, llm=llm, wa_port=wa_port, demo=demo and llm is None)
+    services = build_services(
+        ctx, llm=llm, wa_port=wa_port, demo=demo and llm is None, proof=build_proof(settings)
+    )
     services.demo = demo
+    if bind_url:
+        services.widget.own_origins.add(bind_url.rstrip("/"))  # the demo page on a custom port
     startup: list[Startup] = []
     if demo:
 

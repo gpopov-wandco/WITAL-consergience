@@ -144,3 +144,67 @@ async def test_cancelled_key_is_revived_but_a_done_key_never_runs_twice(
     again = await jobs.enqueue("k", {"n": 3}, dedupe_key="dup:1")
     assert not again.created and (await jobs.get(first.id)).status == "done"  # type: ignore[union-attr]
     assert await jobs.pending() == []
+
+
+async def test_jobs_without_a_handler_and_final_retries_reach_the_dead_hook(
+    jobs: JobService, clock: FakeClock
+) -> None:
+    dead: list[tuple[str, str]] = []
+
+    async def on_dead(job: Job, error: str) -> None:
+        dead.append((job.kind, error))
+
+    bare = JobWorker(jobs, clock, on_dead=on_dead)  # no handler registered at all
+    await jobs.enqueue("orphan", {})
+    assert await bare.run_once() is True
+    assert dead == [("orphan", "no handler for kind orphan")]
+
+    worker = JobWorker(jobs, clock, on_dead=on_dead)
+
+    async def always_busy(job: Job) -> None:
+        raise RetryLater("busy")
+
+    worker.register("retry", always_busy)
+    await jobs.enqueue("retry", {}, max_attempts=1)  # the first failure is the last one
+    assert await worker.run_once() is True
+    assert dead[-1] == ("retry", "busy") and len(await jobs.dead()) == 2
+
+
+async def test_worker_loop_starts_processes_survives_errors_and_stops(
+    jobs: JobService, clock: FakeClock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import asyncio
+
+    seen: list[int] = []
+    worker = JobWorker(jobs, clock, poll_interval_s=0.01)
+
+    async def handler(job: Job) -> None:
+        seen.append(int(job.payload["n"]))
+
+    worker.register("work", handler)
+    await jobs.enqueue("work", {"n": 1})
+    task = worker.start()
+    for _ in range(300):
+        if seen:
+            break
+        await asyncio.sleep(0.01)
+    assert seen == [1] and worker.heartbeat_age_s() == 0.0  # frozen clock, fresh heartbeat
+
+    original = jobs.lease_next
+    calls = {"n": 0}
+
+    async def flaky(*args: object, **kwargs: object) -> Job | None:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("db hiccup")
+        return await original(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(jobs, "lease_next", flaky)
+    await jobs.enqueue("work", {"n": 2})
+    for _ in range(300):
+        if len(seen) == 2:
+            break
+        await asyncio.sleep(0.01)
+    assert seen == [1, 2] and calls["n"] >= 2  # one logged loop error, then business as usual
+    await worker.stop()
+    assert task.done() and worker.snapshot()["processed"] == 2

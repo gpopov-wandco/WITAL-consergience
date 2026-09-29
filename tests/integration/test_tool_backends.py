@@ -243,3 +243,66 @@ async def test_responder_without_live_data_hands_over_with_window(
     async with stack.services.ctx.db.scope() as session:
         handoff = await session.get(Handoff, result.handoff_id)
     assert handoff is not None and handoff.priority == "P2" and "06.10.2026" in handoff.reason
+
+
+async def test_pms_verification_is_persisted_for_the_next_turn(
+    db: Database, settings: Settings, keyring: Keyring, clock: FakeClock
+) -> None:
+    from concierge.availability.fake import ScriptedPms, default_rooms
+    from concierge.availability.models import ReservationRecord
+    from concierge.db.models import Conversation
+
+    llm = ScriptedLLM(
+        [
+            Step.tools(
+                (
+                    "verify_reservation",
+                    {"reference": "PMS-77", "surname": "Muster", "arrival": "2026-10-06"},
+                )
+            ),
+            Step.final(
+                reply("Danke, Ihre Buchung ist verifiziert.", "A:verified", ["verify_reservation"])
+            ),
+            Step.tools(("set_eta", {"time": "21:00"})),
+            Step.final(reply("Ich habe 21:00 Uhr als Ankunftszeit notiert.", "A:eta", ["set_eta"])),
+        ]
+    )
+    stack = await _stack(db, settings, keyring, clock, llm)
+    services, tenant = stack.services, stack.tenant
+    profile = services.tenants.profile_of(tenant)
+    data = profile.model_dump(mode="json")
+    data["availability"]["chain"] = ["beds24", "manual", "none"]
+    await services.tenants.update_profile(
+        tenant.slug, TenantProfile.model_validate(data), actor="t"
+    )
+    stack.tenant = await services.tenants.require(tenant.slug)
+    services.adapters.overrides["beds24"] = ScriptedPms(
+        clock,
+        default_rooms(),
+        reservations=[
+            ReservationRecord(
+                res_id="PMS-77",
+                confirmation_number="C-77",
+                arrival=date(2026, 10, 6),
+                departure=date(2026, 10, 8),
+                status="confirmed",
+                adults=2,
+                children=0,
+                room_type="dz",
+                surname="Muster",
+                first_name="Anna",
+                source="beds24",
+            )
+        ],
+    )
+    first = await stack.say("Buchung PMS-77, Name Muster, Anreise 6. Oktober")
+    assert first.mode == "model" and stack.tool_results()[0]["verified"] is True
+    async with services.ctx.db.scope() as session:
+        row = await session.scalar(select(Reservation).where(Reservation.res_id == "PMS-77"))
+        conversation = await session.get(Conversation, first.conversation_id)
+    assert row is not None and row.source == "pms:beds24" and row.arrival == date(2026, 10, 6)
+    assert conversation is not None and conversation.verified_reservation_id == row.id
+    second = await stack.say("Wir kommen gegen 21 Uhr")
+    assert second.mode == "model"
+    eta = stack.tool_results()[-1]
+    assert eta["status"] == "stored" and eta["eta"] == "21:00"  # still verified, no re-check

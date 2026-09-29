@@ -91,6 +91,7 @@ def create_app(
             tenants=services.tenants,
             settings=services.ctx.settings,
             clock=services.ctx.clock,
+            secrets=services.secrets,
         )
     )
     app.include_router(
@@ -171,6 +172,10 @@ class SecurityHeadersMiddleware:
 
 
 def _add_health(app: FastAPI, services: Services) -> None:
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon() -> Response:
+        return Response(status_code=204)
+
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
         return {"status": "ok", "version": __version__}

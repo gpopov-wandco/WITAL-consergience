@@ -19,6 +19,8 @@ texts:
   opt_out_confirm:
     status: draft_unreviewed
     text: "Artık bizden otomatik mesaj almayacaksınız. Buradan soru sormaya devam edebilirsiniz."
+  rate_limited:
+    text: "Kısa sürede çok sayıda mesaj gönderdiniz. Lütfen biraz bekleyin; acil konular için resepsiyonu arayın."
   off_topic_redirect:
     text: "Bu konuda yardımcı olamıyorum. Otel, varış veya rezervasyonunuzla ilgili soruları yanıtlayabilirim."
   off_topic_person:

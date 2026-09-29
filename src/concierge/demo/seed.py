@@ -35,6 +35,7 @@ DEMO_SECRETS: dict[str, str] = {
     "wa_verify_token": "demo-verify-token",  # nosec B105
     "wa_access_token": "demo-access-token",  # nosec B105
     "reservation_api_secret": "demo-reservation-secret-not-for-production",  # nosec B105
+    "voice_socket_secret": "demo-voice-socket-secret",  # nosec B105
 }
 DEMO_USERS: tuple[tuple[str, str, str], ...] = (
     ("owner@hotel-beispiel.invalid", "owner", "demo-owner-password"),

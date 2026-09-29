@@ -107,7 +107,7 @@ async def staff_reply(stack: DemoStack, conversation_id: str) -> str:
 @pytest.mark.parametrize("lang", LANGS)
 async def test_whatsapp_conversation_per_language(demo_stack: DemoStack, lang: str) -> None:
     stack = demo_stack
-    factory = PayloadFactory(stack.tenant.phone_number_id or "")
+    factory = PayloadFactory(stack.tenant.phone_number_id or "", clock=stack.clock)
     sim = WaSimClient(
         "http://testserver", DEMO_SECRETS["wa_app_secret"], transport=stack.client._transport
     )

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
-from datetime import date, time
+from datetime import date, datetime, time
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from tests.unit.test_profile import SAMPLE
@@ -479,3 +480,29 @@ def test_reply_schema_validation() -> None:
         Button(id="a", title="x" * 21)
     reply = _reply("ok")
     assert reply.intent_code == "A" and reply.topic == "parking"
+
+
+async def test_search_kb_withholds_the_key_safe_code_before_the_release_time(
+    runner: tuple[ToolRunner, ToolSession, str],
+) -> None:
+    tool_runner, session, _ = runner
+    await tool_runner.run(
+        "verify_reservation",
+        {"reference": "R1", "surname": "Muster", "arrival": "2026-10-03"},
+        session,
+    )
+    assert session.verified
+    session.stay_date = date(2026, 10, 3)
+    session.key_safe_from = time(12, 0)
+    session.local_now = datetime(2026, 10, 1, 9, 0, tzinfo=ZoneInfo("Europe/Berlin"))
+    early = json.loads(
+        (await tool_runner.run("search_kb", {"query": "Schlüsselsafe Code"}, session)).content
+    )
+    assert early["results"] == [] or all(
+        not r["key"].startswith("late_arrival.key_safe") for r in early["results"]
+    )
+    session.local_now = datetime(2026, 10, 3, 13, 0, tzinfo=ZoneInfo("Europe/Berlin"))
+    released = json.loads(
+        (await tool_runner.run("search_kb", {"query": "Schlüsselsafe Code"}, session)).content
+    )
+    assert any(r["key"] == "late_arrival.key_safe_code" for r in released["results"])

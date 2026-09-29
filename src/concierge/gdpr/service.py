@@ -13,6 +13,7 @@ checks against ``GUEST_DATA_TABLES``.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -616,6 +617,7 @@ class GdprService:
             data["data_requests"] = [
                 {"kind": r.kind, "status": r.status, "due": r.due_at.isoformat()} for r in requests
             ]
+            needles = await self._payload_needles(session, tenant_id, subject)
             events = (
                 await session.execute(
                     select(WebhookEvent).where(WebhookEvent.tenant_id == tenant_id)
@@ -624,7 +626,7 @@ class GdprService:
             data["webhook_events"] = [
                 {"source": e.source, "received": e.received_at.isoformat()}
                 for e in events
-                if _mentions(e, subject)
+                if _mentions(e, needles)
             ]
         return data
 
@@ -728,6 +730,7 @@ class GdprService:
                 if forms:
                     counts["meldeschein"] = counts.get("meldeschein", 0) + len(forms)
                 await delete_all(Reservation, Reservation.id == reservation_id)
+            needles = await self._payload_needles(session, tenant_id, subject)
             for guest_id in subject.guest_ids:
                 await delete_all(Guest, Guest.id == guest_id)
             hooks = list(
@@ -739,7 +742,7 @@ class GdprService:
             )
             removed_hooks = 0
             for hook in hooks:
-                if _mentions(hook, subject):
+                if _mentions(hook, needles):
                     await session.delete(hook)
                     removed_hooks += 1
             if removed_hooks:
@@ -790,13 +793,32 @@ class GdprService:
             return None
         return self.keyring.decrypt_str(blob, tenant_id, name)
 
+    async def _payload_needles(self, session: Any, tenant_id: str, subject: Subject) -> list[str]:
+        """Strings that identify the subject inside stored webhook payloads: internal ids
+        plus the channel keys Meta uses (WhatsApp user id, phone digits)."""
+        needles: set[str] = {*subject.guest_ids, *subject.reservation_ids}
+        if subject.guest_ids:
+            guests = (
+                await session.execute(
+                    select(Guest).where(
+                        Guest.tenant_id == tenant_id, Guest.id.in_(subject.guest_ids)
+                    )
+                )
+            ).scalars()
+            for guest in guests:
+                for key in (guest.wa_user_id, guest.channel_key):
+                    if key:
+                        needles.add(str(key))
+                phone = self._dec(guest.phone_enc, tenant_id, "phone")
+                if phone:
+                    needles.add(phone.lstrip("+"))
+        return [n for n in needles if len(n) >= 6]
 
-def _mentions(event: WebhookEvent, subject: Subject) -> bool:
-    """A stored webhook payload belongs to the subject when it names a guest or reservation id."""
+
+def _mentions(event: WebhookEvent, needles: Sequence[str]) -> bool:
+    """A stored webhook payload belongs to the subject when it contains one of the keys."""
     payload = getattr(event, "payload", None)
-    if not payload:
+    if not payload or not needles:
         return False
     text = json.dumps(payload, ensure_ascii=False)
-    return any(g in text for g in subject.guest_ids) or any(
-        r in text for r in subject.reservation_ids
-    )
+    return any(needle in text for needle in needles)

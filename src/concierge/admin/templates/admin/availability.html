@@ -14,7 +14,7 @@
 <form method="get" action="/admin/availability" class="inline"><label for="month">{{ t.month }}</label><input id="month" name="month" type="month" value="{{ month }}"><button type="submit" class="secondary">OK</button></form>
 {% for code, cells in grid.items() %}
 <h2>{{ code }}</h2>
-<div style="overflow-x: auto">
+<div class="scroll-x">
 <table>
   <thead><tr><th>Tag/Day</th>{% for c in cells %}<th>{{ c.date.day }}</th>{% endfor %}</tr></thead>
   <tbody>

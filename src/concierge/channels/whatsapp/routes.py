@@ -31,6 +31,7 @@ from concierge.db.session import Database
 from concierge.ids import new_id
 from concierge.jobs.service import JobService
 from concierge.log import get_logger
+from concierge.security.crypto import CryptoError
 from concierge.security.signatures import meta_signature_ok
 from concierge.tenants.secrets import SecretStore
 
@@ -69,7 +70,13 @@ class SecretCache:
         async with self.db.scope() as session:
             tenants = list((await session.execute(select(Tenant))).scalars())
         for tenant in tenants:
-            values = await self.secrets.get_many(tenant.id, ["wa_app_secret", "wa_verify_token"])
+            try:
+                values = await self.secrets.get_many(
+                    tenant.id, ["wa_app_secret", "wa_verify_token"]
+                )
+            except CryptoError:  # one unreadable row must not take every tenant offline
+                log.warning("whatsapp.secrets_unreadable", tenant=tenant.id)
+                continue
             if values.get("wa_app_secret") or values.get("wa_verify_token"):
                 rows.append(
                     TenantCredentials(
@@ -122,8 +129,11 @@ class WebhookIngress:
                 log.warning("whatsapp.webhook_unknown_number")
                 continue
             if tenant_id != matched.tenant_id:
-                log.warning("whatsapp.webhook_secret_mismatch")
-                continue
+                # tenants may share one Meta app: the signature must hold for this tenant's own secret
+                own = next((r for r in rows if r.tenant_id == tenant_id), None)
+                if own is None or meta_signature_ok(raw, signature, [own.app_secret]) is None:
+                    log.warning("whatsapp.webhook_secret_mismatch")
+                    continue
             for message in change.messages:
                 stored += await self._store(
                     tenant_id,

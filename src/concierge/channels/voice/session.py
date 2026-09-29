@@ -277,12 +277,13 @@ class VoiceEngine:
             state.transcript.append(("agent", reply.text))
             await emit(reply)
             return "answered"
+        guard = self.guardrails.check(text, lang)
+        text = guard.text  # card, IBAN and ID numbers never reach the transcript (C8)
         state.transcript.append(("user", text))
         if not state.declined and self.phrases.declines(text, lang):
             return await self._decline(state, text, emit)
         if self.phrases.says_goodbye(text, lang):
             return await self._goodbye(state, text, emit)
-        guard = self.guardrails.check(text, lang)
         if guard.kind == "person":
             return await self._person(state, text, emit)
         task = asyncio.create_task(self._brain(state, text))

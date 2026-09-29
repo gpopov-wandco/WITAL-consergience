@@ -55,9 +55,20 @@ class CircuitBreaker:
 class DailyBudget:
     clock: Clock
     _spent: dict[tuple[str, date], float] = field(default_factory=dict)
+    _primed: set[tuple[str, date]] = field(default_factory=set)
 
     def day(self, tz: str) -> date:
         return local_date(self.clock.now(), tz)
+
+    def needs_prime(self, tenant_id: str, tz: str) -> bool:
+        """True once per tenant and local day: the in-memory total must be seeded
+        from the stored usage so a restart cannot reset the day's spend."""
+        return (tenant_id, self.day(tz)) not in self._primed
+
+    def prime(self, tenant_id: str, tz: str, usd: float) -> None:
+        key = (tenant_id, self.day(tz))
+        self._spent[key] = max(self._spent.get(key, 0.0), max(usd, 0.0))
+        self._primed.add(key)
 
     def spent(self, tenant_id: str, tz: str) -> float:
         return self._spent.get((tenant_id, self.day(tz)), 0.0)

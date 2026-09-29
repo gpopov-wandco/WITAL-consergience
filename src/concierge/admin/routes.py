@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import UTC, date, datetime, timedelta
+import re
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Request, Response
@@ -25,7 +26,7 @@ from concierge.admin.templating import templates
 from concierge.agent.responder import ResponderContext
 from concierge.availability.manual import CsvReport
 from concierge.channels.whatsapp.formatting import text_payload
-from concierge.clock import format_local, parse_range, to_local
+from concierge.clock import format_local, local_to_utc, parse_range, to_local
 from concierge.db.models import (
     Conversation,
     DeletionLog,
@@ -35,6 +36,7 @@ from concierge.db.models import (
     Message,
     MessageText,
     Reservation,
+    Suppression,
 )
 from concierge.gdpr.service import GdprError, Subject
 from concierge.kb.questionnaire import (
@@ -92,7 +94,7 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
         email = str(form.get("email", ""))
         password = str(form.get("password", ""))
         target = str(form.get("next") or "/admin/")
-        if not target.startswith("/") or target.startswith("//"):
+        if not _SAFE_NEXT.match(target):
             target = "/admin/"
         try:
             token, principal = await auth.login(
@@ -212,10 +214,10 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
         by_priority = {
             p: sum(1 for h in handoffs if h.priority == p) for p in ("P0", "P1", "P2", "P3")
         }
-        today_start = datetime.combine(
+        today_start = local_to_utc(
             to_local(clock.now(), ctx.tenant_profile.timezone).date(),
-            datetime.min.time(),
-            tzinfo=UTC,
+            time(0, 0),
+            ctx.tenant_profile.timezone,
         )
         async with services.ctx.db.tenant_scope(tenant_id) as session:
             conversations_today = await session.scalar(
@@ -285,7 +287,9 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
         )
         data["fix_kb_key"] = kb_key_for(last_reply["intent"]) if last_reply else ""
         data["last_reply_id"] = last_reply["id"] if last_reply else ""
-        return page(request, "conversation", ctx, notice=notice, **data)
+        return page(
+            request, "conversation", ctx, notice=label(notice, ctx.lang) if notice else "", **data
+        )
 
     @api.post("/conversations/{conversation_id}/acknowledge")
     async def acknowledge(request: Request, conversation_id: str) -> Response:
@@ -354,8 +358,9 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
         outcome = await _staff_reply(
             services, ctx, conversation_id, mode=mode, text=text, template_name=template_name
         )
+        notice = "quiet_hours_block" if outcome == "quiet_hours" else outcome
         return RedirectResponse(
-            f"/admin/conversations/{conversation_id}?notice={outcome}", status_code=303
+            f"/admin/conversations/{conversation_id}?notice={notice}", status_code=303
         )
 
     # -------------------------------------------------------------------- kb
@@ -1263,6 +1268,22 @@ async def _conversation_view(
     }
 
 
+_SAFE_NEXT = re.compile(r"^/(?![/\\])[A-Za-z0-9_./?=&%+-]*$")
+
+
+async def _suppressed(services: Services, tenant_id: str, to: str) -> bool:
+    subject = services.ctx.keyring.blind_index("+" + to.lstrip("+"), tenant_id, "phone")
+    async with services.ctx.db.tenant_scope(tenant_id) as session:
+        row = await session.scalar(
+            select(Suppression).where(
+                Suppression.tenant_id == tenant_id,
+                Suppression.channel == "whatsapp",
+                Suppression.subject_bidx == subject,
+            )
+        )
+    return row is not None
+
+
 async def _staff_reply(
     services: Services,
     ctx: AdminContext,
@@ -1286,6 +1307,16 @@ async def _staff_reply(
     if conversation.channel == "whatsapp":
         to = guest.channel_key
         if mode == "template":
+            # a template is a business-initiated send: STOP and quiet hours apply (C9)
+            if conversation.stopped_at is not None or await _suppressed(services, tenant_id, to):
+                return "suppressed"
+            local_now = to_local(now, ctx.tenant_profile.timezone).time()
+            if ctx.tenant_profile.journeys.is_quiet(local_now):
+                open_handoff = await services.handoffs.open_for_conversation(
+                    tenant_id, conversation_id
+                )
+                if open_handoff is None or open_handoff.priority != "P0":
+                    return "quiet_hours"
             values = {
                 "hotel": ctx.tenant_profile.name,
                 "guest_name": "",

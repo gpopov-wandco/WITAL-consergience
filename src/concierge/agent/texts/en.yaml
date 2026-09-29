@@ -19,6 +19,8 @@ texts:
   opt_out_confirm:
     status: draft_unreviewed
     text: "You will not receive automated messages from us any more. You can still ask questions here."
+  rate_limited:
+    text: "You have sent many messages in a short time. Please wait a moment; for urgent matters, call the reception."
   off_topic_redirect:
     text: "I cannot help with that. I can answer questions about the hotel, your arrival or your booking."
   off_topic_person:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx2
 import pytest
@@ -142,3 +143,28 @@ async def test_demo_pages_and_form_flow(
     assert (
         await client.post("/wa/webhook", content=raw, headers={"x-hub-signature-256": signature})
     ).status_code == 403
+
+
+@pytest.mark.feature("F29")
+def test_simulator_payloads_follow_the_injected_clock_and_ids_stay_unique() -> None:
+    import time
+    from datetime import UTC, datetime
+
+    from concierge.clock import FakeClock
+
+    clock = FakeClock(datetime(2026, 9, 29, 10, 0, tzinfo=UTC))
+    frozen = PayloadFactory("demo-phone-number-id", clock=clock)
+    wall = PayloadFactory("demo-phone-number-id")
+
+    def message_of(payload: dict[str, Any]) -> dict[str, Any]:
+        value = payload["entry"][0]["changes"][0]["value"]
+        return dict(value.get("messages", value.get("statuses"))[0])
+
+    first = message_of(frozen.text(GUEST, "Hallo"))
+    assert first["timestamp"] == str(int(clock.now().timestamp()))
+    status = message_of(frozen.status("wamid.x", "delivered", GUEST))
+    assert status["timestamp"] == first["timestamp"]
+    second = message_of(wall.text(GUEST, "Hallo"))
+    assert abs(int(second["timestamp"]) - time.time()) < 5
+    third = message_of(frozen.text(GUEST, "x"))
+    assert len({first["id"], second["id"], third["id"]}) == 3  # frozen clock, distinct ids

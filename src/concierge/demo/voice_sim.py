@@ -256,6 +256,7 @@ class TwilioSimClient:
 async def live_call(
     base_url: str,
     public_key: str,
+    socket_secret: str,
     utterances: list[str],
     *,
     from_number: str = "+4915120000009",
@@ -264,7 +265,7 @@ async def live_call(
 ) -> list[tuple[str, str]]:
     """Play a Retell custom-LLM client against a running server; returns (role, text)."""
     ws_base = base_url.replace("https://", "wss://", 1).replace("http://", "ws://", 1)
-    url = f"{ws_base}/voice/retell/llm/{public_key}/{call_id}"
+    url = f"{ws_base}/voice/retell/llm/{public_key}/{socket_secret}/{call_id}"
     lines: list[tuple[str, str]] = []
     transcript: list[dict[str, str]] = []
     async with websockets.connect(url) as connection:

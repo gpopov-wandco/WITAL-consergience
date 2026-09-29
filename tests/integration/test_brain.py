@@ -497,3 +497,30 @@ async def test_concurrent_turns_are_serialised(
     assert sum(1 for t in outs if "KI-Assistent" in t) == 1
     assert sum(1 for t in outs if "18 EUR" in t) == 4
     assert json.dumps([r.mode for r in results]) == json.dumps(["responder"] * 4)
+
+
+async def test_history_keeps_the_assistant_reply_when_the_guest_double_texts(
+    db: Database, keyring: Keyring, clock: FakeClock, tenant: Tenant
+) -> None:
+    h = _harness(db, keyring, clock, tenant, [Step.final(PARKING_REPLY), Step.final(PARKING_REPLY)])
+    first = await h.say("Gibt es Parkplätze am Hotel?", key="d1")
+    assert first.mode == "model"
+    reply_text = first.messages[-1].text
+    earlier = clock.now() - timedelta(minutes=1)  # Meta's send time lies before the first reply
+    await h.brain.respond(
+        h.tenant,
+        Inbound(
+            channel="whatsapp",
+            channel_key="d1",
+            text="Und wie hoch ist die Einfahrt?",
+            kind="text",
+            occurred_at=earlier,
+        ),
+    )
+    request = h.llm.requests[-1]  # type: ignore[union-attr]
+    texts = [(m.role, "".join(getattr(p, "text", "") for p in m.content)) for m in request.messages]
+    assert texts[-1][0] == "user" and "Einfahrt" in texts[-1][1]
+    question = "Und wie hoch ist die Einfahrt?"
+    assert sum(question in t for _r, t in texts) == 1  # the current question appears once
+    assert any(r == "assistant" and reply_text in t for r, t in texts)  # the first reply is history
+    assert sum("Parkplätze am Hotel" in t for _r, t in texts) == 1

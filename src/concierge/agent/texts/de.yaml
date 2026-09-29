@@ -19,6 +19,8 @@ texts:
   opt_out_confirm:
     status: draft_unreviewed
     text: "Sie erhalten von uns keine automatischen Nachrichten mehr. Fragen können Sie hier weiterhin stellen."
+  rate_limited:
+    text: "Sie haben in kurzer Zeit sehr viele Nachrichten gesendet. Bitte warten Sie einen Moment; in dringenden Fällen erreichen Sie die Rezeption telefonisch."
   off_topic_redirect:
     text: "Dazu kann ich leider nichts sagen. Ich helfe gern bei Fragen zum Hotel, zur Anreise oder zu Ihrer Buchung."
   off_topic_person:

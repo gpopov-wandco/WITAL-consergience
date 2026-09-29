@@ -73,7 +73,7 @@ JSON on stdout without PII (`journalctl -u concierge`).
 | daily | check `/readyz`, the operator console (dead jobs, alerts), backup success |
 | weekly | the Monday digest arrives; review the QA queue |
 | monthly | `concierge usage export --tenant X --month YYYY-MM`; compare with Meta's invoice; `concierge metering reconcile` corrections appear in the report |
-| every price change | re-check Meta's rate card and the model price table (operator console, Prices) |
+| every price change | re-check Meta's rate card (operator console, Prices) and the model prices (`concierge prices model list`, `concierge prices model set --model X --from YYYY-MM-DD --input USD --output USD`); usage from that day is priced with the new row, the daily budget counts the same figure |
 | every 180 days | price tables age out: the doctor and the operator alert remind you |
 
 ## Incident checklist

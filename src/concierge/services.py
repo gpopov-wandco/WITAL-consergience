@@ -224,6 +224,8 @@ def build_services(
         qa_sink=qa_sink,
         alert_sink=alert_sink,
         demo_banner=demo,
+        price_lookup=metering.model_price_or_default,
+        spent_loader=metering.llm_usd_today,
     )
     outbox = OutboxService(
         ctx.db, ctx.clock, wa_port, secrets, jobs, ctx.keyring, alert_sink=alert_sink
@@ -255,6 +257,7 @@ def build_services(
         signing_key=settings.signing_key(),
         public_base_url=settings.public_base_url(),
         proof=proof or FakeProof(settings.public_base_url()),
+        allow_fake_proof=not settings.is_production,
     )
     journeys.registration_link = registration.link_builder
     email_outbox = EmailOutbox(ctx.db, ctx.clock, jobs, email, sender=email_from)

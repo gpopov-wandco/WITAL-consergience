@@ -54,10 +54,13 @@ ranges are blocked, redirects are capped and re-checked, size and time are limit
 
 ## Voice
 
-The Retell custom-LLM WebSocket path carries the tenant's public key, which is not a
-secret: an attacker who guesses it can only hold a text conversation with the
-assistant at the tenant's model cost, bounded by the per-tenant daily model budget.
-Webhooks are signed; audio is never recorded; transcripts expire.
+The Retell custom-LLM and Twilio relay WebSocket paths carry the tenant's public key
+and a per-tenant socket secret (`voice_socket_secret`, created by `concierge voice
+provision`, stored encrypted like every tenant secret, compared in constant time). A
+socket without the right secret is closed before any message is read, so nobody can
+drive the assistant, create staff tasks or spend the model budget by guessing the
+public key. Webhooks are signed; audio is never recorded; transcripts expire; caller
+utterances are redacted (card, IBAN, ID numbers) before they are stored.
 
 ## Logging
 

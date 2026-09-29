@@ -186,8 +186,10 @@ class WhatsAppInbound:
         conversation = await self.conversations.open_conversation(
             tenant.id, guest.id, "whatsapp", lang=guest.lang
         )
+        # Meta's timestamp opens the window; a stamp ahead of our clock (skew) never extends it
+        window_opened = min(message.timestamp, self.clock.now())
         await self.conversations.update(
-            tenant.id, conversation.id, window_expires_at=message.timestamp + SERVICE_WINDOW
+            tenant.id, conversation.id, window_expires_at=window_opened + SERVICE_WINDOW
         )
         will_reply = conversation.status not in BOT_SILENT_STATUSES or not conversation.meta.get(
             "staff_ack_sent"
@@ -199,6 +201,11 @@ class WhatsAppInbound:
                 )
             except GraphError as exc:
                 log.info("whatsapp.mark_read_failed", code=exc.code)
+        if await self.conversations.inbound_recorded(tenant.id, message.wamid):
+            # a retried job after a failure past the Brain turn: the reply rows exist,
+            # the outbox keys are idempotent, a second turn would answer twice
+            log.warning("whatsapp.inbound_duplicate_delivery", tenant=tenant.id)
+            return
         result = await self.brain.respond(tenant, inbound)
         for index, outbound in enumerate(result.messages):
             await self._queue_outbound(tenant, result.conversation_id, message, outbound, index)

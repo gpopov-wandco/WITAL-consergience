@@ -8,6 +8,7 @@
   display: flex; flex-direction: column; background: var(--gc-bg); color: var(--gc-ink); border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, .3); font: 15px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   overflow: hidden; z-index: 2147483001; }
+.gc[hidden] { display: none; } /* the flex rule above must not override the hidden attribute */
 .gc[data-position="right"] { right: 16px; }
 .gc[data-position="left"] { left: 16px; }
 @media (max-width: 480px) { .gc { width: calc(100vw - 16px); height: calc(100vh - 16px); bottom: 8px; right: 8px; left: 8px; } }

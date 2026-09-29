@@ -106,6 +106,8 @@ class HandoffService:
                 summary=summary,
                 sla_due_at=due,
                 next_alert_at=now if priority == "P0" else None,
+                created_at=now,  # report windows follow the injected clock (C16)
+                updated_at=now,
             )
             session.add(handoff)
             if conversation is not None:
@@ -211,6 +213,12 @@ class HandoffService:
                 conversation.status = "bot_handling" if return_to_bot else "resolved"
                 conversation.priority = None
                 conversation.unresolved_turns = 0
+                conversation.meta = {
+                    **conversation.meta,
+                    "unresolved_turns": 0,
+                    "repeat_count": 0,
+                    "redirect_count": 0,
+                }
             await session.commit()
             await session.refresh(handoff)
             return handoff

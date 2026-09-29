@@ -78,6 +78,8 @@ class ValidationContext:
     tool_texts: list[str] = field(default_factory=list)
     envelope: str = ""
     guest_text: str = ""
+    hotel_text: str = ""
+    """The HOTEL block of the system prompt (contacts the model may quote)."""
     channel: str = "whatsapp"
     allow_binding_words: bool = False
     max_chars: int = 350
@@ -102,6 +104,17 @@ def normalise_number(token: str) -> str:
     return value.lstrip("0") or "0"
 
 
+_AMOUNT_RE = re.compile(
+    r"(?:€|\bEUR\b|\bEuro\b|\bCHF\b|\bUSD\b|\$)\s*\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?\s*(?:€|\bEUR\b|\bEuro\b|\bCHF\b|\bUSD\b|\$)",
+    re.I,
+)
+
+
+def _without_amounts(text: str) -> str:
+    """The text with money amounts removed (a guest cannot vouch for a price)."""
+    return _AMOUNT_RE.sub(" ", text)
+
+
 def extract_facts(text: str) -> dict[str, set[str]]:
     """Normalised URLs, e-mails, phones, times, dates and numbers in a text."""
     facts: dict[str, set[str]] = {
@@ -117,7 +130,7 @@ def extract_facts(text: str) -> dict[str, set[str]]:
         facts["url"].add(match.rstrip(".,;:").rstrip("/").lower())
     remaining = _URL_RE.sub(" ", remaining)
     for match in _EMAIL_RE.findall(remaining):
-        facts["email"].add(match.lower())
+        facts["email"].add(match.rstrip(".,;:").lower())
     remaining = _EMAIL_RE.sub(" ", remaining)
     for match in _PHONE_RE.findall(remaining):
         facts["phone"].add(re.sub(r"\D", "", match))
@@ -179,7 +192,12 @@ def validate_reply(reply: AgentReply, ctx: ValidationContext) -> ValidationResul
             result.violations.append(
                 "binding words without a confirmed reservation: " + ", ".join(sorted(set(hits)))
             )
-    allowed = extract_facts("\n".join([ctx.kb_text, *ctx.tool_texts, ctx.envelope, ctx.guest_text]))
+    allowed = extract_facts("\n".join([ctx.kb_text, *ctx.tool_texts, ctx.envelope, ctx.hotel_text]))
+    # the guest's own words vouch for dates, times, party sizes and their own contact
+    # details, never for prices or links (C6: hotel facts come from the hotel)
+    guest = extract_facts(_without_amounts(ctx.guest_text))
+    for kind in ("date", "time", "number", "phone", "email"):
+        allowed[kind] |= guest[kind]
     found = extract_facts(text)
     for kind in ("url", "email", "phone", "time", "date"):
         missing = found[kind] - allowed[kind]

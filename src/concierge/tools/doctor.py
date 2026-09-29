@@ -430,6 +430,36 @@ def data_directory(settings: Settings) -> Path:
 
 
 # ---------------------------------------------------------------- tenant checks
+def registration_checks(settings: Settings, slug: str, profile: TenantProfile) -> list[Check]:
+    """The § 29 BMG confirmation needs a real payment-proof provider outside demos."""
+    if not profile.registration.enabled:
+        return []
+    psp = profile.registration.psp
+    if psp == "stripe" and not settings.stripe_secret_key.get_secret_value():
+        return [
+            Check(
+                "registration.proof",
+                "fail",
+                "registration.psp is stripe but no Stripe key is configured: confirmations are refused",
+                fix="set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET, or set registration.psp to fake for a demo",
+                doc=DOC_INTEGRATIONS,
+                tenant=slug,
+            )
+        ]
+    if psp == "fake" and settings.is_production:
+        return [
+            Check(
+                "registration.proof",
+                "fail",
+                "registration.psp is fake in production: confirmations would be simulated",
+                fix="set registration.psp to stripe and STRIPE_SECRET_KEY",
+                doc=DOC_INTEGRATIONS,
+                tenant=slug,
+            )
+        ]
+    return [Check("registration.proof", "pass", f"payment proof provider {psp}", tenant=slug)]
+
+
 async def tenant_checks(services: Any, tenant: Tenant, profile: TenantProfile) -> list[Check]:
     """Prompt sizes, KB coverage and overdue entries, legal status, channel configuration."""
     slug = tenant.slug
@@ -456,6 +486,7 @@ async def tenant_checks(services: Any, tenant: Tenant, profile: TenantProfile) -
         )
     else:
         checks.append(Check("kb.coverage", "pass", "every required key approved", tenant=slug))
+    checks.extend(registration_checks(services.ctx.settings, slug, profile))
     overdue = await services.kb.overdue(tenant.id)
     if overdue:
         keys = sorted({f"{row.key}:{row.lang}" for row in overdue})
