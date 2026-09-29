@@ -189,6 +189,15 @@ def test_guest_texts_complete_and_rendered() -> None:
                 url="https://u",
                 eta="18:00",
                 days=30,
+                children=0,
+                room="Doppelzimmer",
+                rule="r",
+                price="120 EUR",
+                total="240 EUR",
+                nights=2,
+                max=2,
+                rooms=2,
+                units=3,
             )
             assert "{" not in rendered, (lang, key, rendered)
             assert "!" not in rendered, (lang, key)

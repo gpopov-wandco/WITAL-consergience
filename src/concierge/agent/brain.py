@@ -28,7 +28,7 @@ from concierge.agent.guardrails import Guardrails
 from concierge.agent.languages import choose_language, unsupported_note_languages
 from concierge.agent.prompting import PromptAssembler
 from concierge.agent.resilience import CircuitBreaker, DailyBudget
-from concierge.agent.responder import Responder, ResponderContext, Slots
+from concierge.agent.responder import Responder, ResponderContext, Slots, extract_slots
 from concierge.agent.schemas import AgentReply, Button, HandoffDecision, output_schema
 from concierge.agent.texts import GuestTexts
 from concierge.agent.tools import ToolBackends, ToolRunner, ToolSession
@@ -133,6 +133,10 @@ class BrainFailure(Exception):
 BackendsFactory = Callable[
     [Tenant, TenantProfile, Conversation, Guest, ToolSession], Awaitable[ToolBackends]
 ]
+AvailabilityLookup = Callable[
+    [Tenant, TenantProfile, Conversation, Slots, str, str], Awaitable[dict[str, Any] | None]
+]
+"""(tenant, profile, conversation, slots, lang, guest text) -> responder summary or None."""
 UsageSink = Callable[[str, str, Usage, dict[str, Any]], Awaitable[None]]
 AlertSink = Callable[[str, str, dict[str, Any]], Awaitable[None]]
 
@@ -153,6 +157,7 @@ class Brain:
         llm: LLMPort | None = None,
         models: ModelConfig | None = None,
         backends_factory: BackendsFactory | None = None,
+        availability_lookup: AvailabilityLookup | None = None,
         usage_sink: UsageSink | None = None,
         alert_sink: AlertSink | None = None,
         breaker: CircuitBreaker | None = None,
@@ -171,6 +176,7 @@ class Brain:
         self.llm = llm
         self.models = models or ModelConfig()
         self.backends_factory = backends_factory
+        self.availability_lookup = availability_lookup
         self.usage_sink = usage_sink
         self.alert_sink = alert_sink
         self.breaker = breaker or CircuitBreaker(clock)
@@ -493,6 +499,7 @@ class Brain:
             verify_attempts=await self.conversations.verify_attempt_state(
                 tenant.id, conversation.id
             ),
+            guest_text=guest_text,
         )
         backends = (
             await self.backends_factory(tenant, profile, conversation, guest, tool_session)
@@ -723,6 +730,14 @@ class Brain:
     ) -> AgentReply:
         slots = _slots_from_meta(conversation.meta.get("slots"))
         availability_summary = None
+        if self.availability_lookup is not None:
+            intent = self.responder.intents.match(text, reply_lang)
+            if slots is not None or (intent is not None and intent.name == "availability"):
+                candidate = extract_slots(text, slots)
+                if candidate.complete:
+                    availability_summary = await self.availability_lookup(
+                        tenant, profile, conversation, candidate, reply_lang, text
+                    )
         ctx = ResponderContext(
             tenant_id=tenant.id,
             lang=reply_lang,

@@ -178,7 +178,7 @@ intents:
   availability:
     keys: []
     patterns:
-      de: ["frei(es)? zimmer", "zimmer frei", "verfügbar", "noch (ein )?zimmer", "haben sie.*zimmer", "gibt es.*zimmer", "was kostet.*(nacht|zimmer)", "preis.*(nacht|zimmer)", "übernachtung.*(vom|ab|am)", "buchen"]
+      de: ["frei(es)? zimmer", "zimmer frei", "zimmer.{0,20}frei", "wie viele zimmer", "verfügbar", "noch (ein )?zimmer", "haben sie.*zimmer", "gibt es.*zimmer", "was kostet.*(nacht|zimmer)", "preis.*(nacht|zimmer)", "übernachtung.*(vom|ab|am)", "buchen"]
       en: ["availab", "any rooms?", "do you have (a|any) rooms?", "rooms? (for|free|from)", "how much.*(night|room)", "price.*(night|room)", "book(ing)?\\b", "vacanc"]
       ru: ["свободн.*номер", "есть.*номер", "сколько стоит.*(ночь|номер)", "цена.*(ночь|номер)", "заброниров"]
       uk: ["вільн.*номер", "є.*номер", "скільки кошту.*(ніч|номер)", "ціна.*(ніч|номер)", "забронюв"]

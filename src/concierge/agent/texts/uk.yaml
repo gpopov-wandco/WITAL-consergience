@@ -88,6 +88,51 @@ texts:
     text: "Рецепція зараз недоступна. Я запишу зворотний дзвінок; назвіть, будь ласка, ваше ім'я."
   voice_goodbye:
     text: "Дякуємо за дзвінок. До побачення."
+  availability_handoff:
+    text: "Я передав ваш запит ({summary}) на рецепцію. Зазвичай відповідь надходить протягом {window}."
+  availability_handoff_no_window:
+    text: "Я передав ваш запит ({summary}) на рецепцію. Працівник відповість вам тут."
+  avail_request_summary:
+    text: "{arrival} — {departure}, дорослих: {adults}, дітей: {children}"
+  avail_room_free:
+    text: "{room}: доступно"
+  avail_room_free_price:
+    text: "{room}: доступно від {price} за ніч ({total} за {nights} ноч.)"
+  avail_room_none:
+    text: "{room}: недоступно"
+  avail_room_restricted:
+    text: "{room}: {rule}"
+  avail_rule_min_stay:
+    text: "мінімальний термін проживання {nights} ноч."
+  avail_rule_closed_arrival:
+    text: "заїзд {date} неможливий"
+  avail_rule_closed_departure:
+    text: "виїзд {date} неможливий"
+  avail_rule_max_occupancy:
+    text: "не більше {max} осіб у номері"
+  avail_rule_closed:
+    text: "на ці дати зачинено"
+  avail_alt_until:
+    text: "Альтернатива: проживання до {date}"
+  avail_alt_arrival:
+    text: "Альтернатива: заїзд {date}"
+  avail_alt_departure:
+    text: "Альтернатива: виїзд {date}"
+  avail_alt_rooms:
+    text: "Альтернатива: {rooms} номери(ів)"
+  avail_units_left:
+    text: "Залишилося: {units}"
+  avail_tax_incl:
+    text: "включно з ПДВ"
+  avail_tax_excl:
+    text: "без ПДВ"
+  avail_high_demand:
+    text: "На ці дати ціну назве рецепція"
+  avail_no_rooms:
+    text: "На ці дати вільних номерів немає"
+  avail_confirm_reception:
+    text: "Будь ласка, підтвердьте наявність місць на рецепції"
+
 buttons:
   person: Працівник
   book: Забронювати

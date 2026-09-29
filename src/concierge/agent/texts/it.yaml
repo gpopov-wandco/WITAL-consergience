@@ -88,6 +88,51 @@ texts:
     text: "La reception non è raggiungibile al momento. Prendo nota di una richiamata; mi dica il Suo nome, per favore."
   voice_goodbye:
     text: "Grazie per la chiamata. Arrivederci."
+  availability_handoff:
+    text: "Ho inoltrato la Sua richiesta ({summary}) alla reception. Di norma riceverà una risposta entro {window}."
+  availability_handoff_no_window:
+    text: "Ho inoltrato la Sua richiesta ({summary}) alla reception. Un membro del personale Le risponderà qui."
+  avail_request_summary:
+    text: "dal {arrival} al {departure}, {adults} adulti, {children} bambini"
+  avail_room_free:
+    text: "{room}: disponibile"
+  avail_room_free_price:
+    text: "{room}: disponibile da {price} a notte ({total} per {nights} notti)"
+  avail_room_none:
+    text: "{room}: non disponibile"
+  avail_room_restricted:
+    text: "{room}: {rule}"
+  avail_rule_min_stay:
+    text: "soggiorno minimo {nights} notti"
+  avail_rule_closed_arrival:
+    text: "arrivo non possibile il {date}"
+  avail_rule_closed_departure:
+    text: "partenza non possibile il {date}"
+  avail_rule_max_occupancy:
+    text: "al massimo {max} persone per camera"
+  avail_rule_closed:
+    text: "chiuso in queste date"
+  avail_alt_until:
+    text: "Alternativa: soggiorno fino al {date}"
+  avail_alt_arrival:
+    text: "Alternativa: arrivo il {date}"
+  avail_alt_departure:
+    text: "Alternativa: partenza il {date}"
+  avail_alt_rooms:
+    text: "Alternativa: {rooms} camere"
+  avail_units_left:
+    text: "Ne restano {units}"
+  avail_tax_incl:
+    text: "IVA inclusa"
+  avail_tax_excl:
+    text: "IVA esclusa"
+  avail_high_demand:
+    text: "Per queste date il prezzo sarà comunicato dalla reception"
+  avail_no_rooms:
+    text: "Per queste date non ci sono camere disponibili"
+  avail_confirm_reception:
+    text: "La preghiamo di far confermare la disponibilità dalla reception"
+
 buttons:
   person: Personale
   book: Prenota

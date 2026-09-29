@@ -88,6 +88,51 @@ texts:
     text: "Ресепшен сейчас недоступен. Я запишу обратный звонок; назовите, пожалуйста, ваше имя."
   voice_goodbye:
     text: "Спасибо за звонок. До свидания."
+  availability_handoff:
+    text: "Я передал ваш запрос ({summary}) на ресепшен. Обычно ответ приходит в течение {window}."
+  availability_handoff_no_window:
+    text: "Я передал ваш запрос ({summary}) на ресепшен. Сотрудник ответит вам здесь."
+  avail_request_summary:
+    text: "{arrival} — {departure}, взрослых: {adults}, детей: {children}"
+  avail_room_free:
+    text: "{room}: доступно"
+  avail_room_free_price:
+    text: "{room}: доступно от {price} за ночь ({total} за {nights} ноч.)"
+  avail_room_none:
+    text: "{room}: недоступно"
+  avail_room_restricted:
+    text: "{room}: {rule}"
+  avail_rule_min_stay:
+    text: "минимальный срок проживания {nights} ноч."
+  avail_rule_closed_arrival:
+    text: "заезд {date} невозможен"
+  avail_rule_closed_departure:
+    text: "выезд {date} невозможен"
+  avail_rule_max_occupancy:
+    text: "не более {max} чел. в номере"
+  avail_rule_closed:
+    text: "на эти даты закрыто"
+  avail_alt_until:
+    text: "Альтернатива: проживание до {date}"
+  avail_alt_arrival:
+    text: "Альтернатива: заезд {date}"
+  avail_alt_departure:
+    text: "Альтернатива: выезд {date}"
+  avail_alt_rooms:
+    text: "Альтернатива: {rooms} номера(ов)"
+  avail_units_left:
+    text: "Осталось: {units}"
+  avail_tax_incl:
+    text: "включая НДС"
+  avail_tax_excl:
+    text: "без НДС"
+  avail_high_demand:
+    text: "На эти даты цену назовёт ресепшен"
+  avail_no_rooms:
+    text: "На эти даты свободных номеров нет"
+  avail_confirm_reception:
+    text: "Пожалуйста, подтвердите наличие мест на ресепшен"
+
 buttons:
   person: Сотрудник
   book: Забронировать

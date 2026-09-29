@@ -88,6 +88,51 @@ texts:
     text: "The reception cannot be reached right now. I will note a callback; please tell me your name."
   voice_goodbye:
     text: "Thank you for calling. Goodbye."
+  availability_handoff:
+    text: "I have passed your request ({summary}) to the reception. You will usually receive an answer within {window}."
+  availability_handoff_no_window:
+    text: "I have passed your request ({summary}) to the reception. A member of staff will answer you here."
+  avail_request_summary:
+    text: "{arrival} to {departure}, {adults} adults, {children} children"
+  avail_room_free:
+    text: "{room}: available"
+  avail_room_free_price:
+    text: "{room}: available from {price} per night ({total} for {nights} nights)"
+  avail_room_none:
+    text: "{room}: not available"
+  avail_room_restricted:
+    text: "{room}: {rule}"
+  avail_rule_min_stay:
+    text: "minimum stay {nights} nights"
+  avail_rule_closed_arrival:
+    text: "no arrival possible on {date}"
+  avail_rule_closed_departure:
+    text: "no departure possible on {date}"
+  avail_rule_max_occupancy:
+    text: "at most {max} persons per room"
+  avail_rule_closed:
+    text: "closed for these dates"
+  avail_alt_until:
+    text: "Alternative: stay until {date}"
+  avail_alt_arrival:
+    text: "Alternative: arrival on {date}"
+  avail_alt_departure:
+    text: "Alternative: departure on {date}"
+  avail_alt_rooms:
+    text: "Alternative: {rooms} rooms"
+  avail_units_left:
+    text: "{units} left"
+  avail_tax_incl:
+    text: "incl. VAT"
+  avail_tax_excl:
+    text: "excl. VAT"
+  avail_high_demand:
+    text: "For these dates the reception will state the price"
+  avail_no_rooms:
+    text: "No rooms are available for these dates"
+  avail_confirm_reception:
+    text: "Please have the availability confirmed by the reception"
+
 buttons:
   person: Staff
   book: Book

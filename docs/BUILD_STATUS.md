@@ -14,7 +14,7 @@ Updated after each unit of work.
 | M3 | Scaffold, settings, DB, migrations, CLI, `concierge check`, security foundation | done | `pyproject.toml`, `requirements.lock` (hashes), `src/concierge/{settings,clock,ids,log,cli,context}.py`, `db/`, `security/`, `tenants/`; `concierge check` 12 gates pass; `tests/unit/test_security.py`, `tests/integration/test_db.py`, `tests/integration/test_tenants.py`, `tests/unit/test_cli.py` |
 | M4 | Core: KB, LLM port, Brain, tools, guardrails, validators, F04, prompts | done | `src/concierge/{agent,kb,llm,conversations,handoff}`; `tests/integration/test_brain.py` (15 orchestration scenarios with `ScriptedLLM`), `tests/integration/test_responder_conversations.py` (15 intents x 6 languages), `tests/unit/test_tools_validators.py`, `tests/unit/test_guardrails_languages.py`, `tests/integration/test_kb.py`; mypy strict on `agent` |
 | M5 | Channels: WhatsApp, widget, wa-sim, mock Graph | done | `src/concierge/channels/whatsapp/` (webhook parsing, Graph client, outbox, inbound pipeline, ingress), `channels/web/` (widget API and the three static widget files), `jobs/`, `demo/` (seed, mock Graph, simulator, pages), `runtime.py`, `concierge serve` and `concierge demo`; `tests/integration/test_whatsapp_pipeline.py`, `tests/integration/test_jobs.py`, `tests/integration/test_widget.py`, `tests/integration/test_demo.py`, `tests/unit/test_whatsapp_parsing.py`, `tests/unit/test_graph_client.py` |
-| M6 | Availability, adapters, policy, booking handoff, reservation intake | not started | |
+| M6 | Availability, adapters, policy, booking handoff, reservation intake | done | `src/concierge/availability/` (models, port, chain, policy, manual, ical, none, beds24, apaleo, mews, vendor_http, factory, booking, backends), `src/concierge/reservations/` (service, signed push API), `handoff/requests.py`; `tests/unit/test_availability_policy.py` (rules 1-7, chain, breaker, single-flight, cache, budget, high demand), `tests/unit/test_pms_adapters.py` (contract tests incl. rule 8), `tests/unit/test_booking.py`, `tests/integration/test_availability_sources.py`, `tests/integration/test_reservations.py`, `tests/integration/test_tool_backends.py`; mypy strict on `availability` and `reservations` |
 | M7 | Journeys, templates, registration, upsells | not started | |
 | M8 | Handoff, inbox, notifications, admin UI, operator console | not started | |
 | M9 | Voice module and simulators | not started | |
@@ -50,22 +50,22 @@ Updated after each unit of work.
 | Id | Feature | Status | Evidence |
 |---|---|---|---|
 | F01 | Conversation engine | tested | `agent/brain.py`; `tests/integration/test_brain.py` (caps, tool packing, cache-prefix stability, failure injection, timeout, breaker, budget, concurrency) |
-| F02 | Agent tools | tested | `agent/tools.py`; `tests/unit/test_tools_validators.py` (schema contract, cross-tenant, bad-input matrix) |
+| F02 | Agent tools | tested | `agent/tools.py`, `availability/backends.py` (real backends re-authorised from the session); `tests/unit/test_tools_validators.py` (schema contract, cross-tenant, bad-input matrix), `tests/integration/test_tool_backends.py` (availability, verify then ETA, booking link, request, callback through the Brain) |
 | F03 | Guardrails | tested | `agent/guardrails.py`, `agent/keywords.yaml`; `tests/unit/test_guardrails_languages.py` |
 | F04 | Deterministic responder | tested | `agent/responder.py`, `agent/intents.yaml`; 15 intents x 6 languages in `tests/integration/test_responder_conversations.py` |
 | F05 | Knowledge base | tested | `kb/store.py`, `kb/blocks.py`, `kb/fixtures/hotel_beispiel.yaml`; `tests/integration/test_kb.py` |
 | F06 | KB intake | not started | |
-| F07 | Availability core | not started | |
-| F08 | PMS adapters | not started | |
-| F09 | Fallback sources | not started | |
-| F10 | Booking handoff | not started | |
-| F11 | Arrival practicalities | not started | |
-| F12 | Reservation intake | not started | |
+| F07 | Availability core | tested | `availability/{models,port,chain,policy}.py`; `tests/unit/test_availability_policy.py` (one test per policy rule, chain, breaker 3 failures/60 s, single-flight, cache validity and expiry, budget, high-demand dates) |
+| F08 | PMS adapters | tested (endpoints VERIFY) | `availability/{beds24,apaleo,mews,vendor_http}.py`; `tests/unit/test_pms_adapters.py` (availability, restriction violation, 401 with token refresh, 429 Retry-After, timeout, malformed body, credit budget, write gates, Mews UTC time units); endpoints implemented without vendor docs, see D-011 and `docs/VERIFIED_FACTS.md`; Smoobu and ibelsa (S) not built |
+| F09 | Fallback sources | tested | `availability/{ical,manual,none}.py` (iCal edge cases, conditional GET, SSRF guard; manual grid with audited bulk set, CSV import with German formats and dry run, staleness; no-live-data handoff with response window); `tests/integration/test_availability_sources.py` |
+| F10 | Booking handoff | tested | `availability/booking.py` (URL template with escaping, Mews deep link, inquiry with consent, card refusal, idempotency, P2 handoff, PMS write gate: Beds24 and Mews only with `allow_pms_write`, apaleo never); `tests/unit/test_booking.py`, `tests/integration/test_availability_sources.py`; the inquiry e-mail to the hotel is F18 (M8) |
+| F11 | Arrival practicalities | in progress | responder intents and KB (M4), `create_request`, `set_eta` (verified conversations only, staff request row), callbacks in `handoff/requests.py`; key-safe code at T-0 12:00 and the ETA-plus-2-hours silence alert are journey jobs (M7); golden scenarios per intent in six languages pending (M11) |
+| F12 | Reservation intake | tested | `reservations/service.py` (upsert by res_id, E.164, encrypted fields with blind indexes, opt-in only with evidence, reschedule cancels journey jobs, cancellation, CSV, PMS sync), `reservations/routes.py` (HMAC-SHA256 `X-Signature`, 5-minute window); `tests/integration/test_reservations.py` (signature, replay, idempotency, reschedule, cancel) |
 | F13 | Journey engine | not started | |
 | F14 | WhatsApp templates | not started | |
 | F15 | Registration module | not started | |
 | F16 | Honest upsells | not started | |
-| F17 | Handoff and staff inbox | not started | |
+| F17 | Handoff and staff inbox | in progress | `handoff/service.py` (create, acknowledge, resolve, SLA timers), `handoff/requests.py` (guest requests, ETA, callbacks); inbox UI and SLA jobs pending (M8) |
 | F18 | E-mail and notifications | in progress | operator alerts persisted (`OperatorAlert`, `services.record_alert`); e-mail port not started |
 | F19 | Hotel admin UI | not started | |
 | F20 | Operator console | not started | |

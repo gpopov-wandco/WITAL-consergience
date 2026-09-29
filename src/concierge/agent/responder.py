@@ -23,6 +23,7 @@ import yaml
 
 from concierge.agent.schemas import AgentReply, Button, HandoffDecision
 from concierge.agent.texts import GuestTexts
+from concierge.clock import format_date
 from concierge.kb.store import KbService, KbView
 
 INTENTS_PATH = Path(__file__).resolve().parent / "intents.yaml"
@@ -298,13 +299,40 @@ class Responder:
             )
             return reply, [], slots
         summary = ctx.availability_summary
+        source = summary.get("source", "none")
+        if source == "none":
+            request = self.texts.render(
+                "avail_request_summary",
+                lang,
+                arrival=format_date(slots.arrival, lang),
+                departure=format_date(slots.departure, lang),
+                adults=slots.adults,
+                children=slots.children,
+            )
+            window = summary.get("window") or ""
+            reply_text = (
+                self.texts.render("availability_handoff", lang, summary=request, window=window)
+                if window
+                else self.texts.render("availability_handoff_no_window", lang, summary=request)
+            )
+            reply = AgentReply(
+                reply_text=reply_text,
+                language=lang,
+                intent="H:availability",
+                handoff=HandoffDecision(
+                    needed=True, priority="P2", reason=f"availability without live data: {request}"
+                ),
+                fact_refs=["check_availability"],
+                confidence=0.9,
+                buttons=[self._button("person", lang)] if ctx.channel != "voice" else [],
+            )
+            return reply, [], slots
         wording_key = {
             "live_pms": "availability_fresh",
             "live_pms_cached": "availability_cached",
             "ical": "availability_calendar",
             "manual": "availability_calendar",
-            "none": "availability_unknown",
-        }[summary.get("source", "none")]
+        }[source]
         reply_text = self.texts.render(
             wording_key,
             lang,
@@ -312,8 +340,17 @@ class Responder:
             time=summary.get("fetched_time", ""),
             date=summary.get("updated_date", ""),
         )
-        if summary.get("source") != "none":
-            reply_text += " " + self.texts.render("availability_indicative", lang)
+        reply_text += " " + self.texts.render("availability_indicative", lang)
+        booking_url = summary.get("booking_url")
+        if booking_url and summary.get("status") in {"available", "restricted"}:
+            reply_text += " " + self.texts.render(
+                "booking_link_intro",
+                lang,
+                arrival=format_date(slots.arrival, lang),
+                departure=format_date(slots.departure, lang),
+                adults=slots.adults,
+                url=booking_url,
+            )
         buttons = (
             [self._button("book", lang), self._button("person", lang)]
             if ctx.channel != "voice"
@@ -322,12 +359,8 @@ class Responder:
         reply = AgentReply(
             reply_text=reply_text,
             language=lang,
-            intent="P:availability" if summary.get("source") != "none" else "H:availability",
-            handoff=HandoffDecision(
-                needed=summary.get("source") == "none",
-                priority="P2" if summary.get("source") == "none" else "none",
-                reason="" if summary.get("source") != "none" else "no availability source",
-            ),
+            intent="P:availability",
+            handoff=HandoffDecision(needed=False),
             fact_refs=["check_availability"],
             confidence=0.9,
             buttons=buttons,

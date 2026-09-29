@@ -38,6 +38,8 @@ class Contacts(Strict):
     privacy_url: str = ""
     imprint_url: str = ""
     website: str = ""
+    phone_region: str = Field(default="DE", pattern=r"^[A-Z]{2}$")
+    """ISO 3166 region used to read local phone numbers (0151... becomes +49151...)."""
 
 
 class SlaConfig(Strict):
@@ -90,6 +92,10 @@ class AvailabilityConfig(Strict):
     allow_pms_write: bool = False
     high_demand_dates: list[date] = Field(default_factory=list)
     ical_units: dict[str, int] = Field(default_factory=dict)
+    """Room type code to number of physical units; feed URLs are secrets ical_url_<code>_<n>."""
+    ical_max_age_min: int = Field(default=15, ge=1, le=1440)
+    rate_limits: dict[str, str] = Field(default_factory=dict)
+    """Own request budget per source (limits notation), below the vendor's limit."""
     beds24: Beds24Config = Beds24Config()
     apaleo: ApaleoConfig = ApaleoConfig()
     mews: MewsConfig = MewsConfig()

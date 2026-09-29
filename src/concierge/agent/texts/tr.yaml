@@ -88,6 +88,51 @@ texts:
     text: "Resepsiyona şu anda ulaşılamıyor. Bir geri arama notu alıyorum; lütfen adınızı söyleyin."
   voice_goodbye:
     text: "Aradığınız için teşekkür ederiz. Hoşça kalın."
+  availability_handoff:
+    text: "Talebinizi ({summary}) resepsiyona ilettim. Genellikle {window} içinde yanıt alırsınız."
+  availability_handoff_no_window:
+    text: "Talebinizi ({summary}) resepsiyona ilettim. Bir çalışan size burada yanıt verecek."
+  avail_request_summary:
+    text: "{arrival} - {departure}, {adults} yetişkin, {children} çocuk"
+  avail_room_free:
+    text: "{room}: müsait"
+  avail_room_free_price:
+    text: "{room}: gecelik {price} itibaren müsait ({nights} gece için {total})"
+  avail_room_none:
+    text: "{room}: müsait değil"
+  avail_room_restricted:
+    text: "{room}: {rule}"
+  avail_rule_min_stay:
+    text: "en az {nights} gece konaklama"
+  avail_rule_closed_arrival:
+    text: "{date} tarihinde giriş yapılamaz"
+  avail_rule_closed_departure:
+    text: "{date} tarihinde çıkış yapılamaz"
+  avail_rule_max_occupancy:
+    text: "oda başına en fazla {max} kişi"
+  avail_rule_closed:
+    text: "bu tarihlerde kapalı"
+  avail_alt_until:
+    text: "Alternatif: {date} tarihine kadar konaklama"
+  avail_alt_arrival:
+    text: "Alternatif: {date} tarihinde giriş"
+  avail_alt_departure:
+    text: "Alternatif: {date} tarihinde çıkış"
+  avail_alt_rooms:
+    text: "Alternatif: {rooms} oda"
+  avail_units_left:
+    text: "{units} oda kaldı"
+  avail_tax_incl:
+    text: "KDV dahil"
+  avail_tax_excl:
+    text: "KDV hariç"
+  avail_high_demand:
+    text: "Bu tarihler için fiyatı resepsiyon bildirir"
+  avail_no_rooms:
+    text: "Bu tarihler için müsait oda yok"
+  avail_confirm_reception:
+    text: "Lütfen müsaitliği resepsiyona teyit ettirin"
+
 buttons:
   person: Personel
   book: Rezervasyon

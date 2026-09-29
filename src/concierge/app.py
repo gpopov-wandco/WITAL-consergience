@@ -29,6 +29,7 @@ from concierge.demo.mock_graph import MockGraphState
 from concierge.demo.mock_graph import build_router as build_mock_graph_router
 from concierge.demo.routes import build_router as build_demo_router
 from concierge.log import configure_logging, get_logger
+from concierge.reservations.routes import build_router as build_reservation_router
 from concierge.services import Services
 
 log = get_logger(__name__)
@@ -73,6 +74,11 @@ def create_app(
     app.state.services = services
     app.include_router(build_wa_router(services.ingress))
     app.include_router(build_widget_router(services.widget))
+    app.include_router(
+        build_reservation_router(
+            services.tenants, services.secrets, services.reservations, services.ctx.clock
+        )
+    )
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     if services.demo:
         app.include_router(build_demo_router(services, graph_state))

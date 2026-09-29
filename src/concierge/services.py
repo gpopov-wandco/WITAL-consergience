@@ -21,6 +21,11 @@ from concierge.agent.guardrails import Guardrails
 from concierge.agent.prompting import PromptAssembler, PromptTexts, canary_for
 from concierge.agent.responder import Responder
 from concierge.agent.texts import GuestTexts, guest_texts
+from concierge.availability.backends import ToolBackendBuilder
+from concierge.availability.booking import InquiryService
+from concierge.availability.chain import AvailabilityService
+from concierge.availability.factory import AdapterFactory
+from concierge.availability.manual import ManualInventoryService
 from concierge.channels.web.service import WidgetService
 from concierge.channels.whatsapp.inbound import WhatsAppInbound
 from concierge.channels.whatsapp.outbox import OutboxService, RetryableSend
@@ -29,13 +34,16 @@ from concierge.channels.whatsapp.routes import SecretCache, WebhookIngress
 from concierge.context import AppContext
 from concierge.conversations.service import ConversationService
 from concierge.db.models import Job, OperatorAlert, UsageEvent
+from concierge.handoff.requests import RequestService
 from concierge.handoff.service import HandoffService
+from concierge.ids import new_id
 from concierge.jobs.service import JobService
 from concierge.jobs.worker import JobWorker, RetryLater
 from concierge.kb.store import KbService
 from concierge.llm.port import LLMPort, Usage
 from concierge.log import get_logger
 from concierge.metering.prices import to_micro
+from concierge.reservations.service import ReservationService
 from concierge.tenants.secrets import SecretStore
 from concierge.tenants.service import TenantService
 
@@ -61,6 +69,12 @@ class Services:
     secret_cache: SecretCache
     ingress: WebhookIngress
     widget: WidgetService
+    availability: AvailabilityService
+    adapters: AdapterFactory
+    inventory: ManualInventoryService
+    reservations: ReservationService
+    requests: RequestService
+    inquiries: InquiryService
     demo: bool = False
     alerts: list[tuple[str, str, dict[str, Any]]] = field(default_factory=list)
 
@@ -75,6 +89,7 @@ def build_services(
     llm: LLMPort | None,
     wa_port: WhatsAppPort,
     demo: bool = False,
+    adapters: AdapterFactory | None = None,
 ) -> Services:
     settings = ctx.settings
     texts = guest_texts()
@@ -96,6 +111,21 @@ def build_services(
     async def usage_sink_wa(tenant_id: str, kind: str, details: dict[str, Any]) -> None:
         await record_whatsapp_usage(ctx, tenant_id, details)
 
+    adapter_factory = adapters or AdapterFactory(ctx.db, ctx.clock, secrets)
+    availability = AvailabilityService(ctx.clock, adapter_factory, alert_sink=alert_sink)
+    inventory = ManualInventoryService(ctx.db, ctx.clock)
+    reservations = ReservationService(ctx.db, ctx.keyring, ctx.clock, jobs)
+    requests = RequestService(ctx.db, ctx.clock, ctx.keyring)
+    inquiries = InquiryService(ctx.db, ctx.clock, ctx.keyring, handoffs, availability, Guardrails())
+    backend_builder = ToolBackendBuilder(
+        availability=availability,
+        reservations=reservations,
+        requests=requests,
+        handoffs=handoffs,
+        conversations=conversations,
+        texts=texts,
+    )
+
     brain = Brain(
         kb=kb,
         conversations=conversations,
@@ -114,6 +144,8 @@ def build_services(
             structured_outputs=settings.gc_llm_structured_outputs,
             turn_timeout_s=settings.gc_llm_turn_timeout_s,
         ),
+        backends_factory=backend_builder,
+        availability_lookup=backend_builder.responder_lookup,
         usage_sink=usage_sink_llm,
         alert_sink=alert_sink,
         demo_banner=demo,
@@ -181,6 +213,12 @@ def build_services(
         secret_cache=secret_cache,
         ingress=ingress,
         widget=widget,
+        availability=availability,
+        adapters=adapter_factory,
+        inventory=inventory,
+        reservations=reservations,
+        requests=requests,
+        inquiries=inquiries,
         demo=demo,
         alerts=alerts,
     )
@@ -221,7 +259,7 @@ async def record_llm_usage(
                 cost_micro_usd=to_micro(usd),
                 cost_micro_eur=0,
                 occurred_at=ctx.clock.now(),
-                ref=f"llm:{meta.get('request_id') or ''}:{ctx.clock.now().timestamp()}",
+                ref=f"llm:{meta.get('request_id') or new_id('req')}",
                 meta={
                     "input": usage.input_tokens,
                     "output": usage.output_tokens,

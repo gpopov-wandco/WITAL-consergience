@@ -104,6 +104,7 @@ def test_no_gc_package_shadowing_stdlib() -> None:
 ADAPTER_MODULES = {
     "llm/anthropic_adapter.py": {"anthropic", "httpx2"},
     "channels/whatsapp/graph.py": {"httpx2"},
+    "availability/vendor_http.py": {"httpx2"},
     "availability/beds24.py": {"httpx2"},
     "availability/apaleo.py": {"httpx2"},
     "availability/mews.py": {"httpx2"},

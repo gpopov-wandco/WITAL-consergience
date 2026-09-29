@@ -183,6 +183,8 @@ class ToolSession:
     stay_date: date | None = None
     verify_attempts: int = 0
     events: list[str] = field(default_factory=list)
+    guest_text: str = ""
+    """The redacted guest message of this turn (for 'how many are left' detection)."""
 
 
 @dataclass
@@ -209,7 +211,7 @@ class ToolRunner:
             return ToolOutcome(_error(f"unknown tool {name}; use one of {sorted(allowed)}"), True)
         try:
             outcome: ToolOutcome = await handler(args, session)
-        except _BadInput as exc:
+        except ToolError as exc:
             return ToolOutcome(_error(str(exc)), True)
         return outcome
 
@@ -469,7 +471,11 @@ class ToolRunner:
         return ToolOutcome(json.dumps({"source": "voice", "status": "ending"}))
 
 
-class _BadInput(ValueError):
+class ToolError(ValueError):
+    """Raised by a handler or a backend; becomes an ``is_error`` result with an instruction."""
+
+
+class _BadInput(ToolError):
     pass
 
 

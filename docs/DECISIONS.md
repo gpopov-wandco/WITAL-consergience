@@ -99,3 +99,30 @@ installed SDK 1.9.0 signature and the platform docs read on 2026-09-29. `inferen
 is sent only for models that support it (Claude 4.6 and later); the docs state that
 Haiku 4.5 returns 400 when it is present, so the adapter omits it for the cheap model
 and logs the effective geo from `usage.inference_geo`.
+
+## D-011 PMS adapters built without vendor documentation (F08, M2, D-005)
+
+The Beds24, apaleo and Mews adapters implement the endpoints and payload shapes listed
+in `docs/VERIFIED_FACTS.md` (section "PMS vendors") from the build prompt's traps and
+the build model's knowledge of the three APIs, because the vendor specifications were
+unreachable during the build. Every adapter parses defensively (a missing or mistyped
+field is a `MalformedResponse`, which the chain treats as "try the next source"),
+contract tests run against synthetic fixtures, and `doctor --live` exercises the read
+endpoints against the real vendor before go-live. Field-name deviations are expected to
+surface there, not in a guest conversation.
+
+## D-012 Availability cache, breakers and single-flight are in-process (F07, 6.2)
+
+The service runs as one process (the web app and the job worker share it, D-001 Q5),
+so the availability cache, the per-tenant-and-source circuit breakers and the
+single-flight map live in memory. A second process would keep its own copies; this is
+recorded as a scaling limit in `docs/ARCHITECTURE.md` rather than solved with an
+external store the deployment does not have.
+
+## D-013 Metering references must be unique by construction (F24, C16)
+
+`usage_event` rows are unique per tenant and reference. A language-model call without
+a provider request id (the scripted fake, or a provider that omits the header) is now
+referenced by a fresh ULID instead of a clock timestamp; two calls in the same turn
+produced the same timestamp under the injected clock and the insert failed, which the
+tool-backend tests caught in M6.
