@@ -49,6 +49,8 @@ app.add_typer(registration_app, name="registration")
 app.add_typer(demo_app, name="demo")
 pack_app = typer.Typer(no_args_is_help=True, help="Client packs: export, validate, diff, import")
 app.add_typer(pack_app, name="pack")
+voice_app = typer.Typer(no_args_is_help=True, help="Voice fallback: provision the provider")
+app.add_typer(voice_app, name="voice")
 
 
 def run[T](coro: Coroutine[Any, Any, T]) -> T:
@@ -673,6 +675,81 @@ def registration_export(
 
 
 # --------------------------------------------------------------------- serving
+# ---------------------------------------------------------------------- voice
+@voice_app.command("provision")
+def voice_provision(
+    tenant: str,
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="print the provider payloads without calling the API"
+    ),
+) -> None:
+    """Create the voice agent and import the number at the tenant's provider (F26)."""
+    import json
+
+    from concierge.channels.voice import retell, twilio_cr
+    from concierge.channels.voice.port import ProvisionResult
+    from concierge.tenants.profile import TenantProfile
+    from concierge.tenants.service import TenantError
+
+    ctx = _context()
+    services = _services(ctx)
+    settings = ctx.settings
+    public = settings.public_base_url()
+
+    async def go() -> ProvisionResult:
+        row = await services.tenants.require(tenant)
+        profile = services.tenants.profile_of(row)
+        provider = profile.voice.provider
+        if provider == "retell":
+            if not profile.voice.number or not profile.voice.voice_id:
+                _fail("voice.number and voice.voice_id are required in the tenant profile")
+            ws_base = public.replace("https://", "wss://", 1).replace("http://", "ws://", 1)
+            result = await retell.provision(
+                profile,
+                api_key=settings.retell_api_key.get_secret_value(),
+                websocket_url=f"{ws_base}/voice/retell/llm/{row.public_key}/{{call_id}}",
+                webhook_url=f"{public}/voice/retell/webhook",
+                sip_user=await services.secrets.get(row.id, "voice_sip_user") or "",
+                sip_password=await services.secrets.get(row.id, "voice_sip_password") or "",
+                dry_run=dry_run,
+            )
+        elif provider == "twilio_cr":
+            if not profile.voice.number:
+                _fail("voice.number is required in the tenant profile")
+            result = await twilio_cr.provision(
+                profile,
+                account_sid=settings.twilio_account_sid,
+                auth_token=settings.twilio_auth_token.get_secret_value(),
+                voice_url=f"{public}/voice/twilio/incoming",
+                status_url=f"{public}/voice/twilio/status",
+                dry_run=dry_run,
+            )
+        else:
+            _fail(f"voice.provider is {provider!r}; nothing to provision")
+        if result.applied and result.agent_id:
+            data = profile.model_dump(mode="json")
+            data["voice"]["agent_id"] = result.agent_id
+            await services.tenants.update_profile(
+                row.slug, TenantProfile.model_validate(data), actor="cli:voice-provision"
+            )
+        return result
+
+    try:
+        result = run(go())
+    except TenantError as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    for payload in result.payloads:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    typer.echo("applied" if result.applied else "dry run: nothing sent to the provider")
+    if result.agent_id:
+        typer.echo(f"agent id: {result.agent_id}")
+    typer.echo("human steps:")
+    for step in result.human_steps:
+        typer.echo(f"  - {step}")
+
+
 # ---------------------------------------------------------------------- packs
 @pack_app.command("export")
 def pack_export(
@@ -852,6 +929,35 @@ def demo(
     if ctx.invoked_subcommand is not None:
         return
     _serve(demo=True, host=host, port=port)
+
+
+@demo_app.command("voice-sim")
+def demo_voice_sim(
+    say: list[str] = typer.Option(..., "--say", help="caller utterances, in order"),
+    tenant: str = typer.Option("hotel-beispiel", "--tenant"),
+    base_url: str = typer.Option("http://127.0.0.1:8000", "--base-url"),
+    from_number: str = typer.Option("+4915120000009", "--from"),
+) -> None:
+    """Simulate a Retell call against the running server and print the spoken lines."""
+    from concierge.demo.voice_sim import live_call
+
+    ctx = _context()
+
+    async def go() -> list[tuple[str, str]]:
+        try:
+            services = _services(ctx)
+            row = await services.tenants.require(tenant)
+            public_key = row.public_key
+        finally:
+            await ctx.db.dispose()
+        return await live_call(base_url, public_key, list(say), from_number=from_number)
+
+    try:
+        lines = run(go())
+    except Exception as exc:
+        _fail(f"voice simulation failed: {exc}")
+    for role, text in lines:
+        typer.echo(f"{'caller' if role == 'user' else 'agent '}: {text}")
 
 
 @demo_app.command("advance")

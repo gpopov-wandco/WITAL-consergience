@@ -27,6 +27,8 @@ from concierge.availability.booking import InquiryForm, InquiryService
 from concierge.availability.chain import AvailabilityService
 from concierge.availability.factory import AdapterFactory
 from concierge.availability.manual import ManualInventoryService
+from concierge.channels.voice.postcall import PostCall
+from concierge.channels.voice.session import VoiceEngine
 from concierge.channels.web.service import WidgetService
 from concierge.channels.whatsapp.inbound import WhatsAppInbound
 from concierge.channels.whatsapp.outbox import OutboxService, RetryableSend
@@ -102,6 +104,8 @@ class Services:
     auth: AuthService
     legal: LegalService
     packs: PackService
+    voice: VoiceEngine
+    postcall: PostCall
     demo: bool = False
     alerts: list[tuple[str, str, dict[str, Any]]] = field(default_factory=list)
 
@@ -231,6 +235,31 @@ def build_services(
     auth = AuthService(ctx.db, ctx.clock, signing_key=settings.signing_key())
     legal = LegalService(ctx.db, ctx.clock)
     packs = PackService(ctx.db, tenants, kb, legal, templates)
+    voice = VoiceEngine(
+        db=ctx.db,
+        clock=ctx.clock,
+        keyring=ctx.keyring,
+        brain=brain,
+        conversations=conversations,
+        tenants=tenants,
+        requests=requests,
+        legal=legal,
+        texts=texts,
+    )
+    backend_builder.voice_hooks = voice
+    postcall = PostCall(
+        db=ctx.db,
+        clock=ctx.clock,
+        tenants=tenants,
+        handoffs=handoffs,
+        requests=requests,
+        engine=voice,
+    )
+
+    async def reconcile_voice(tenant: Tenant) -> None:
+        await postcall.reconcile(tenant)
+
+    timers.extra.append(reconcile_voice)
 
     async def alert_staff(tenant_id: str, handoff: Any) -> None:
         tenant = await tenants.get_by_id(tenant_id)
@@ -390,6 +419,8 @@ def build_services(
         auth=auth,
         legal=legal,
         packs=packs,
+        voice=voice,
+        postcall=postcall,
         demo=demo,
         alerts=alerts,
     )

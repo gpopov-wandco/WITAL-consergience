@@ -9,10 +9,11 @@ the contacts again; an unacknowledged P0 is repeated to the next contact.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 
 from concierge.clock import Clock
-from concierge.db.models import Job
+from concierge.db.models import Job, Tenant
 from concierge.handoff.service import HandoffService
 from concierge.jobs.service import JobService
 from concierge.log import get_logger
@@ -39,6 +40,8 @@ class HandoffTimers:
         self.tenants = tenants
         self.handoffs = handoffs
         self.alerts = alerts
+        self.extra: list[Callable[[Tenant], Awaitable[None]]] = []
+        """Other per-tenant minute maintenance (voice reconciliation registers here)."""
 
     async def schedule_all(self) -> int:
         count = 0
@@ -77,4 +80,9 @@ class HandoffTimers:
                 level=handoff.escalation_level,
                 breached=handoff.sla_breached,
             )
+        for hook in self.extra:
+            try:
+                await hook(tenant)
+            except Exception:  # one failing hook never stops the timers
+                log.exception("handoff_timers.hook_failed", tenant=tenant_id)
         await self.schedule(tenant_id, delay=INTERVAL)

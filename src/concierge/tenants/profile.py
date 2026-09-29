@@ -232,6 +232,8 @@ class VoiceConfig(Strict):
     rounding: Literal["second", "minute"] = "second"
     voice_id: str = ""
     agent_id: str = ""
+    sip_termination_uri: str = ""
+    """SIP trunk termination URI (sipgate or Twilio) imported into the provider."""
 
     @model_validator(mode="after")
     def _eu_gate(self) -> VoiceConfig:

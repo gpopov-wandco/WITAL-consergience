@@ -88,6 +88,21 @@ texts:
     text: "The reception cannot be reached right now. I will note a callback; please tell me your name."
   voice_goodbye:
     text: "Thank you for calling. Goodbye."
+  voice_transfer_unavailable:
+    text: "The reception cannot be reached right now. I am noting a callback to your number."
+  voice_callback_saved:
+    text: "I have noted a callback to your number. The team will get back to you."
+  voice_callback_no_number:
+    text: "I have noted your callback request. Please call the reception at {phone} if you do not hear from us."
+  voice_declined:
+    status: draft_unreviewed
+    text: "Understood, I am not keeping this conversation. I only note that the team should call you back. Goodbye."
+  voice_unavailable:
+    text: "The assistant is not available right now. Please call the reception at {phone}."
+  voice_website:
+    text: "on our website"
+  voice_no_reply:
+    text: "I did not catch that. Would you like to speak to the reception?"
   availability_handoff:
     text: "I have passed your request ({summary}) to the reception. You will usually receive an answer within {window}."
   availability_handoff_no_window:

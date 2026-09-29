@@ -1,0 +1,18 @@
+# Voice-only phrase tables (F26). A caller who declines the AI assistant after the
+# disclosure gets callback capture without transcript retention. Phrases match on
+# NFKC-normalised, lower-cased text at word boundaries.
+version: 2026.09.29-1
+decline:
+  de: ["nicht einverstanden", "keine ki", "keinen ki", "kein assistent", "nicht mit einem computer", "keine aufzeichnung", "nicht gespeichert", "nicht speichern", "widerspreche", "lehne ab", "kein roboter", "keinen roboter"]
+  en: ["not agree", "don't agree", "do not agree", "no ai", "not with an ai", "no recording", "do not store", "don't store", "i decline", "i object", "no robot", "not a robot"]
+  ru: ["не согласен", "не согласна", "не хочу с роботом", "не с ии", "без записи", "не сохранять", "возражаю", "отказываюсь"]
+  uk: ["не згоден", "не згодна", "не хочу з роботом", "не з ші", "без запису", "не зберігати", "заперечую", "відмовляюся"]
+  tr: ["kabul etmiyorum", "yapay zekâ istemiyorum", "yapay zeka istemiyorum", "kayıt istemiyorum", "saklanmasın", "itiraz ediyorum", "robot istemiyorum"]
+  it: ["non sono d'accordo", "non accetto", "niente ia", "non con un'ia", "nessuna registrazione", "non conservare", "mi oppongo", "rifiuto"]
+goodbye:
+  de: ["das war alles", "das wars", "das war's", "auf wiederhören", "tschüss", "tschüs", "bis dann", "mehr brauche ich nicht", "mehr wollte ich nicht wissen"]
+  en: ["that's all", "that is all", "that was all", "goodbye", "good bye", "bye bye", "nothing else", "that's it"]
+  ru: ["это всё", "это все", "до свидания", "больше ничего", "спасибо, всё"]
+  uk: ["це все", "до побачення", "більше нічого", "дякую, все"]
+  tr: ["hepsi bu", "hoşça kalın", "hoşçakal", "başka bir şey yok", "bu kadar"]
+  it: ["è tutto", "e tutto", "arrivederci", "nient'altro", "niente altro", "basta così"]

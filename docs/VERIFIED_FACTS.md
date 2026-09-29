@@ -69,6 +69,8 @@ All versions below install from wheels on Python 3.13.12 (Linux) into a clean ve
 | Custom LLM websocket protocol | route `/llm-websocket/{call_id}`; inbound `interaction_type` in `ping_pong` (`timestamp`), `call_details` (`call`), `update_only` (`transcript`), `response_required` and `reminder_required` (`response_id`, `transcript` of `{role: agent|user|system, content}`); outbound `response_type` in `config` (`auto_reconnect`, `call_details`), `ping_pong` (`timestamp`), `response` (`response_id`, `content`, `content_complete`, `end_call`, `transfer_number`); a newer `response_id` abandons the running generation | demo `app/custom_types.py`, `app/server.py`, 2026-09-29 | verified |
 | EU processing | not offered per the prompt (section 2.6); docs.retellai.com unreachable here | expected source docs.retellai.com, trust.retellai.com | VERIFY; gated by `voice.eu_only` and `voice.us_transfer_acknowledged` |
 | Web call endpoint, agent and number APIs, billing | `POST /v3/create-web-call` per the prompt | expected source docs.retellai.com | VERIFY; `doctor --live` calls the API |
+| Agent creation and number import bodies | `POST /create-agent` with `response_engine: {type: custom-llm, llm_websocket_url}`, `voice_id`, `language`, `webhook_url`, `begin_message`, `interruption_sensitivity`, `opt_out_sensitive_data_storage`, `data_storage_setting`; `POST /import-phone-number` with `phone_number`, `termination_uri`, `sip_trunk_auth_username`, `sip_trunk_auth_password`, `inbound_agent_id`; `GET /v2/get-call/{call_id}` | expected source docs.retellai.com | VERIFY; `concierge voice provision --dry-run` prints the bodies, the live run reports the API's answer |
+| `call_ended` payload fields | `call.start_timestamp`/`end_timestamp` in ms, `transcript_object[{role, content}]`, `call_cost.combined_cost` (unit assumed cents, mapped to micro EUR), `disconnection_reason` | expected source docs.retellai.com webhook page | VERIFY; the parser tolerates missing fields |
 
 ## Twilio
 
@@ -78,6 +80,8 @@ All versions below install from wheels on Python 3.13.12 (Linux) into a clean ve
 | ConversationRelay TwiML | `<Connect><ConversationRelay url=... language=... ttsLanguage=... transcriptionLanguage=... ttsProvider=... voice=... transcriptionProvider=... speechModel=.../></Connect>` | `twilio` 9.11.2 `twiml/voice_response.py` `conversation_relay()`, 2026-09-29 | verified |
 | ConversationRelay websocket message schema | `setup`, `prompt` (`voicePrompt`, `lang`, `last`), `dtmf`, `interrupt`, `error` inbound; `text` (`token`, `last`, `lang`), `end`, `language` outbound, per the prompt and the public Twilio docs | expected source twilio.com/docs/voice/twiml/connect/conversationrelay | VERIFY; simulator-tested |
 | German number regulatory bundle approval time | unknown | Twilio console | VERIFY (handout) |
+| ConversationRelay attributes used | `interruptible`, `dtmfDetection` on `<ConversationRelay>`; `action` and `statusCallback` on `<Connect>`; `HandoffData` posted to the action URL after `end` | expected source twilio.com/docs/voice/twiml/connect/conversationrelay | VERIFY; simulator-tested |
+| Incoming number update | `GET /2010-04-01/Accounts/{sid}/IncomingPhoneNumbers.json?PhoneNumber=` then `POST .../IncomingPhoneNumbers/{sid}.json` with `VoiceUrl`, `VoiceMethod`, `StatusCallback` | `twilio` 9.11.2 wheel, `rest/api/v2010/account/incoming_phone_number` | verified |
 
 ## Stripe
 

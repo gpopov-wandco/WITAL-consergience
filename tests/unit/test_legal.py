@@ -18,6 +18,7 @@ KEYS = {
     "chat_terms",
     "emergency_script",
     "complaint_script",
+    "voice_notice",
 }
 
 

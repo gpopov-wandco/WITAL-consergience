@@ -88,6 +88,21 @@ texts:
     text: "Resepsiyona şu anda ulaşılamıyor. Bir geri arama notu alıyorum; lütfen adınızı söyleyin."
   voice_goodbye:
     text: "Aradığınız için teşekkür ederiz. Hoşça kalın."
+  voice_transfer_unavailable:
+    text: "Resepsiyona şu anda ulaşılamıyor. Numaranıza geri arama notu alıyorum."
+  voice_callback_saved:
+    text: "Numaranıza geri arama notu aldım. Ekip sizinle iletişime geçecek."
+  voice_callback_no_number:
+    text: "Geri arama isteğinizi not aldım. Haber alamazsanız lütfen resepsiyonu {phone} numarasından arayın."
+  voice_declined:
+    status: draft_unreviewed
+    text: "Anlaşıldı, bu görüşmeyi saklamıyorum. Yalnızca ekibin sizi geri araması gerektiğini not ediyorum. Hoşça kalın."
+  voice_unavailable:
+    text: "Asistan şu anda kullanılamıyor. Lütfen resepsiyonu {phone} numarasından arayın."
+  voice_website:
+    text: "web sitemizde"
+  voice_no_reply:
+    text: "Maalesef anlayamadım. Resepsiyonla görüşmek ister misiniz?"
   availability_handoff:
     text: "Talebinizi ({summary}) resepsiyona ilettim. Genellikle {window} içinde yanıt alırsınız."
   availability_handoff_no_window:

@@ -88,6 +88,21 @@ texts:
     text: "Die Rezeption ist gerade nicht erreichbar. Ich notiere einen Rückruf; bitte nennen Sie Ihren Namen."
   voice_goodbye:
     text: "Vielen Dank für Ihren Anruf. Auf Wiederhören."
+  voice_transfer_unavailable:
+    text: "Die Rezeption ist gerade nicht erreichbar. Ich notiere einen Rückruf an Ihre Nummer."
+  voice_callback_saved:
+    text: "Ich habe einen Rückruf an Ihre Nummer notiert. Das Team meldet sich bei Ihnen."
+  voice_callback_no_number:
+    text: "Ich habe Ihre Bitte um Rückruf notiert. Bitte rufen Sie die Rezeption unter {phone} an, falls Sie nichts hören."
+  voice_declined:
+    status: draft_unreviewed
+    text: "Verstanden, ich speichere kein Gespräch. Ich notiere nur, dass das Team Sie zurückrufen soll. Auf Wiederhören."
+  voice_unavailable:
+    text: "Der Assistent ist gerade nicht verfügbar. Bitte rufen Sie die Rezeption unter {phone} an."
+  voice_website:
+    text: "auf unserer Website"
+  voice_no_reply:
+    text: "Das habe ich leider nicht verstanden. Möchten Sie mit der Rezeption sprechen?"
   availability_handoff:
     text: "Ich habe Ihre Anfrage ({summary}) an die Rezeption weitergegeben. Sie erhalten in der Regel innerhalb von {window} eine Antwort."
   availability_handoff_no_window:

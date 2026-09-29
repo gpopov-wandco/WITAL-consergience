@@ -57,6 +57,7 @@ def render(text: str, profile: TenantProfile) -> str:
         "privacy_url": profile.contacts.privacy_url or "-",
         "imprint_url": profile.contacts.imprint_url or "-",
         "phone": profile.contacts.reception_phone or "-",
+        "transcript_days": str(profile.voice.transcript_retention_days),
     }
     for key, value in values.items():
         text = text.replace("{" + key + "}", value)

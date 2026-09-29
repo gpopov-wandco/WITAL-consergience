@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from datetime import date, time
-from typing import Any
+from typing import Any, Protocol
 
 from concierge.agent.responder import Slots
 from concierge.agent.texts import GuestTexts
@@ -36,6 +36,12 @@ AvailabilityLookup = Callable[
 ]
 
 
+class VoiceHooks(Protocol):
+    async def transfer(self, conversation_id: str, reason: str) -> bool: ...
+
+    async def end_call(self, conversation_id: str, reason: str) -> None: ...
+
+
 class ToolBackendBuilder:
     def __init__(
         self,
@@ -53,6 +59,8 @@ class ToolBackendBuilder:
         self.handoffs = handoffs
         self.conversations = conversations
         self.texts = texts
+        self.voice_hooks: VoiceHooks | None = None
+        """Set by the voice module: transfer and end-call backends for the phone channel."""
 
     async def __call__(
         self,
@@ -168,6 +176,15 @@ class ToolBackendBuilder:
         async def set_language(lang: str) -> None:
             await conversations.update(tenant.id, conversation.id, lang=lang)
 
+        voice = self.voice_hooks if session.channel == "voice" else None
+
+        async def transfer_to_human(reason: str) -> bool:
+            return voice is not None and await voice.transfer(conversation.id, reason)
+
+        async def end_call(reason: str) -> None:
+            if voice is not None:
+                await voice.end_call(conversation.id, reason)
+
         return ToolBackends(
             check_availability=check_availability,
             verify_reservation=verify_reservation,
@@ -177,6 +194,8 @@ class ToolBackendBuilder:
             create_handoff=create_handoff,
             request_callback=request_callback,
             set_language=set_language,
+            transfer_to_human=transfer_to_human if voice is not None else None,
+            end_call=end_call if voice is not None else None,
         )
 
     async def responder_lookup(

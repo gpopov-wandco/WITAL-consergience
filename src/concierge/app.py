@@ -27,6 +27,7 @@ from concierge.admin.i18n import labels
 from concierge.admin.operator import build_router as build_operator_router
 from concierge.admin.routes import build_router as build_admin_router
 from concierge.admin.templating import templates
+from concierge.channels.voice.routes import build_router as build_voice_router
 from concierge.channels.web.routes import build_router as build_widget_router
 from concierge.channels.whatsapp.routes import build_router as build_wa_router
 from concierge.db.migrate import head_state
@@ -82,6 +83,15 @@ def create_app(
     app.state.services = services
     app.include_router(build_wa_router(services.ingress))
     app.include_router(build_widget_router(services.widget))
+    app.include_router(
+        build_voice_router(
+            engine=services.voice,
+            postcall=services.postcall,
+            tenants=services.tenants,
+            settings=services.ctx.settings,
+            clock=services.ctx.clock,
+        )
+    )
     app.include_router(
         build_reservation_router(
             services.tenants, services.secrets, services.reservations, services.ctx.clock

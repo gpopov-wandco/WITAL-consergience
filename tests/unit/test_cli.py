@@ -156,3 +156,25 @@ def test_pack_export_validate_diff_import(env: Path) -> None:
     assert invalid.exit_code == 1 and "secrets never travel in a pack" in invalid.output
     assert runner.invoke(app, ["pack", "import", str(target), "--apply"]).exit_code == 1
     assert runner.invoke(app, ["pack", "validate", str(env / "nowhere")]).exit_code == 1
+
+
+def test_voice_provision_dry_run(env: Path) -> None:
+    runner = CliRunner()
+    assert runner.invoke(app, ["db", "upgrade"]).exit_code == 0
+    profile = env / "tenant.yaml"
+    data = dict(SAMPLE)
+    data["voice"] = {
+        **dict(SAMPLE["voice"]),
+        "provider": "retell",
+        "number": "+4969000009",
+        "voice_id": "voice_x",
+    }
+    profile.write_text(yaml.safe_dump(data), encoding="utf-8")
+    assert runner.invoke(app, ["tenant", "add", "--profile", str(profile)]).exit_code == 0
+    result = runner.invoke(app, ["voice", "provision", "hotel-beispiel", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert "custom-llm" in result.output and "/voice/retell/llm/" in result.output
+    assert "dry run" in result.output and "human steps" in result.output
+    assert "<hidden>" in result.output and "sip_trunk_auth_password" in result.output
+    missing = runner.invoke(app, ["voice", "provision", "no-such-hotel", "--dry-run"])
+    assert missing.exit_code == 1

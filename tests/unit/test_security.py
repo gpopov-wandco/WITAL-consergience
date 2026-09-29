@@ -263,7 +263,8 @@ class TestLimiterAndAuth:
         key = b"k" * 32
         csrf = csrf_token(stored, key)
         assert csrf_ok(stored, key, csrf)
-        assert not csrf_ok(stored, key, csrf[:-1] + "0")
+        flipped = csrf[:-1] + ("0" if csrf[-1] != "0" else "1")  # always a different digest
+        assert not csrf_ok(stored, key, flipped)
         assert not csrf_ok(stored, b"other-key-other-key-other-key-00", csrf)
         assert not csrf_ok(stored, key, None)
 

@@ -41,6 +41,7 @@ dependencies = [
   "icalendar>=7.3,<8",
   "phonenumbers>=9.0.40,<10",
   "lingua-language-detector>=2.2,<3",
+  "websockets>=15,<17",
   "pypdf>=6.19,<7",
 ]
 

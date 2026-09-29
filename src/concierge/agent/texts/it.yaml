@@ -88,6 +88,21 @@ texts:
     text: "La reception non è raggiungibile al momento. Prendo nota di una richiamata; mi dica il Suo nome, per favore."
   voice_goodbye:
     text: "Grazie per la chiamata. Arrivederci."
+  voice_transfer_unavailable:
+    text: "La reception non è raggiungibile al momento. Annoto una richiamata al Suo numero."
+  voice_callback_saved:
+    text: "Ho annotato una richiamata al Suo numero. Il team La contatterà."
+  voice_callback_no_number:
+    text: "Ho annotato la Sua richiesta di richiamata. Se non riceve notizie, chiami la reception al {phone}."
+  voice_declined:
+    status: draft_unreviewed
+    text: "Capito, non conservo questa conversazione. Annoto soltanto che il team deve richiamarLa. Arrivederci."
+  voice_unavailable:
+    text: "L'assistente non è disponibile al momento. Chiami la reception al {phone}."
+  voice_website:
+    text: "sul nostro sito"
+  voice_no_reply:
+    text: "Purtroppo non ho capito. Desidera parlare con la reception?"
   availability_handoff:
     text: "Ho inoltrato la Sua richiesta ({summary}) alla reception. Di norma riceverà una risposta entro {window}."
   availability_handoff_no_window:

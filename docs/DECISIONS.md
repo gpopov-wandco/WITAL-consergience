@@ -208,3 +208,27 @@ e-mail port is the in-memory fake with the sender ``concierge@hotel-beispiel.inv
 so alerts, invites, inquiries and the journey fallback stay visible offline; production
 needs ``GC_EMAIL_PROVIDER`` and ``GC_EMAIL_FROM`` or e-mail features report
 "not configured" instead of failing silently.
+
+## D-021 Voice engine rules (F26)
+
+The disclosure is spoken by the server as ``response_id`` 0 (Retell) or the first
+relay text (Twilio) and is recorded as the first outbound message before any caller
+turn; the provider's own greeting is empty so no turn can start without it. The
+disclosure uses the hotel's default language (the caller's language is not known
+before the first utterance); replies follow the detected language. The engine runs
+the Brain as a task, speaks a static filler once after ``voice.filler_ms`` and the
+whole validated reply afterwards; a newer response id cancels the running task. A
+request for a person transfers during staffed hours (``transfer_number`` on Retell,
+``end`` with handoff data and a ``<Dial>`` on Twilio) and otherwise captures a
+callback; a farewell without a question ends the call; decline phrases (per-language
+table in ``channels/voice/phrases.yaml``) end the call with a callback and no
+transcript. A handoff created during a call never silences the assistant, because the
+caller is still on the line: the conversation returns to ``bot_handling`` and staff
+see the handoff and the callback task. Calls whose end the provider never reports are
+closed after six hours by the minute maintenance job with outcome ``unreconciled``.
+Usage is metered in seconds per call; seconds beyond the tenant's included minutes in
+the local month cost ``overage_eur_per_min`` (minute rounding bills the started
+minute). The ``openai_compat`` (S) provider is not built (M14 decision). The WebSocket
+path carries the tenant's public key, which is not a secret: an attacker who guesses
+it can only hold a text conversation with the assistant at the tenant's model cost,
+and the per-tenant LLM budget bounds that (documented in SECURITY.md, M12).
