@@ -1,0 +1,14 @@
+{% extends "admin/layout.html" %}
+{% set active = 'inbox' %}
+{% block title %}{{ t.search_transcripts }}{% endblock %}
+{% block admin %}
+<h1>{{ t.search_transcripts }}</h1>
+<form method="get" action="/admin/search" class="inline">
+  <label for="q">{{ t.search }}</label><input id="q" name="q" value="{{ q }}" minlength="3" required>
+  <button type="submit" class="secondary">{{ t.search }}</button>
+</form>
+<table>
+  <thead><tr><th>At</th><th></th><th>Text</th></tr></thead>
+  <tbody>{% for h in hits %}<tr><td>{{ h.at }}</td><td>{{ h.direction }}</td><td><a href="/admin/conversations/{{ h.conversation_id }}">{{ h.text }}</a></td></tr>{% else %}<tr><td colspan="3">–</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}

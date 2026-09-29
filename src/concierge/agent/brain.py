@@ -173,6 +173,7 @@ AvailabilityLookup = Callable[
 """(tenant, profile, conversation, slots, lang, guest text) -> responder summary or None."""
 UsageSink = Callable[[str, str, Usage, dict[str, Any]], Awaitable[None]]
 AlertSink = Callable[[str, str, dict[str, Any]], Awaitable[None]]
+QaSink = Callable[[str, str, "BrainResult"], Awaitable[None]]
 
 
 class Brain:
@@ -200,6 +201,7 @@ class Brain:
         breaker: CircuitBreaker | None = None,
         budget: DailyBudget | None = None,
         demo_banner: bool = False,
+        qa_sink: QaSink | None = None,
     ) -> None:
         self.kb = kb
         self.conversations = conversations
@@ -223,6 +225,7 @@ class Brain:
         self.breaker = breaker or CircuitBreaker(clock)
         self.budget = budget or DailyBudget(clock)
         self.demo_banner = demo_banner
+        self.qa_sink = qa_sink
 
     # ------------------------------------------------------------ entry
     async def respond(self, tenant: Tenant, inbound: Inbound) -> BrainResult:
@@ -272,11 +275,17 @@ class Brain:
         reply_lang = lang if supported else "en"
         guard = self.guardrails.check(inbound.text, lang)
         retention = profile.retention.chat_days
+        special = self.guardrails.special_categories(guard.text, lang)
         stored = Inbound(**{**inbound.__dict__, "text": guard.text})
+        if special:
+            stored.meta = {**stored.meta, "special_category": True}
         await self.conversations.record_inbound(
             tenant.id, conversation.id, stored, lang=lang, retention_days=retention
         )
         result = BrainResult(conversation.id, guest.id, reply_lang, "static", [])
+        if special:
+            result.events.append("special_category")
+            await self.conversations.merge_meta(tenant.id, conversation.id, special_category=True)
         if guard.injection:
             result.events.append("injection_marker")
             log.warning(
@@ -1061,6 +1070,8 @@ class Brain:
             and result.handoff_id is None
         ):
             await self.conversations.update(tenant.id, conversation.id, status="bot_handling")
+        if self.qa_sink is not None:
+            await self.qa_sink(tenant.id, conversation.id, result)
         return result
 
     async def _emergency_degrade(

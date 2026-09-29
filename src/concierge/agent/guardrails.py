@@ -85,6 +85,7 @@ class Keywords:
     other_guest: dict[str, list[str]]
     injection: list[str]
     complaint: dict[str, list[str]]
+    special: dict[str, list[str]] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path = KEYWORDS_PATH) -> Keywords:
@@ -97,6 +98,7 @@ class Keywords:
             other_guest={k: [normalise(t) for t in v] for k, v in data["other_guest"].items()},
             injection=[normalise(t) for t in data["injection"]["any"]],
             complaint={k: [normalise(t) for t in v] for k, v in data["complaint"].items()},
+            special={k: [normalise(t) for t in v] for k, v in (data.get("special") or {}).items()},
         )
 
 
@@ -122,6 +124,16 @@ def _contains_phrase(haystack: str, phrase: str) -> bool:
 class Guardrails:
     def __init__(self, keywords: Keywords | None = None) -> None:
         self.keywords = keywords or Keywords.load()
+
+    def special_categories(self, text: str, lang: str) -> list[str]:
+        """Special-category terms (Art. 9 GDPR) the guest volunteered, word-bounded."""
+        lowered = normalise(text)
+        hits: list[str] = []
+        for code in self._langs(lang):
+            for term in self.keywords.special.get(code, []):
+                if re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", lowered):
+                    hits.append(term)
+        return hits
 
     def _langs(self, lang: str) -> list[str]:
         """Check the guest's language first, then every other language."""

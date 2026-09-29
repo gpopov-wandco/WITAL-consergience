@@ -3,8 +3,42 @@
 {% block title %}{{ t.data_requests }}{% endblock %}
 {% block admin %}
 <h1>{{ t.data_requests }}</h1>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+<form method="get" action="/admin/data-requests" class="inline">
+  <label for="kind">{{ t.search }}</label>
+  <select id="kind" name="kind"><option value="phone"{% if kind == 'phone' %} selected{% endif %}>{{ t.phone if t.phone is defined else 'Telefon' }}</option><option value="email"{% if kind == 'email' %} selected{% endif %}>{{ t.email }}</option><option value="res_id"{% if kind == 'res_id' %} selected{% endif %}>Res.</option></select>
+  <label for="q" class="sr-only">{{ t.search_hint }}</label><input id="q" name="q" value="{{ q }}" placeholder="{{ t.search_hint }}">
+  <button type="submit" class="secondary">{{ t.search }}</button>
+</form>
+{% if subject is not none %}
+<div class="card">
+  {% if subject.found %}
+  <p><strong>{{ t.subject_found }}</strong>: {{ subject.guest_ids|length }} guest, {{ subject.reservation_ids|length }} reservation, {{ subject.conversation_ids|length }} conversation</p>
+  {% if is_owner %}
+  <form method="post" action="/admin/data-requests" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="q" value="{{ q }}">
+    <button type="submit" name="action" value="export" class="secondary">{{ t.create_export }}</button>
+    <button type="submit" name="action" value="erasure" class="secondary">{{ t.create_erasure }}</button>
+    <button type="submit" name="action" value="restriction" class="secondary">{{ t.create_restriction }}</button>
+    <button type="submit" name="action" value="unrestrict" class="secondary">{{ t.unrestrict }}</button>
+  </form>
+  <p><a href="/admin/data-requests/export?kind={{ kind }}&q={{ q|urlencode }}&fmt=json">{{ t.download_json }}</a> · <a href="/admin/data-requests/export?kind={{ kind }}&q={{ q|urlencode }}&fmt=pdf">{{ t.download_pdf }}</a></p>
+  <form method="post" action="/admin/data-requests" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="action" value="erase">
+    <label for="confirm">{{ t.erase_confirm }}</label><input id="confirm" name="confirm" autocomplete="off">
+    <button type="submit">{{ t.erase_now }}</button>
+  </form>
+  {% endif %}
+  {% else %}<p>{{ t.subject_not_found }}</p>{% endif %}
+</div>
+{% endif %}
 <table>
-  <thead><tr><th>Kind</th><th>Subject</th><th>{{ t.status }}</th><th>Due</th><th>Tasks</th></tr></thead>
-  <tbody>{% for r in rows %}<tr><td>{{ r.kind }}</td><td>{{ r.subject_kind }} ····{{ r.subject_bidx[-4:] }}</td><td>{{ r.status }}</td><td>{{ r.due_at }}</td><td>{{ r.tasks|length }}</td></tr>{% else %}<tr><td colspan="5">–</td></tr>{% endfor %}</tbody>
+  <thead><tr><th>Kind</th><th>Subject</th><th>{{ t.status }}</th><th>{{ t.due }}</th><th>{{ t.tasks }}</th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ r.kind }}</td><td>{{ r.subject_kind }} ····{{ r.subject_bidx[-4:] }}</td><td>{{ r.status }}</td><td>{{ r.due_at }}</td><td>
+    {% for task in r.tasks %}<div>{% if task.done %}✓{% else %}○{% endif %} {{ task.text }}
+      {% if not task.done and is_owner %}<form method="post" action="/admin/data-requests" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="task"><input type="hidden" name="request_id" value="{{ r.id }}"><input type="hidden" name="task_id" value="{{ task.id }}"><button type="submit" class="secondary">{{ t.done }}</button></form>{% endif %}</div>{% endfor %}
+  </td></tr>{% else %}<tr><td colspan="5">–</td></tr>{% endfor %}</tbody>
 </table>
+<h2>{{ t.deletion_log }}</h2>
+<table><thead><tr><th>Table</th><th>Rows</th><th>Reason</th><th>At</th></tr></thead><tbody>{% for d in deletions %}<tr><td>{{ d.table_name }}</td><td>{{ d.row_count }}</td><td>{{ d.reason }}</td><td>{{ d.created_at }}</td></tr>{% else %}<tr><td colspan="4">–</td></tr>{% endfor %}</tbody></table>
 {% endblock %}

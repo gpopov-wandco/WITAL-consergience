@@ -28,16 +28,18 @@ from concierge.channels.whatsapp.formatting import text_payload
 from concierge.clock import format_local, parse_range, to_local
 from concierge.db.models import (
     Conversation,
-    GdprRequest,
+    DeletionLog,
     Guest,
     Handoff,
     Job,
     Message,
     MessageText,
     Reservation,
-    UsageEvent,
 )
+from concierge.gdpr.service import GdprError, Subject
 from concierge.legal.service import LegalError
+from concierge.reports.qa import kb_key_for
+from concierge.reports.redact import redact
 from concierge.security.sessions import SESSION_COOKIE, set_session_cookie
 from concierge.services import Services
 from concierge.templates.service import TemplateRefused
@@ -265,6 +267,16 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
             return templates.TemplateResponse(
                 request, "admin/invalid.html", ctx.base(), status_code=404
             )
+        last_reply = next(
+            (
+                m
+                for m in reversed(data["transcript"])
+                if m["direction"] == "out" and m["kind"] == "text"
+            ),
+            None,
+        )
+        data["fix_kb_key"] = kb_key_for(last_reply["intent"]) if last_reply else ""
+        data["last_reply_id"] = last_reply["id"] if last_reply else ""
         return page(request, "conversation", ctx, notice=notice, **data)
 
     @api.post("/conversations/{conversation_id}/acknowledge")
@@ -340,11 +352,14 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
 
     # -------------------------------------------------------------------- kb
     @api.get("/kb", response_class=HTMLResponse)
-    async def kb_page(request: Request, status: str = "", lang: str = "") -> Response:
+    async def kb_page(request: Request, status: str = "", lang: str = "", q: str = "") -> Response:
         ctx = await guard.context(request)
         if isinstance(ctx, Response):
             return ctx
         entries = await services.kb.entries(ctx.tenant_id, status=status or None, lang=lang or None)
+        if q.strip():
+            needle = q.strip().lower()
+            entries = [e for e in entries if needle in e.key.lower()]
         gaps = await services.kb.gap_report(ctx.tenant_id)
         return page(
             request, "kb", ctx, entries=entries[:400], status=status, kb_lang=lang, gaps=gaps[:20]
@@ -684,66 +699,279 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
 
     # ---------------------------------------------------------- data requests
     @api.get("/data-requests", response_class=HTMLResponse)
-    async def data_requests(request: Request) -> Response:
+    async def data_requests(
+        request: Request, q: str = "", kind: str = "phone", notice: str = ""
+    ) -> Response:
         ctx = await guard.context(request)
         if isinstance(ctx, Response):
             return ctx
-        async with services.ctx.db.tenant_scope(ctx.tenant_id) as session:
-            rows = list(
+        rows = await services.gdpr.requests(ctx.tenant_id)
+        subject = await _subject(services, ctx.tenant_id, kind, q) if q.strip() else None
+        async with services.ctx.db.scope() as session:
+            deletions = list(
                 (
                     await session.execute(
-                        select(GdprRequest)
-                        .where(GdprRequest.tenant_id == ctx.tenant_id)
-                        .order_by(GdprRequest.due_at)
+                        select(DeletionLog)
+                        .where(DeletionLog.tenant_id == ctx.tenant_id)
+                        .order_by(DeletionLog.created_at.desc())
+                        .limit(30)
                     )
                 ).scalars()
             )
-        return page(request, "data_requests", ctx, rows=rows)
+        return page(
+            request,
+            "data_requests",
+            ctx,
+            rows=rows,
+            q=q,
+            kind=kind,
+            subject=subject,
+            notice=notice,
+            deletions=deletions,
+        )
 
-    # ---------------------------------------------------------------- reports
-    @api.get("/reports", response_class=HTMLResponse)
-    async def reports(request: Request) -> Response:
+    @api.post("/data-requests")
+    async def data_request_create(request: Request) -> Response:
+        ctx = await guard.context(request, mutation=True, roles=("owner", "operator"))
+        if isinstance(ctx, Response):
+            return ctx
+        form = await request.form()
+        kind, q = str(form.get("kind", "phone")), str(form.get("q", ""))
+        subject = await _subject(services, ctx.tenant_id, kind, q)
+        action = str(form.get("action", ""))
+        if subject is None:
+            return RedirectResponse("/admin/data-requests?notice=invalid", status_code=303)
+        try:
+            if action in {"export", "erasure", "restriction"}:
+                await services.gdpr.create_request(
+                    ctx.tenant_id, action, subject, actor=ctx.principal.user.id
+                )
+                if action == "restriction":
+                    await services.gdpr.restrict(
+                        ctx.tenant_id, subject, True, actor=ctx.principal.user.id
+                    )
+            elif action == "unrestrict":
+                await services.gdpr.restrict(
+                    ctx.tenant_id, subject, False, actor=ctx.principal.user.id
+                )
+            elif action == "erase":
+                if str(form.get("confirm", "")).strip().upper() not in {"LÖSCHEN", "ERASE"}:
+                    return RedirectResponse(
+                        f"/admin/data-requests?kind={kind}&q={q}&notice=confirm", status_code=303
+                    )
+                request_id = str(form.get("request_id", "")) or None
+                await services.gdpr.erase(
+                    ctx.tenant_id, subject, actor=ctx.principal.user.id, request_id=request_id
+                )
+                return RedirectResponse("/admin/data-requests?notice=erased", status_code=303)
+            elif action == "task":
+                await services.gdpr.complete_task(
+                    ctx.tenant_id,
+                    str(form.get("request_id", "")),
+                    str(form.get("task_id", "")),
+                    actor=ctx.principal.user.id,
+                )
+        except GdprError as exc:
+            return RedirectResponse(f"/admin/data-requests?notice={exc}", status_code=303)
+        return RedirectResponse(
+            f"/admin/data-requests?kind={kind}&q={q}&notice=saved", status_code=303
+        )
+
+    @api.get("/data-requests/export")
+    async def data_request_export(
+        request: Request, kind: str = "phone", q: str = "", fmt: str = "json"
+    ) -> Response:
+        ctx = await guard.context(request, roles=("owner", "operator"))
+        if isinstance(ctx, Response):
+            return ctx
+        subject = await _subject(services, ctx.tenant_id, kind, q)
+        if subject is None or not subject.found:
+            return Response(status_code=404)
+        data = await services.gdpr.export(ctx.tenant_id, subject)
+        async with services.ctx.db.scope() as session:
+            from concierge import audit
+
+            audit.record(
+                session,
+                actor=ctx.principal.user.id,
+                action="gdpr.exported",
+                target=subject.subject_bidx[:16],
+                tenant_id=ctx.tenant_id,
+                details={"format": fmt},
+            )
+            await session.commit()
+        if fmt == "pdf":
+            return Response(
+                services.gdpr.export_pdf(data, hotel=ctx.tenant_profile.name),
+                media_type="application/pdf",
+                headers={"Content-Disposition": 'attachment; filename="data-export.pdf"'},
+            )
+        return JSONResponse(
+            data, headers={"Content-Disposition": 'attachment; filename="data-export.json"'}
+        )
+
+    # ----------------------------------------------------------------- search
+    @api.get("/search", response_class=HTMLResponse)
+    async def search(request: Request, q: str = "") -> Response:
         ctx = await guard.context(request)
         if isinstance(ctx, Response):
             return ctx
-        month_start = to_local(clock.now(), ctx.tenant_profile.timezone).date().replace(day=1)
-        start = datetime.combine(month_start, datetime.min.time(), tzinfo=UTC)
-        async with services.ctx.db.tenant_scope(ctx.tenant_id) as session:
-            usage = (
-                await session.execute(
-                    select(
-                        UsageEvent.kind,
-                        func.count(),
-                        func.sum(UsageEvent.quantity),
-                        func.sum(UsageEvent.cost_micro_eur),
+        hits: list[dict[str, Any]] = []
+        needle = q.strip()
+        if len(needle) >= 3:
+            async with services.ctx.db.tenant_scope(ctx.tenant_id) as session:
+                rows = (
+                    await session.execute(
+                        select(Message, MessageText)
+                        .join(MessageText, MessageText.id == Message.id)
+                        .where(
+                            Message.tenant_id == ctx.tenant_id,
+                            MessageText.text.ilike(f"%{needle}%"),
+                        )
+                        .order_by(Message.occurred_at.desc())
+                        .limit(50)
                     )
-                    .where(UsageEvent.tenant_id == ctx.tenant_id, UsageEvent.occurred_at >= start)
-                    .group_by(UsageEvent.kind)
-                )
-            ).all()
-            handoff_counts = (
+                ).all()
+            hits = [
+                {
+                    "conversation_id": m.conversation_id,
+                    "direction": m.direction,
+                    "at": format_local(m.occurred_at, ctx.tenant_profile.timezone, ctx.lang),
+                    "text": t.text[:200],
+                }
+                for m, t in rows
+            ]
+        return page(request, "search", ctx, q=needle, hits=hits)
+
+    @api.post("/conversations/{conversation_id}/flag")
+    async def flag_reply(request: Request, conversation_id: str) -> Response:
+        ctx = await guard.context(request, mutation=True)
+        if isinstance(ctx, Response):
+            return ctx
+        form = await request.form()
+        message_id = str(form.get("message_id", "")) or None
+        await services.qa.flag(
+            ctx.tenant_id,
+            conversation_id,
+            message_id=message_id,
+            user_id=ctx.principal.user.id,
+            note=str(form.get("note", "")),
+        )
+        return RedirectResponse(
+            f"/admin/conversations/{conversation_id}?notice=flagged", status_code=303
+        )
+
+    @api.get("/conversations/{conversation_id}/export")
+    async def export_conversation(
+        request: Request, conversation_id: str, redacted: str = "1"
+    ) -> Response:
+        ctx = await guard.context(request)
+        if isinstance(ctx, Response):
+            return ctx
+        async with services.ctx.db.tenant_scope(ctx.tenant_id) as session:
+            conversation = await session.get(Conversation, conversation_id)
+            if conversation is None or conversation.tenant_id != ctx.tenant_id:
+                return Response(status_code=404)
+            guest = await session.get(Guest, conversation.guest_id)
+            rows = (
                 await session.execute(
-                    select(Handoff.priority, func.count())
-                    .where(Handoff.tenant_id == ctx.tenant_id, Handoff.created_at >= start)
-                    .group_by(Handoff.priority)
+                    select(Message, MessageText)
+                    .outerjoin(MessageText, MessageText.id == Message.id)
+                    .where(Message.conversation_id == conversation_id)
+                    .order_by(Message.occurred_at)
                 )
             ).all()
-            conversations = await session.scalar(
-                select(func.count())
-                .select_from(Conversation)
-                .where(Conversation.tenant_id == ctx.tenant_id, Conversation.created_at >= start)
-            )
+        names: list[str] = []
+        if guest is not None and guest.name_enc is not None:
+            names.append(services.ctx.keyring.decrypt_str(guest.name_enc, ctx.tenant_id, "name"))
+        do_redact = redacted != "0"
+        payload = {
+            "conversation": conversation_id,
+            "channel": conversation.channel,
+            "language": conversation.lang,
+            "redacted": do_redact,
+            "messages": [
+                {
+                    "at": m.occurred_at.isoformat(),
+                    "direction": m.direction,
+                    "kind": m.kind,
+                    "text": (
+                        redact(t.text, names=names)
+                        if (t is not None and do_redact)
+                        else (t.text if t else None)
+                    ),
+                }
+                for m, t in rows
+            ],
+        }
+        return JSONResponse(
+            payload,
+            headers={"Content-Disposition": f'attachment; filename="{conversation_id}.json"'},
+        )
+
+    # ---------------------------------------------------------------- reports
+    @api.get("/reports", response_class=HTMLResponse)
+    async def reports(request: Request, days: int = 30) -> Response:
+        ctx = await guard.context(request)
+        if isinstance(ctx, Response):
+            return ctx
+        days = max(1, min(days, 365))
+        end = clock.now()
+        start = end - timedelta(days=days)
+        summary = await services.analytics.summary(ctx.tenant_id, ctx.tenant_profile, start, end)
+        charts = services.analytics.charts(summary, ctx.lang)
+        month = to_local(end, ctx.tenant_profile.timezone).date()
+        usage = await services.metering.month_report(
+            ctx.tenant_id, ctx.tenant_profile.name, ctx.tenant_profile, month.year, month.month
+        )
         return page(
             request,
             "reports",
             ctx,
-            month=month_start.strftime("%Y-%m"),
-            usage=[
-                {"kind": k, "events": c, "quantity": q or 0, "eur": (cost or 0) / 1_000_000}
-                for k, c, q, cost in usage
-            ],
-            handoffs=dict(handoff_counts),
-            conversations=conversations or 0,
+            days=days,
+            summary=summary,
+            charts=charts,
+            usage=usage,
+            month=usage.label,
+            period=f"{format_local(start, ctx.tenant_profile.timezone, ctx.lang)} – {format_local(end, ctx.tenant_profile.timezone, ctx.lang)}",
+        )
+
+    @api.get("/reports/usage.{fmt}")
+    async def usage_export(request: Request, fmt: str, month: str = "") -> Response:
+        ctx = await guard.context(request, roles=("owner", "operator"))
+        if isinstance(ctx, Response):
+            return ctx
+        try:
+            year, mon = (
+                (int(p) for p in month.split("-"))
+                if month
+                else (
+                    to_local(clock.now(), ctx.tenant_profile.timezone).year,
+                    to_local(clock.now(), ctx.tenant_profile.timezone).month,
+                )
+            )
+        except ValueError:
+            return Response(status_code=400)
+        report = await services.metering.month_report(
+            ctx.tenant_id, ctx.tenant_profile.name, ctx.tenant_profile, year, mon
+        )
+        name = f"usage-{report.label}"
+        if fmt == "csv":
+            return Response(
+                report.to_csv(),
+                media_type="text/csv",
+                headers={"Content-Disposition": f'attachment; filename="{name}.csv"'},
+            )
+        if fmt == "pdf":
+            return Response(
+                report.to_pdf(),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{name}.pdf"'},
+            )
+        return Response(
+            report.to_json(),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{name}.json"'},
         )
 
     # ----------------------------------------------------------- registration
@@ -789,6 +1017,20 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
 
 
 # ------------------------------------------------------------------ helpers
+async def _subject(services: Services, tenant_id: str, kind: str, q: str) -> Subject | None:
+    value = q.strip()
+    if not value:
+        return None
+    try:
+        if kind == "email":
+            return await services.gdpr.search(tenant_id, email=value)
+        if kind == "res_id":
+            return await services.gdpr.search(tenant_id, res_id=value)
+        return await services.gdpr.search(tenant_id, phone=value)
+    except GdprError:
+        return None
+
+
 async def _integrations(services: Services, ctx: AdminContext) -> list[dict[str, Any]]:
     names = set(await services.secrets.names(ctx.tenant_id))
     items = [
@@ -887,6 +1129,7 @@ async def _conversation_view(
     now = services.ctx.clock.now()
     transcript = [
         {
+            "id": m.id,
             "direction": m.direction,
             "text": t.text,
             "status": m.status,

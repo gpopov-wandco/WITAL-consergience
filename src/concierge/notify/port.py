@@ -17,6 +17,7 @@ class EmailMessage:
     reply_to: str | None = None
     idempotency_key: str | None = None
     tenant_id: str | None = None
+    html: str | None = None
 
 
 @dataclass(frozen=True)

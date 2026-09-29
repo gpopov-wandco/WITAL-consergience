@@ -21,7 +21,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from concierge import __version__
+from concierge import __version__, metrics
 from concierge.admin.deps import AdminGuard, Forbidden
 from concierge.admin.i18n import labels
 from concierge.admin.operator import build_router as build_operator_router
@@ -66,6 +66,7 @@ def create_app(
         if start_worker:
             await schedule_registration_purge(services.jobs, services.ctx)
             await services.timers.schedule_all()
+            await services.maintenance.schedule_all()
             services.worker.start()
         try:
             yield
@@ -145,6 +146,15 @@ def _add_health(app: FastAPI, services: Services) -> None:
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
         return {"status": "ok", "version": __version__}
+
+    @app.get("/metrics")
+    async def metrics_endpoint(request: Request) -> Response:
+        token = services.ctx.settings.gc_metrics_token.get_secret_value()
+        if not token:
+            return Response("metrics token not configured", status_code=503)
+        if not metrics.authorised(request.headers.get("authorization"), token):
+            return Response(status_code=401, headers={"WWW-Authenticate": "Bearer"})
+        return Response(await metrics.render(services), media_type="text/plain; version=0.0.4")
 
     @app.get("/readyz")
     async def readyz() -> Response:

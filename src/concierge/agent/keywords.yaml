@@ -39,3 +39,12 @@ complaint:
   uk: [скарга, скаржитися, "не працює", зламано, зламаний, брудно, брудний, "надто гучно", шум, "немає гарячої води", "холодно в номері", розчарований, неприпустимо, жахливо]
   tr: [şikayet, "şikayet etmek", çalışmıyor, bozuk, kirli, pis, "çok gürültülü", gürültü, "sıcak su yok", "oda soğuk", "hayal kırıklığı", "kabul edilemez", berbat]
   it: [reclamo, lamentarmi, "non funziona", rotto, sporco, sporca, "troppo rumore", rumore, "niente acqua calda", "camera fredda", deluso, inaccettabile, terribile]
+# Special-category data (Art. 9 GDPR) volunteered by a guest: never asked, flagged so
+# analytics leave it out and retention scrubs it after the stay (F25).
+special:
+  de: ["schwanger", "schwangerschaft", "krebs", "chemotherapie", "diabetes", "epilepsie", "behinderung", "rollstuhl", "depression", "psychiatrisch", "hiv", "aids", "allergieschock", "muslim", "muslimisch", "jüdisch", "christlich", "koscher", "halal", "gewerkschaft", "partei", "homosexuell", "schwul", "lesbisch", "transgender"]
+  en: ["pregnant", "pregnancy", "cancer", "chemotherapy", "diabetes", "epilepsy", "disability", "wheelchair", "depression", "psychiatric", "hiv", "aids", "muslim", "jewish", "christian", "kosher", "halal", "trade union", "political party", "homosexual", "gay", "lesbian", "transgender"]
+  ru: ["беременна", "беременность", "рак", "химиотерапия", "диабет", "эпилепсия", "инвалидность", "инвалидная коляска", "депрессия", "вич", "мусульман", "иудей", "христиан", "кошер", "халяль", "профсоюз", "партия", "гомосексуал", "гей", "лесбиянка", "трансгендер"]
+  uk: ["вагітна", "вагітність", "рак", "хіміотерапія", "діабет", "епілепсія", "інвалідність", "інвалідний візок", "депресія", "віл", "мусульман", "юдей", "християн", "кошер", "халяль", "профспілка", "партія", "гомосексуал", "гей", "лесбійка", "трансгендер"]
+  tr: ["hamile", "hamilelik", "kanser", "kemoterapi", "diyabet", "şeker hastası", "epilepsi", "engelli", "tekerlekli sandalye", "depresyon", "hiv", "müslüman", "yahudi", "hristiyan", "koşer", "helal", "sendika", "parti", "eşcinsel", "gey", "lezbiyen", "transgender"]
+  it: ["incinta", "gravidanza", "cancro", "chemioterapia", "diabete", "epilessia", "disabilità", "sedia a rotelle", "depressione", "hiv", "musulman", "ebre", "cristian", "kosher", "halal", "sindacato", "partito", "omosessuale", "gay", "lesbica", "transgender"]

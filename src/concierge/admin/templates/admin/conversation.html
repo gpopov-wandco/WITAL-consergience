@@ -52,6 +52,16 @@
       </form>
     </div>
     <div class="card">
+      <form method="post" action="/admin/conversations/{{ conversation.id }}/flag" class="stack">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="message_id" value="{{ last_reply_id }}">
+        <label for="flag-note">{{ t.flag_reply }}</label><input id="flag-note" name="note" placeholder="…">
+        <button type="submit" class="secondary">{{ t.flag_reply }}</button>
+      </form>
+      {% if fix_kb_key %}<p><a href="/admin/kb?q={{ fix_kb_key }}">{{ t.fix_in_kb }}: {{ fix_kb_key }}</a></p>{% endif %}
+      <p><a href="/admin/conversations/{{ conversation.id }}/export?redacted=1">{{ t.export_redacted }}</a></p>
+    </div>
+    <div class="card">
       <h2>{{ t.note }}</h2>
       <ul>{% for n in notes %}<li><span class="meta">{{ n.created_at }}</span> {{ n.text }}</li>{% endfor %}</ul>
       <form method="post" action="/admin/conversations/{{ conversation.id }}/note" class="stack">

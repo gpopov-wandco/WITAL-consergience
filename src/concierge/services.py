@@ -11,7 +11,7 @@ production builds it from settings.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta
+from datetime import date, time, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -37,12 +37,13 @@ from concierge.channels.whatsapp.routes import SecretCache, WebhookIngress
 from concierge.clock import local_date, local_to_utc
 from concierge.context import AppContext
 from concierge.conversations.service import ConversationService
-from concierge.db.models import Conversation, Job, OperatorAlert, Tenant, UsageEvent
+from concierge.db.models import Conversation, Job, OperatorAlert, Tenant
+from concierge.gdpr.retention import RetentionService
+from concierge.gdpr.service import GdprService
 from concierge.handoff.requests import RequestService
 from concierge.handoff.service import HandoffService
 from concierge.handoff.timers import JOB_KIND as TIMERS_JOB_KIND
 from concierge.handoff.timers import HandoffTimers
-from concierge.ids import new_id
 from concierge.jobs.service import JobService
 from concierge.jobs.worker import JobWorker, RetryLater
 from concierge.journeys.service import ETA_SILENCE_KIND, JourneyEngine
@@ -51,14 +52,23 @@ from concierge.kb.store import KbService
 from concierge.legal.service import LegalService
 from concierge.llm.port import LLMPort, Usage
 from concierge.log import get_logger
-from concierge.metering.prices import to_micro
+from concierge.maintenance import (
+    DIGEST_KIND,
+    RECONCILE_KIND,
+    RETENTION_KIND,
+    MaintenanceScheduler,
+)
+from concierge.metering.service import MeteringService, month_of
 from concierge.notify.alerts import StaffAlerts
 from concierge.notify.email import build_email_port
+from concierge.notify.operator import OperatorNotifier
 from concierge.notify.outbox import JOB_KIND as EMAIL_JOB_KIND
 from concierge.notify.outbox import EmailOutbox, RetryableEmail
 from concierge.notify.port import EmailPort, FakeEmail
 from concierge.registration.proof import FakeProof, PaymentProofPort
 from concierge.registration.service import RegistrationService
+from concierge.reports.analytics import AnalyticsService
+from concierge.reports.qa import QaService
 from concierge.reservations.service import ReservationService
 from concierge.templates.service import TemplateService
 from concierge.tenants.packs import PackService
@@ -106,6 +116,13 @@ class Services:
     packs: PackService
     voice: VoiceEngine
     postcall: PostCall
+    metering: MeteringService
+    retention: RetentionService
+    gdpr: GdprService
+    analytics: AnalyticsService
+    qa: QaService
+    operator_alerts: OperatorNotifier
+    maintenance: MaintenanceScheduler
     demo: bool = False
     alerts: list[tuple[str, str, dict[str, Any]]] = field(default_factory=list)
 
@@ -145,11 +162,25 @@ def build_services(
         alerts.append((kind, tenant_id, details))
         await record_alert(ctx, kind, tenant_id, details)
 
+    metering = MeteringService(ctx.db, ctx.clock)
+    qa = QaService(ctx.db, ctx.clock)
+
     async def usage_sink_llm(tenant_id: str, kind: str, usage: Usage, meta: dict[str, Any]) -> None:
-        await record_llm_usage(ctx, tenant_id, usage, meta)
+        await metering.record_llm(tenant_id, usage, meta)
 
     async def usage_sink_wa(tenant_id: str, kind: str, details: dict[str, Any]) -> None:
-        await record_whatsapp_usage(ctx, tenant_id, details)
+        tenant = await tenants.get_by_id(tenant_id)
+        if tenant is not None:
+            await metering.record_whatsapp(tenant_id, tenants.profile_of(tenant), details)
+
+    async def qa_sink(tenant_id: str, conversation_id: str, result: Any) -> None:
+        await qa.on_turn(
+            tenant_id,
+            conversation_id,
+            events=list(result.events),
+            handoff_id=result.handoff_id,
+            message_id=next((m.message_id for m in result.messages if m.message_id), None),
+        )
 
     adapter_factory = adapters or AdapterFactory(ctx.db, ctx.clock, secrets)
     availability = AvailabilityService(ctx.clock, adapter_factory, alert_sink=alert_sink)
@@ -188,6 +219,7 @@ def build_services(
         backends_factory=backend_builder,
         availability_lookup=backend_builder.responder_lookup,
         usage_sink=usage_sink_llm,
+        qa_sink=qa_sink,
         alert_sink=alert_sink,
         demo_banner=demo,
     )
@@ -260,6 +292,66 @@ def build_services(
         await postcall.reconcile(tenant)
 
     timers.extra.append(reconcile_voice)
+    retention = RetentionService(ctx.db, ctx.clock)
+    gdpr = GdprService(ctx.db, ctx.clock, ctx.keyring)
+    analytics = AnalyticsService(ctx.db, ctx.clock)
+    operator_alerts = OperatorNotifier(
+        ctx.db,
+        ctx.clock,
+        email,
+        sender=email_from,
+        operator_email=settings.gc_operator_email,
+        public_base_url=settings.public_base_url(),
+        alert_sink=alert_sink,
+    )
+    price_check_day: list[date | None] = [None]
+
+    async def operator_maintenance(tenant: Tenant) -> None:
+        today = ctx.clock.now().date()
+        if price_check_day[0] != today:
+            price_check_day[0] = today
+            await operator_alerts.check_price_tables(await metering.newest_price_dates())
+        await operator_alerts.run()
+
+    timers.extra.append(operator_maintenance)
+    maintenance = MaintenanceScheduler(jobs, ctx.clock, tenants)
+
+    async def run_retention(tenant: Tenant) -> None:
+        await retention.run(tenant, tenants.profile_of(tenant))
+
+    async def run_reconcile(tenant: Tenant) -> None:
+        profile = tenants.profile_of(tenant)
+        now = ctx.clock.now()
+        year, month = month_of(now, profile.timezone)
+        await metering.reconcile_whatsapp(tenant.id, profile, year, month)
+        previous = now.replace(day=1) - timedelta(days=1)
+        year, month = month_of(previous, profile.timezone)
+        await metering.reconcile_whatsapp(tenant.id, profile, year, month)
+
+    async def run_digest(tenant: Tenant) -> None:
+        profile = tenants.profile_of(tenant)
+        if not profile.contacts.email or not email_outbox.configured:
+            return
+        end = ctx.clock.now()
+        start = end - timedelta(days=7)
+        summary = await analytics.summary(tenant.id, profile, start, end)
+        subject, text, html = analytics.digest(
+            summary, profile, dashboard_url=f"{settings.public_base_url()}/admin/reports"
+        )
+        await email_outbox.enqueue(
+            tenant.id,
+            profile,
+            to=profile.contacts.email,
+            subject=subject,
+            text=text,
+            idempotency_key=f"digest:{tenant.id}:{end.isocalendar().year}-W{end.isocalendar().week:02d}",
+            category="digest",
+            html=html,
+        )
+
+    maintenance.register(RETENTION_KIND, run_retention)
+    maintenance.register(RECONCILE_KIND, run_reconcile)
+    maintenance.register(DIGEST_KIND, run_digest)
 
     async def alert_staff(tenant_id: str, handoff: Any) -> None:
         tenant = await tenants.get_by_id(tenant_id)
@@ -286,6 +378,40 @@ def build_services(
 
     brain.upsell_request = record_upsell
     reservations.on_change(journeys.on_reservation_change)
+
+    async def consent_from_reservation(tenant_id: str, reservation: Any, outcome: str) -> None:
+        if (
+            reservation.whatsapp_optin
+            and reservation.optin_at is not None
+            and reservation.phone_bidx
+        ):
+            await gdpr.record_consent(
+                tenant_id,
+                subject_bidx=reservation.phone_bidx,
+                kind="whatsapp_journey",
+                text_version=reservation.optin_wording_version or "unknown",
+                given_at=reservation.optin_at,
+                channel=reservation.optin_source or "reservation",
+                guest_id=reservation.guest_id,
+                reservation_id=reservation.id,
+            )
+        if (
+            reservation.marketing_optin
+            and reservation.optin_at is not None
+            and reservation.phone_bidx
+        ):
+            await gdpr.record_consent(
+                tenant_id,
+                subject_bidx=reservation.phone_bidx,
+                kind="marketing",
+                text_version=reservation.optin_wording_version or "unknown",
+                given_at=reservation.optin_at,
+                channel=reservation.optin_source or "reservation",
+                guest_id=reservation.guest_id,
+                reservation_id=reservation.id,
+            )
+
+    reservations.on_change(consent_from_reservation)
     wa_inbound = WhatsAppInbound(
         db=ctx.db,
         clock=ctx.clock,
@@ -349,6 +475,8 @@ def build_services(
     worker.register(EMAIL_JOB_KIND, handle_email_send)
     worker.register(TIMERS_JOB_KIND, handle_handoff_timers)
     worker.register(ETA_SILENCE_KIND, journeys.run_eta_silence)
+    for kind in (RETENTION_KIND, RECONCILE_KIND, DIGEST_KIND):
+        worker.register(kind, maintenance.run)
     reservations.on_eta.append(journeys.on_eta)
 
     async def inquiry_email(
@@ -421,6 +549,13 @@ def build_services(
         packs=packs,
         voice=voice,
         postcall=postcall,
+        metering=metering,
+        retention=retention,
+        gdpr=gdpr,
+        analytics=analytics,
+        qa=qa,
+        operator_alerts=operator_alerts,
+        maintenance=maintenance,
         demo=demo,
         alerts=alerts,
     )
@@ -446,65 +581,18 @@ async def record_alert(ctx: AppContext, kind: str, tenant_id: str, details: dict
 async def record_llm_usage(
     ctx: AppContext, tenant_id: str, usage: Usage, meta: dict[str, Any]
 ) -> None:
-    usd = float(meta.get("usd", 0.0))
-    async with ctx.db.tenant_scope(tenant_id) as session:
-        session.add(
-            UsageEvent(
-                tenant_id=tenant_id,
-                kind="llm",
-                category=str(meta.get("model", "")),
-                quantity=usage.input_tokens
-                + usage.output_tokens
-                + usage.cache_write_tokens
-                + usage.cache_read_tokens,
-                unit="token",
-                cost_micro_usd=to_micro(usd),
-                cost_micro_eur=0,
-                occurred_at=ctx.clock.now(),
-                ref=f"llm:{meta.get('request_id') or new_id('req')}",
-                meta={
-                    "input": usage.input_tokens,
-                    "output": usage.output_tokens,
-                    "cache_write": usage.cache_write_tokens,
-                    "cache_read": usage.cache_read_tokens,
-                    "inference_geo": usage.inference_geo or "",
-                    "request_id": meta.get("request_id", ""),
-                },
-            )
-        )
-        await session.commit()
+    await MeteringService(ctx.db, ctx.clock).record_llm(tenant_id, usage, meta)
 
 
 async def record_whatsapp_usage(ctx: AppContext, tenant_id: str, details: dict[str, Any]) -> None:
     """One usage event per billable status webhook (idempotent by ref)."""
-    ref = str(details.get("ref", ""))
-    occurred: datetime = details.get("occurred_at") or ctx.clock.now()
-    async with ctx.db.tenant_scope(tenant_id) as session:
-        existing = await session.scalar(
-            select(UsageEvent).where(UsageEvent.tenant_id == tenant_id, UsageEvent.ref == ref)
-        )
-        if existing is not None:
-            return
-        session.add(
-            UsageEvent(
-                tenant_id=tenant_id,
-                kind="whatsapp",
-                category=str(details.get("category", "")),
-                quantity=1,
-                unit="message",
-                cost_micro_eur=0,
-                occurred_at=occurred,
-                ref=ref,
-                meta={
-                    "billable": bool(details.get("billable")),
-                    "pricing_model": details.get("pricing_model", ""),
-                    "pricing_type": details.get("pricing_type", ""),
-                    "conversation_id": details.get("conversation_id", ""),
-                    "priced": False,
-                },
-            )
-        )
-        await session.commit()
+    tenants = TenantService(ctx.db, ctx.clock)
+    tenant = await tenants.get_by_id(tenant_id)
+    if tenant is None:
+        return
+    await MeteringService(ctx.db, ctx.clock).record_whatsapp(
+        tenant_id, tenants.profile_of(tenant), details
+    )
 
 
 async def schedule_registration_purge(jobs: JobService, ctx: AppContext) -> None:

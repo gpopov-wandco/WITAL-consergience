@@ -85,6 +85,7 @@ class EmailOutbox:
         business_initiated: bool = False,
         conversation_id: str | None = None,
         category: str = "email",
+        html: str | None = None,
     ) -> Outbox:
         payload: dict[str, Any] = {
             "to": to,
@@ -92,6 +93,8 @@ class EmailOutbox:
             "text": text + footer(profile, business_initiated=business_initiated),
             "reply_to": reply_to or profile.contacts.email or None,
         }
+        if html:
+            payload["html"] = html
         async with self.db.tenant_scope(tenant_id) as session:
             existing = await session.scalar(
                 select(Outbox).where(
@@ -146,6 +149,7 @@ class EmailOutbox:
             reply_to=payload.get("reply_to") or None,
             idempotency_key=f"{tenant_id}:{outbox_id}",
             tenant_id=tenant_id,
+            html=str(payload["html"]) if payload.get("html") else None,
         )
         result = await self.port.send(message, sender=self.sender)
         async with self.db.tenant_scope(tenant_id) as session:

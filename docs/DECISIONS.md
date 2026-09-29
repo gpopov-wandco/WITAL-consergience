@@ -232,3 +232,66 @@ minute). The ``openai_compat`` (S) provider is not built (M14 decision). The Web
 path carries the tenant's public key, which is not a secret: an attacker who guesses
 it can only hold a text conversation with the assistant at the tenant's model cost,
 and the per-tenant LLM budget bounds that (documented in SECURITY.md, M12).
+
+## D-022 Metering at write time with correction rows (F24)
+
+Every WhatsApp message and model call is priced when its usage event is written, from
+the dated `price_table`, `model_price` and `fx_rate` rows in force on the event date
+(per-tenant rows win over global rows; when no row exists the built-in defaults from
+`docs/VERIFIED_FACTS.md` apply and the event's `price_source` says `default` instead of `global` or `tenant`). The
+free allowance is counted per tenant calendar month in the tenant's time zone, so a
+message at 00:30 local on the first of the month starts the new allowance even though
+it is still the previous day in UTC. Usage events are append-only (C16); when a price
+row is corrected later, `reconcile_whatsapp` appends one `correction` row per month with
+the difference and zero quantity, dated inside the month it corrects, and a second run
+appends nothing. Prices are stored as micro-EUR and micro-USD integers; conversion uses
+the dated FX row (default 0.92 EUR per USD, flagged as a default). Reports are read
+from the events, so JSON, CSV and PDF exports always agree with the stored rows.
+
+## D-023 Retention defaults and special categories (F25, C9)
+
+Retention runs daily at 03:00 local per tenant (`maintenance.py`) with the periods
+from the tenant profile (`retention` block): message texts and conversation notes after
+`chat_days`, voice transcripts after `voice_transcript_days`, reservation personal data
+(name, phone, e-mail, blind indexes) `booking_days_after_departure` days after departure
+while the booking skeleton stays for statistics, guest identifiers once the guest has no
+reservation and no message inside `chat_days`, closed callback tasks and journey log
+rows with the chat, webhook payloads after `webhook_days`, usage events after
+`metering_months` and withdrawn consents after `consent_years`. Guardrails flag inbound texts that match the
+special-category keyword table (health, pregnancy, disability, religion, ethnicity,
+sexual orientation, trade union, biometrics) in six languages; the answer still goes
+out, the message and the conversation carry `special_category`, the conversation is
+excluded from analytics aggregates and QA sampling, and its inbound texts are removed
+seven days after the stay ends (or seven days after receipt without a booking),
+whichever the profile makes earlier. Every deletion writes a `deletion_log` row with
+table, count and reason. Erasure on request deletes content rows, keeps the suppression
+row (so a STOP stays honoured) and the consent rows (proof of the opt-in), and records
+the request status; sub-processor deletions are tracked as tasks with the 30-day
+deadline because the service cannot delete data on Meta's or the model provider's side.
+
+## D-024 QA sampling and analytics exclusions (F27)
+
+The QA queue receives every handoff, every validator rejection, staff flags, and a
+deterministic five-percent sample chosen by the SHA-256 of the conversation id (its
+first 32 bits modulo 100 below five), so a conversation is either always or never
+sampled and the sample does not depend on timing. Aggregates count conversations, not
+guests, and exclude special-category conversations. The weekly digest is an e-mail to
+the hotel contact on Monday 08:00 local with inline SVG charts (no script, no external
+resource) and links to the dashboard; the same charts render on `/admin/reports`.
+Exports redact phones, e-mails, IBANs and the names known from reservations.
+
+## D-025 Backup format and operator alerts (F30, F32)
+
+Backups are one file per run: the header `GCBK1` plus the kind (`sqlite` or `pgdump`)
+and the nonce, then AES-256-GCM ciphertext of a SQLite online-backup snapshot or a
+`pg_dump` custom-format dump; the header is the associated data, so a truncated or
+edited file fails authentication instead of restoring garbage. The key is
+`GC_BACKUP_KEY`, separate from the master key, so an off-site copy of the backups
+does not carry the key that decrypts them. `restore-test` restores SQLite snapshots
+into a scratch database and compares the migration head and row counts; PostgreSQL
+dumps are verified with `pg_restore` outside the service. A failed backup raises the
+`backup_failed` operator alert. Operator alerts are one row per kind and key with a
+counter; the notifier mails an open alert once, again after 24 hours while it stays
+open, and runs at most every 15 minutes from the timers hook. Price tables older than
+180 days raise `price_table_stale` so the operator refreshes the rates.
+

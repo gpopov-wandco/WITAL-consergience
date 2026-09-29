@@ -1,0 +1,11 @@
+{% extends "admin/layout.html" %}
+{% set active = 'operator' %}
+{% block title %}{{ t.qa_queue }}{% endblock %}
+{% block admin %}
+<h1>{{ t.qa_queue }}</h1>
+<p class="meta"><a href="/operator/qa?status=open">open</a> · <a href="/operator/qa?status=done">done</a> · {{ status }}</p>
+<table>
+  <thead><tr><th>Tenant</th><th>Reason</th><th>Conversation</th><th>{{ t.status }}</th><th>Notes</th><th></th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ slugs.get(r.tenant_id, '?') }}</td><td>{{ r.reason }}</td><td>{{ r.conversation_id }}</td><td>{{ r.status }}</td><td>{{ r.notes }}</td><td>{% if r.status == 'open' %}<form method="post" action="/operator/qa/{{ r.id }}/done" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><label class="sr-only" for="notes-{{ r.id }}">Notes</label><input id="notes-{{ r.id }}" name="notes" size="20"><button type="submit" class="secondary">{{ t.mark_reviewed }}</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="6">–</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}

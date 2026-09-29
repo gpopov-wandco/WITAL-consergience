@@ -23,7 +23,7 @@
   {% endfor %}
   </tbody>
 </table>
-<p><a href="/operator/prices">{{ t.prices }}</a> · E-mail: {{ 'OK' if email_configured else '–' }}</p>
+<p><a href="/operator/prices">{{ t.prices }}</a> · <a href="/operator/qa">{{ t.qa_queue }}</a> · E-mail: {{ 'OK' if email_configured else '–' }}</p>
 <h2>{{ t.alerts }}</h2>
 <table><thead><tr><th>Kind</th><th>Key</th><th>Count</th><th>First</th></tr></thead><tbody>{% for a in alerts %}<tr><td>{{ a.kind }}</td><td>{{ a.alert_key }}</td><td>{{ a.count }}</td><td>{{ a.first_seen_at }}</td></tr>{% else %}<tr><td colspan="4">–</td></tr>{% endfor %}</tbody></table>
 <h2>{{ t.subprocessors }}</h2>

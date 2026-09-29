@@ -184,6 +184,50 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
             await session.commit()
         return RedirectResponse("/operator/prices", status_code=303)
 
+    @api.get("/qa", response_class=HTMLResponse)
+    async def qa_queue(request: Request, status: str = "open") -> Response:
+        ctx = await _ctx(request)
+        if isinstance(ctx, Response):
+            return ctx
+        rows = await services.qa.queue(status=status if status in {"open", "done"} else "open")
+        slugs = {t.id: t.slug for t in await services.tenants.list()}
+        return templates.TemplateResponse(
+            request,
+            "operator/qa.html",
+            ctx.base(rows=rows, slugs=slugs, status=status),
+        )
+
+    @api.post("/qa/{review_id}/done")
+    async def qa_done(request: Request, review_id: str) -> Response:
+        ctx = await _ctx(request, mutation=True)
+        if isinstance(ctx, Response):
+            return ctx
+        form = await request.form()
+        await services.qa.resolve(
+            review_id, reviewer=ctx.principal.user.id, notes=str(form.get("notes", ""))
+        )
+        return RedirectResponse("/operator/qa", status_code=303)
+
+    @api.get("/usage/{slug}/{month}.{fmt}")
+    async def usage_export(request: Request, slug: str, month: str, fmt: str) -> Response:
+        ctx = await _ctx(request)
+        if isinstance(ctx, Response):
+            return ctx
+        tenant = await services.tenants.get(slug)
+        if tenant is None:
+            return Response(status_code=404)
+        try:
+            year, mon = (int(p) for p in month.split("-"))
+        except ValueError:
+            return Response(status_code=400)
+        profile = services.tenants.profile_of(tenant)
+        report = await services.metering.month_report(tenant.id, tenant.name, profile, year, mon)
+        if fmt == "csv":
+            return Response(report.to_csv(), media_type="text/csv")
+        if fmt == "pdf":
+            return Response(report.to_pdf(), media_type="application/pdf")
+        return Response(report.to_json(), media_type="application/json")
+
     return api
 
 

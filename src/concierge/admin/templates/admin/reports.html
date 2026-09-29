@@ -2,11 +2,23 @@
 {% set active = 'reports' %}
 {% block title %}{{ t.reports }}{% endblock %}
 {% block admin %}
-<h1>{{ t.reports }} · {{ month }}</h1>
+<h1>{{ t.reports }}</h1>
+<p class="meta">{{ t.period }}: {{ period }} ({{ days }} d) · <a href="/admin/reports?days=7">7</a> · <a href="/admin/reports?days=30">30</a> · <a href="/admin/reports?days=90">90</a></p>
 <div class="grid">
-  <div class="card"><h2>{{ t.conversations }}</h2><p><strong>{{ conversations }}</strong></p></div>
-  <div class="card"><h2>{{ t.open_handoffs }}</h2><p>{% for p, n in handoffs.items() %}<span class="badge {{ p|lower }}">{{ p }} {{ n }}</span> {% endfor %}</p></div>
+  <div class="card"><h2>{{ t.conversations }}</h2><p><strong>{{ summary.conversations }}</strong></p><p class="meta">{% for k, v in summary.by_channel.items() %}{{ k }} {{ v }} {% endfor %}</p></div>
+  <div class="card"><h2>{{ t.open_handoffs }}</h2><p>{% for p, n in summary.handoffs.items() %}<span class="badge {{ p|lower }}">{{ p }} {{ n }}</span> {% endfor %}</p><p class="meta">{{ t.response_time }}: {{ summary.median_first_response_min if summary.median_first_response_min is not none else '–' }} · {{ t.sla_breaches }}: {{ summary.sla_breaches }}</p></div>
+  <div class="card"><h2>{{ t.llm_cost }}</h2><p><strong>{{ '%.2f'|format(summary.llm_cost_eur) }}</strong></p><p class="meta">{{ t.voice_minutes }}: {{ summary.voice_minutes }}</p></div>
+  <div class="card"><h2>{{ t.journey_delivery }}</h2><p>{% for k, v in summary.journey.items() %}{{ k }} {{ v }} {% endfor %}{% if not summary.journey %}–{% endif %}</p></div>
 </div>
-<h2>{{ t.usage }}</h2>
-<table><thead><tr><th>Kind</th><th>Events</th><th>Quantity</th><th>EUR</th></tr></thead><tbody>{% for u in usage %}<tr><td>{{ u.kind }}</td><td>{{ u.events }}</td><td>{{ u.quantity }}</td><td>{{ '%.2f'|format(u.eur) }}</td></tr>{% else %}<tr><td colspan="4">–</td></tr>{% endfor %}</tbody></table>
+<div class="grid">
+  <div class="card">{{ charts.languages|safe }}</div>
+  <div class="card">{{ charts.topics|safe }}</div>
+  <div class="card">{{ charts.handoffs|safe }}</div>
+</div>
+<h2>{{ t.unanswered }}</h2>
+<ul>{% for q, n in summary.unanswered %}<li>{{ q }} ({{ n }})</li>{% else %}<li>–</li>{% endfor %}</ul>
+<h2>{{ t.usage }} {{ month }}</h2>
+<table><thead><tr><th>Kind</th><th>Category</th><th>Events</th><th>Quantity</th><th>EUR</th></tr></thead><tbody>{% for u in usage.rows %}<tr><td>{{ u.kind }}</td><td>{{ u.category }}</td><td>{{ u.events }}</td><td>{{ u.quantity }} {{ u.unit }}</td><td>{{ '%.4f'|format(u.cost_eur) }}</td></tr>{% else %}<tr><td colspan="5">–</td></tr>{% endfor %}</tbody></table>
+<p>{{ t.usage_export }}: <a href="/admin/reports/usage.json?month={{ month }}">JSON</a> · <a href="/admin/reports/usage.csv?month={{ month }}">CSV</a> · <a href="/admin/reports/usage.pdf?month={{ month }}">PDF</a></p>
+<p class="meta">{{ t.wa }} : {% for k, v in summary.wa_by_category.items() %}{{ k }} {{ v }} {% endfor %}</p>
 {% endblock %}

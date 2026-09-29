@@ -16,7 +16,7 @@ import sys
 from collections.abc import Coroutine
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import typer
 import yaml
@@ -51,6 +51,10 @@ pack_app = typer.Typer(no_args_is_help=True, help="Client packs: export, validat
 app.add_typer(pack_app, name="pack")
 voice_app = typer.Typer(no_args_is_help=True, help="Voice fallback: provision the provider")
 app.add_typer(voice_app, name="voice")
+usage_app = typer.Typer(no_args_is_help=True, help="Metering: monthly usage export")
+app.add_typer(usage_app, name="usage")
+gdpr_app = typer.Typer(no_args_is_help=True, help="GDPR: search, export, erase, retention")
+app.add_typer(gdpr_app, name="gdpr")
 
 
 def run[T](coro: Coroutine[Any, Any, T]) -> T:
@@ -65,7 +69,7 @@ def _utf8_streams() -> None:
             reconfigure(encoding="utf-8", errors="replace")
 
 
-def _fail(message: str, code: int = 1) -> None:
+def _fail(message: str, code: int = 1) -> NoReturn:
     typer.echo(f"error: {message}", err=True)
     raise typer.Exit(code=code)
 
@@ -218,7 +222,6 @@ def tenant_add(
         parsed = TenantProfile(slug=slug, name=name, timezone=timezone, status="pilot")
     else:
         _fail("give --profile or both --slug and --name")
-        return
 
     async def _go() -> None:
         ctx = _context()
@@ -377,7 +380,6 @@ def tenant_activate(slug: str) -> None:
         failures = run(_go())
     except TenantError as exc:
         _fail(str(exc))
-        return
     if failures:
         typer.echo("activation refused:")
         for item in failures:
@@ -442,7 +444,6 @@ def secrets_list(tenant: str) -> None:
         names = run(_go())
     except TenantError as exc:
         _fail(str(exc))
-        return
     typer.echo("\n".join(names) if names else "(none)")
 
 
@@ -465,7 +466,6 @@ def secrets_delete(tenant: str, name: str) -> None:
         deleted = run(_go())
     except TenantError as exc:
         _fail(str(exc))
-        return
     typer.echo("deleted" if deleted else "no such secret")
 
 
@@ -569,7 +569,6 @@ def templates_sync(tenant: str) -> None:
         created, report = run(_go())
     except TenantError as exc:
         _fail(str(exc))
-        return
     typer.echo(
         f"installed {created} new registry rows; created at Meta: {len(report.created)}, "
         f"existing: {len(report.existing)}, skipped (budget): {len(report.skipped_budget)}"
@@ -605,7 +604,6 @@ def journeys_preview(tenant: str, res_id: str) -> None:
         rows = run(_go())
     except TenantError as exc:
         _fail(str(exc))
-        return
     typer.echo(_table(["step", "local time", "template", "text"], rows) if rows else "(no steps)")
 
 
@@ -635,7 +633,6 @@ def journeys_test_send(
         outbox_id, text, processed = run(_go())
     except (TenantError, TemplateRefused, ValueError) as exc:
         _fail(str(exc))
-        return
     typer.echo(f"queued {outbox_id} ({processed} jobs processed)\n{text}")
 
 
@@ -665,7 +662,6 @@ def registration_export(
         rows = run(_go())
     except TenantError as exc:
         _fail(str(exc))
-        return
     payload = json.dumps(rows, ensure_ascii=False, indent=2)
     if out is not None:
         out.write_text(payload, encoding="utf-8")
@@ -675,6 +671,264 @@ def registration_export(
 
 
 # --------------------------------------------------------------------- serving
+# -------------------------------------------------------------------- metering
+@usage_app.command("export")
+def usage_export(
+    tenant: str = typer.Option(..., "--tenant"),
+    month: str = typer.Option(..., "--month", help="YYYY-MM"),
+    fmt: str = typer.Option("json", "--format", help="json, csv or pdf"),
+    out: Path | None = typer.Option(None, "--out", help="file to write (default: stdout)"),
+) -> None:
+    """Write the tenant's usage report for one month (F24); no charge is made."""
+    from concierge.tenants.service import TenantError
+
+    try:
+        year, mon = (int(p) for p in month.split("-"))
+    except ValueError:
+        _fail("--month must look like 2026-09")
+    if fmt not in {"json", "csv", "pdf"}:
+        _fail("--format must be json, csv or pdf")
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> Any:
+        row = await services.tenants.require(tenant)
+        return await services.metering.month_report(
+            row.id, row.name, services.tenants.profile_of(row), year, mon
+        )
+
+    try:
+        report = run(go())
+    except TenantError as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    if fmt == "pdf":
+        target = out or Path(f"usage-{report.label}.pdf")
+        target.write_bytes(report.to_pdf())
+        typer.echo(f"written to {target}")
+        return
+    text = report.to_csv() if fmt == "csv" else report.to_json()
+    if out is not None:
+        out.write_text(text, encoding="utf-8")
+        typer.echo(f"written to {out}")
+    else:
+        typer.echo(text)
+
+
+# ------------------------------------------------------------------------ GDPR
+def _subject_lookup(services: Any, tenant_id: str, phone: str, email: str, res_id: str) -> Any:
+    if phone:
+        return services.gdpr.search(tenant_id, phone=phone)
+    if email:
+        return services.gdpr.search(tenant_id, email=email)
+    return services.gdpr.search(tenant_id, res_id=res_id)
+
+
+@gdpr_app.command("search")
+def gdpr_search(
+    tenant: str = typer.Option(..., "--tenant"),
+    phone: str = typer.Option("", "--phone"),
+    email: str = typer.Option("", "--email"),
+    res_id: str = typer.Option("", "--res-id"),
+) -> None:
+    """Find a data subject by phone, e-mail or booking reference (blind index)."""
+    if not (phone or email or res_id):
+        _fail("give --phone, --email or --res-id")
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> Any:
+        row = await services.tenants.require(tenant)
+        return await _subject_lookup(services, row.id, phone, email, res_id)
+
+    try:
+        subject = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    typer.echo(
+        f"guests {len(subject.guest_ids)}, reservations {len(subject.reservation_ids)}, "
+        f"conversations {len(subject.conversation_ids)}"
+    )
+    if not subject.found:
+        raise typer.Exit(code=1)
+
+
+@gdpr_app.command("export")
+def gdpr_export(
+    tenant: str = typer.Option(..., "--tenant"),
+    out: Path = typer.Option(..., "--out", help=".json or .pdf file"),
+    phone: str = typer.Option("", "--phone"),
+    email: str = typer.Option("", "--email"),
+    res_id: str = typer.Option("", "--res-id"),
+) -> None:
+    """Export everything stored about one data subject (Art. 15)."""
+    import json
+
+    if not (phone or email or res_id):
+        _fail("give --phone, --email or --res-id")
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> Any:
+        row = await services.tenants.require(tenant)
+        subject = await _subject_lookup(services, row.id, phone, email, res_id)
+        if not subject.found:
+            _fail("no data for this subject")
+        data = await services.gdpr.export(row.id, subject)
+        return data, row.name
+
+    try:
+        data, hotel = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    if out.suffix.lower() == ".pdf":
+        out.write_bytes(services.gdpr.export_pdf(data, hotel=hotel))
+    else:
+        out.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+        )
+    typer.echo(f"written to {out}")
+
+
+@gdpr_app.command("erase")
+def gdpr_erase(
+    tenant: str = typer.Option(..., "--tenant"),
+    phone: str = typer.Option("", "--phone"),
+    email: str = typer.Option("", "--email"),
+    res_id: str = typer.Option("", "--res-id"),
+    yes: bool = typer.Option(False, "--yes", help="skip the confirmation prompt"),
+) -> None:
+    """Erase one data subject (Art. 17); suppression rows stay, the deletion log records counts."""
+    if not (phone or email or res_id):
+        _fail("give --phone, --email or --res-id")
+    if not yes and not typer.confirm("Erase every row of this subject? This cannot be undone."):
+        raise typer.Exit(code=1)
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> dict[str, int]:
+        row = await services.tenants.require(tenant)
+        subject = await _subject_lookup(services, row.id, phone, email, res_id)
+        if not subject.found:
+            _fail("no data for this subject")
+        return await services.gdpr.erase(row.id, subject, actor="cli:gdpr-erase")
+
+    try:
+        counts = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    for table, count in sorted(counts.items()):
+        typer.echo(f"{table}: {count}")
+    typer.echo("erased")
+
+
+@gdpr_app.command("retention")
+def gdpr_retention(
+    tenant: str = typer.Option("", "--tenant", help="one tenant, default all"),
+) -> None:
+    """Run the retention pass now (the daily job does the same at 03:00 local)."""
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> list[tuple[str, dict[str, int]]]:
+        rows = [await services.tenants.require(tenant)] if tenant else await services.tenants.list()
+        results = []
+        for row in rows:
+            results.append(
+                (row.slug, await services.retention.run(row, services.tenants.profile_of(row)))
+            )
+        return results
+
+    try:
+        results = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    for slug, counts in results:
+        summary = ", ".join(f"{k} {v}" for k, v in counts.items()) or "nothing to delete"
+        typer.echo(f"{slug}: {summary}")
+
+
+# ---------------------------------------------------------------------- backup
+@app.command()
+def backup(
+    out: Path | None = typer.Option(None, "--out", help="directory (default: data dir/backups)"),
+    keep_days: int = typer.Option(30, "--keep-days", min=1),
+) -> None:
+    """Encrypted database backup (F30), pruned by age; failures raise an operator alert."""
+    from concierge.settings import default_data_dir, get_settings
+    from concierge.tools import backup as backup_tool
+
+    settings = get_settings()
+    directory = out or (default_data_dir() / "backups")
+    now = _utcnow()
+    try:
+        key = settings.backup_key()
+        path = backup_tool.create_backup(settings.database_url(), directory, key, now=now)
+        removed = backup_tool.prune(directory, keep_days=keep_days, now=now)
+    except Exception as exc:
+        ctx = _context()
+        try:
+            run(_record_backup_failure(ctx, str(exc)))
+        finally:
+            run(ctx.db.dispose())
+        _fail(f"backup failed: {exc}")
+    typer.echo(f"backup written to {path} ({path.stat().st_size} bytes)")
+    if removed:
+        typer.echo(f"pruned {len(removed)} old backup(s)")
+
+
+@app.command("restore-test")
+def restore_test(
+    file: Path | None = typer.Option(None, "--file", help="backup file (default: newest)"),
+    out: Path | None = typer.Option(None, "--out", help="backup directory when --file is absent"),
+) -> None:
+    """Restore a backup into a scratch database and check head and row counts."""
+    from concierge.settings import default_data_dir, get_settings
+    from concierge.tools import backup as backup_tool
+
+    settings = get_settings()
+    directory = out or (default_data_dir() / "backups")
+    target = file or backup_tool.latest_backup(directory)
+    if target is None:
+        _fail("no backup found")
+    try:
+        report = run(backup_tool.restore_test(target, settings.backup_key()))
+    except backup_tool.BackupError as exc:
+        _fail(str(exc), code=2)
+    typer.echo(f"restored {target} -> {report.path}")
+    typer.echo(f"migration head: {report.head} (expected {report.expected_head})")
+    typer.echo(
+        _table(
+            ["table", "rows"],
+            [[name, str(count)] for name, count in sorted(report.tables.items()) if count],
+        )
+    )
+    if not report.ok:
+        _fail("restore test failed: migration head differs", code=2)
+    typer.echo("restore test ok")
+
+
+def _utcnow() -> datetime:
+    from datetime import UTC
+
+    return datetime.now(UTC)
+
+
+async def _record_backup_failure(ctx: Any, error: str) -> None:
+    from concierge.services import record_alert
+
+    await record_alert(ctx, "backup_failed", "", {"kind": "backup", "code": error[:80]})
+
+
 # ---------------------------------------------------------------------- voice
 @voice_app.command("provision")
 def voice_provision(
@@ -983,7 +1237,6 @@ def demo_advance(
         wall = parse_hhmm(at)
     except ValueError as exc:
         _fail(str(exc))
-        return
     tz = settings.gc_tz_default
     day = local_date(SystemClock().now(), tz) + timedelta(days=days)
     target = local_to_utc(day, wall, tz)

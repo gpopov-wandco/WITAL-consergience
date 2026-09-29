@@ -178,3 +178,61 @@ def test_voice_provision_dry_run(env: Path) -> None:
     assert "<hidden>" in result.output and "sip_trunk_auth_password" in result.output
     missing = runner.invoke(app, ["voice", "provision", "no-such-hotel", "--dry-run"])
     assert missing.exit_code == 1
+
+
+def test_backup_restore_usage_and_gdpr_commands(env: Path) -> None:
+    runner = CliRunner()
+    assert runner.invoke(app, ["db", "upgrade"]).exit_code == 0
+    profile = env / "tenant.yaml"
+    profile.write_text(yaml.safe_dump(SAMPLE), encoding="utf-8")
+    assert runner.invoke(app, ["tenant", "add", "--profile", str(profile)]).exit_code == 0
+    import base64
+
+    os_key = base64.b64encode(b"\x07" * 32).decode()
+    import os
+
+    os.environ["GC_BACKUP_KEY"] = os_key
+    reset_settings_cache()
+    out = env / "backups"
+    made = runner.invoke(app, ["backup", "--out", str(out)])
+    assert made.exit_code == 0, made.output
+    assert "backup written to" in made.output and list(out.glob("concierge-*.sqlite.enc"))
+    restored = runner.invoke(app, ["restore-test", "--out", str(out)])
+    assert restored.exit_code == 0, restored.output
+    assert "restore test ok" in restored.output and "tenant" in restored.output
+    usage = runner.invoke(
+        app, ["usage", "export", "--tenant", "hotel-beispiel", "--month", "2026-09"]
+    )
+    assert usage.exit_code == 0 and '"month": "2026-09"' in usage.output
+    csv_out = env / "usage.csv"
+    assert (
+        runner.invoke(
+            app,
+            [
+                "usage",
+                "export",
+                "--tenant",
+                "hotel-beispiel",
+                "--month",
+                "2026-09",
+                "--format",
+                "csv",
+                "--out",
+                str(csv_out),
+            ],
+        ).exit_code
+        == 0
+    )
+    assert csv_out.read_text(encoding="utf-8").startswith("month;kind")
+    assert (
+        runner.invoke(
+            app, ["usage", "export", "--tenant", "hotel-beispiel", "--month", "nope"]
+        ).exit_code
+        == 1
+    )
+    search = runner.invoke(
+        app, ["gdpr", "search", "--tenant", "hotel-beispiel", "--phone", "+49 151 99999999"]
+    )
+    assert search.exit_code == 1 and "guests 0" in search.output
+    retention = runner.invoke(app, ["gdpr", "retention"])
+    assert retention.exit_code == 0 and "hotel-beispiel: nothing to delete" in retention.output

@@ -37,6 +37,7 @@ class MessagePriceRow:
     price_eur: float
     free_allowance_per_month: int
     source_url: str
+    source: str = "default"  # default (built in), global (price_table) or tenant (contract row)
 
 
 ANTHROPIC_PRICING_URL = "https://platform.claude.com/docs/en/about-claude/pricing"

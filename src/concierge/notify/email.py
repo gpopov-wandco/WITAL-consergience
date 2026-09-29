@@ -48,6 +48,8 @@ class ResendEmail:
         }
         if message.reply_to:
             body["reply_to"] = message.reply_to
+        if message.html:
+            body["html"] = message.html
         headers = {"Authorization": f"Bearer {self._api_key}"}
         if message.idempotency_key:
             headers["Idempotency-Key"] = message.idempotency_key[:256]
@@ -99,6 +101,8 @@ class SmtpEmail:
         if message.reply_to:
             mime["Reply-To"] = message.reply_to
         mime.set_content(message.text, charset="utf-8")
+        if message.html:
+            mime.add_alternative(message.html, subtype="html", charset="utf-8")
         try:
             with smtplib.SMTP(self.host, self.port, timeout=self.timeout_s) as smtp:
                 if self.starttls:

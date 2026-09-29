@@ -5,6 +5,7 @@ Implements: F19, C14
 
 from __future__ import annotations
 
+# nosec B105 below: UI labels that mention passwords, not credentials
 LABELS: dict[str, dict[str, str]] = {
     "de": {
         "dashboard": "Übersicht",
@@ -24,7 +25,7 @@ LABELS: dict[str, dict[str, str]] = {
         "logout": "Abmelden",
         "login": "Anmelden",
         "email": "E-Mail",
-        "password": "Passwort",  # nosec B105 - UI label, not a credential
+        "password": "Passwort",  # nosec B105
         "name": "Name",
         "role": "Rolle",
         "save": "Speichern",
@@ -55,10 +56,10 @@ LABELS: dict[str, dict[str, str]] = {
         "activate": "Aktivieren",
         "invalid_credentials": "E-Mail oder Passwort ist falsch.",
         "locked": "Konto vorübergehend gesperrt. Bitte in 15 Minuten erneut versuchen.",
-        "weak_password": "Das Passwort ist zu kurz (mindestens 12 Zeichen).",  # nosec B105 - UI label, not a credential
+        "weak_password": "Das Passwort ist zu kurz (mindestens 12 Zeichen).",  # nosec B105
         "invalid_link": "Der Link ist ungültig oder abgelaufen.",
         "csrf": "Die Sitzung ist abgelaufen. Bitte die Seite neu laden.",
-        "set_password": "Passwort festlegen",  # nosec B105 - UI label, not a credential
+        "set_password": "Passwort festlegen",  # nosec B105
         "quiet_hours": "Ruhezeiten",
         "staffed_hours": "Besetzte Zeiten",
         "integrations": "Integrationen",
@@ -90,6 +91,40 @@ LABELS: dict[str, dict[str, str]] = {
         "from": "Von",
         "to": "Bis",
         "month": "Monat",
+        "search": "Suche",
+        "search_hint": "Telefon, E-Mail oder Buchungsnummer",
+        "search_transcripts": "Gespräche durchsuchen",
+        "subject_found": "Betroffene Person gefunden",
+        "subject_not_found": "Keine Daten zu dieser Angabe",
+        "create_export": "Auskunft (Export) anlegen",
+        "create_erasure": "Löschung anlegen",
+        "create_restriction": "Einschränkung anlegen",
+        "download_json": "JSON herunterladen",
+        "download_pdf": "PDF herunterladen",
+        "erase_now": "Jetzt löschen",
+        "erase_confirm": "Zum Bestätigen LÖSCHEN eingeben",
+        "restrict": "Verarbeitung einschränken",
+        "unrestrict": "Einschränkung aufheben",
+        "tasks": "Aufgaben",
+        "done": "erledigt",
+        "due": "Fällig",
+        "flag_reply": "Antwort als falsch markieren",
+        "fix_in_kb": "In der Wissensbasis korrigieren",
+        "export_redacted": "Export (ohne personenbezogene Daten)",
+        "qa_queue": "QA-Warteschlange",
+        "review": "Prüfen",
+        "mark_reviewed": "Als geprüft markieren",
+        "period": "Zeitraum",
+        "languages": "Sprachen",
+        "topics": "Themen",
+        "unanswered": "Unbeantwortete Fragen",
+        "response_time": "Mediane erste Reaktion (Min.)",
+        "sla_breaches": "SLA-Verletzungen",
+        "voice_minutes": "Telefonminuten",
+        "journey_delivery": "Journey-Zustellung",
+        "llm_cost": "Modellkosten (EUR)",
+        "usage_export": "Nutzung exportieren",
+        "deletion_log": "Löschprotokoll",
     },
     "en": {
         "dashboard": "Dashboard",
@@ -109,7 +144,7 @@ LABELS: dict[str, dict[str, str]] = {
         "logout": "Log out",
         "login": "Log in",
         "email": "E-mail",
-        "password": "Password",  # nosec B105 - UI label, not a credential
+        "password": "Password",  # nosec B105
         "name": "Name",
         "role": "Role",
         "save": "Save",
@@ -140,10 +175,10 @@ LABELS: dict[str, dict[str, str]] = {
         "activate": "Activate",
         "invalid_credentials": "E-mail or password is wrong.",
         "locked": "Account temporarily locked. Please try again in 15 minutes.",
-        "weak_password": "The password is too short (at least 12 characters).",  # nosec B105 - UI label, not a credential
+        "weak_password": "The password is too short (at least 12 characters).",  # nosec B105
         "invalid_link": "The link is invalid or has expired.",
         "csrf": "The session has expired. Please reload the page.",
-        "set_password": "Set password",  # nosec B105 - UI label, not a credential
+        "set_password": "Set password",  # nosec B105
         "quiet_hours": "Quiet hours",
         "staffed_hours": "Staffed hours",
         "integrations": "Integrations",
@@ -175,6 +210,40 @@ LABELS: dict[str, dict[str, str]] = {
         "from": "From",
         "to": "To",
         "month": "Month",
+        "search": "Search",
+        "search_hint": "Phone, e-mail or booking reference",
+        "search_transcripts": "Search transcripts",
+        "subject_found": "Data subject found",
+        "subject_not_found": "No data for this reference",
+        "create_export": "Create access request (export)",
+        "create_erasure": "Create erasure request",
+        "create_restriction": "Create restriction request",
+        "download_json": "Download JSON",
+        "download_pdf": "Download PDF",
+        "erase_now": "Erase now",
+        "erase_confirm": "Type ERASE to confirm",
+        "restrict": "Restrict processing",
+        "unrestrict": "Lift restriction",
+        "tasks": "Tasks",
+        "done": "done",
+        "due": "Due",
+        "flag_reply": "Flag reply as wrong",
+        "fix_in_kb": "Fix in the knowledge base",
+        "export_redacted": "Export (personal data redacted)",
+        "qa_queue": "QA queue",
+        "review": "Review",
+        "mark_reviewed": "Mark as reviewed",
+        "period": "Period",
+        "languages": "Languages",
+        "topics": "Topics",
+        "unanswered": "Unanswered questions",
+        "response_time": "Median first response (min)",
+        "sla_breaches": "SLA breaches",
+        "voice_minutes": "Phone minutes",
+        "journey_delivery": "Journey delivery",
+        "llm_cost": "Model cost (EUR)",
+        "usage_export": "Export usage",
+        "deletion_log": "Deletion log",
     },
 }
 

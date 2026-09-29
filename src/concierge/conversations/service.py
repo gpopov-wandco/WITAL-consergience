@@ -221,7 +221,7 @@ class ConversationService:
                 meta={
                     k: v
                     for k, v in inbound.meta.items()
-                    if k in {"button_id", "list_id", "media_type", "location"}
+                    if k in {"button_id", "list_id", "media_type", "location", "special_category"}
                 },
                 occurred_at=inbound.occurred_at or now,
                 created_at=now,
