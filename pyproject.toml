@@ -151,6 +151,7 @@ files = [
   "src/concierge/security",
   "src/concierge/agent",
   "src/concierge/metering",
+  "src/concierge/jobs",
 ]
 strict = true
 warn_unreachable = true

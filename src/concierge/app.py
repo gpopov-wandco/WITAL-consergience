@@ -1,0 +1,107 @@
+"""The ASGI application: routes, security headers, health, worker lifecycle.
+
+Implements: F19, F22, F31, F32, F33, 6.6
+
+``create_app`` accepts prebuilt services (tests, demo) or builds them from settings
+(production). Security headers: a CSP without ``unsafe-inline`` scripts,
+``X-Content-Type-Options``, ``Referrer-Policy`` and ``frame-ancestors``; HSTS is
+set by Caddy in front. ``/healthz`` is liveness; ``/readyz`` checks the database,
+the migration head, the worker heartbeat and the master key.
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
+from typing import Any
+
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+
+from concierge import __version__
+from concierge.channels.whatsapp.routes import build_router as build_wa_router
+from concierge.db.migrate import head_state
+from concierge.log import configure_logging, get_logger
+from concierge.services import Services
+
+log = get_logger(__name__)
+
+CSP = (
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+    "font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+)
+WORKER_HEARTBEAT_MAX_S = 30.0
+
+
+def create_app(services: Services, *, start_worker: bool = True) -> FastAPI:
+    configure_logging(services.ctx.settings.gc_log_level)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if start_worker:
+            services.worker.start()
+        try:
+            yield
+        finally:
+            await services.worker.stop()
+
+    app = FastAPI(
+        title="WITALCO Guest Concierge",
+        version=__version__,
+        lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
+    app.state.services = services
+    app.include_router(build_wa_router(services.ingress))
+    _add_health(app, services)
+    app.middleware("http")(_security_headers)
+    return app
+
+
+async def _security_headers(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    response = await call_next(request)
+    response.headers.setdefault("Content-Security-Policy", CSP)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Cache-Control", "no-store")
+    return response
+
+
+def _add_health(app: FastAPI, services: Services) -> None:
+    @app.get("/healthz")
+    async def healthz() -> dict[str, str]:
+        return {"status": "ok", "version": __version__}
+
+    @app.get("/readyz")
+    async def readyz() -> Response:
+        checks: dict[str, Any] = {}
+        ok = True
+        try:
+            current, head = await head_state(services.ctx.db.engine)
+            checks["database"] = "ok"
+            checks["migration"] = "ok" if current == head else f"behind ({current} != {head})"
+            ok = ok and current == head
+        except Exception as exc:
+            checks["database"] = f"error: {type(exc).__name__}"
+            ok = False
+        age = services.worker.heartbeat_age_s()
+        if age is None:
+            checks["worker"] = "not started"
+            ok = ok and not services.worker.handlers
+        elif age > WORKER_HEARTBEAT_MAX_S:
+            checks["worker"] = f"stale heartbeat ({age:.0f}s)"
+            ok = False
+        else:
+            checks["worker"] = "ok"
+        try:
+            services.ctx.settings.master_keys()
+            checks["master_key"] = "ok"
+        except Exception as exc:
+            checks["master_key"] = f"missing: {exc}"
+            ok = False
+        return JSONResponse({"ready": ok, "checks": checks}, status_code=200 if ok else 503)

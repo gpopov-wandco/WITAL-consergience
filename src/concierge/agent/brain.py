@@ -102,6 +102,8 @@ class Outbound:
     buttons: list[Button] = field(default_factory=list)
     kind: str = "text"
     intent: str | None = None
+    message_id: str | None = None
+    """The stored ``message`` row, set once the turn is persisted."""
 
 
 @dataclass
@@ -870,7 +872,7 @@ class Brain:
     ) -> BrainResult:
         retention = profile.retention.chat_days
         for outbound in result.messages:
-            await self.conversations.record_outbound(
+            record = await self.conversations.record_outbound(
                 tenant.id,
                 conversation.id,
                 outbound.text,
@@ -880,6 +882,7 @@ class Brain:
                 meta={"buttons": [b.id for b in outbound.buttons]} if outbound.buttons else {},
                 retention_days=retention,
             )
+            outbound.message_id = record.id
         if (
             result.mode not in {"silent"}
             and conversation.status == "new"
