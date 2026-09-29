@@ -1,0 +1,101 @@
+# Decisions
+
+Decisions taken during the build, with reasons. Newest at the bottom. Each entry
+names the requirement it touches (section or feature id from `docs/BUILD_PROMPT.md`).
+
+## D-001 Intake questions answered by defaults (1.6, Appendix B)
+
+The build runs headless: the requester stated in the task that they cannot answer
+questions or monitor the run. Per 1.6 all eight defaults are adopted:
+
+| # | Question | Adopted |
+|---|---|---|
+| Q1 | Handout language | English |
+| Q2 | Voice adapters | Retell complete default, Twilio ConversationRelay complete second adapter, OpenAI-compatible endpoint as (S) |
+| Q3 | Villa Westend data | None available. Pilot skeleton with empty required fields (`needs_input`) plus the fictional demo hotel |
+| Q4 | WhatsApp model | Hotel-owned WABA and number, operator-entered credentials (Model B), Embedded Signup deferred |
+| Q5 | Deployment | venv plus systemd primary, Docker Compose plus Caddy second; Docker daemon is not available in the build environment, so Docker files are statically reviewed, not executed |
+| Q6 | Brand and naming | Tokens from 2.8, text lockup, name "WITALCO Guest Concierge (Gäste-Concierge)", placeholder support contacts flagged VERIFY |
+| Q7 | Live model evaluation | Not run (no key in the environment; the live suite is skipped, never faked) |
+| Q8 | Repository | See D-002 |
+
+## D-002 Build location and git (Q8, 1.7)
+
+The build environment provides an existing, empty git repository
+(`gpopov-wandco/WITAL-consergience`) and a designated branch
+(`claude/kind-babbage-bbkz2a`). The project is therefore built at the repository
+root instead of a new `./guest-concierge` directory, and the work is committed on
+that branch. The harness instruction to push to the designated branch overrides the
+prompt's "local commits only": the requester cannot otherwise retrieve the result.
+
+## D-003 Interpreter: Python 3.13.12 (2.8, 6.1, C13)
+
+The requester's machine has Python 3.14.7. The build environment has 3.13.12 as its
+newest interpreter (uv 0.8.17 only offers a 3.14 release candidate). Per 6.1 "test the
+installed interpreter only", all tests run on 3.13.12; `requires-python` is
+`>=3.13,<3.15`. Every wheel in the lock file also publishes a cp314 or abi3/pure
+wheel according to PyPI metadata checked on 2026-09-29, but 3.14.7 is recorded as
+"not verified in this environment" in `docs/BUILD_STATUS.md`.
+
+## D-004 Windows not available (2.8, 10.6)
+
+No Windows machine is reachable. The code follows every Windows rule in the prompt
+(no `asyncio.set_event_loop_policy`, no `loop.add_signal_handler`, `encoding="utf-8"`
+on every `open`, `Path.as_posix()` database URLs, engines disposed before temp files
+are deleted, `PYTHONUTF8=1` in launchers). The cold-start test (10.6) is executed on
+Linux and recorded as "not verified on Windows".
+
+## D-005 Vendor documentation reachability (section 2, M2)
+
+Through the environment's egress proxy the following hosts are not reachable:
+beds24.com, api.mews.com, api.apaleo.com, apaleo.dev, docs.retellai.com,
+developers.facebook.com, twilio.com, gesetze-im-internet.de, unpkg.com. Reachable:
+pypi.org, registry.npmjs.org, raw.githubusercontent.com, github.com release assets,
+platform.claude.com. Consequences:
+
+- Anthropic facts are verified from platform.claude.com and the installed SDK source.
+- PMS, Meta, Retell and Twilio behaviour is implemented from the prompt's own
+  descriptions (section 5, F08, F26, 6.6) and stays VERIFY in `docs/VERIFIED_FACTS.md`;
+  `concierge doctor --live` performs the runtime verification against the real APIs.
+- Contract-test fixtures for the PMS adapters are synthetic and follow the shapes the
+  prompt describes; they are labelled `fixture` and not presented as recorded traffic.
+
+## D-006 Fonts (2.8, C1)
+
+Inter 4.1 static TTFs come unmodified from the rsms/inter v4.1 release
+(`extras/ttf/Inter-Regular.ttf`, `Inter-Medium.ttf`, `Inter-SemiBold.ttf`,
+`Inter-Bold.ttf`). Google Fonts ships Syne only as a variable font, and ReportLab
+embeds only a variable font's default instance (Regular), so static instances
+`Syne-Regular.ttf`, `Syne-Bold.ttf` and `Syne-ExtraBold.ttf` were generated from
+`Syne[wght].ttf` with `fontTools.varLib.instancer`. Both fonts are OFL 1.1 without a
+Reserved Font Name (license headers checked), so the modification is permitted. The
+character-map check (Inter: Turkish, Ukrainian and Russian glyphs present; Syne:
+Turkish present, Cyrillic absent) is recorded in `docs/VERIFIED_FACTS.md`; headings in
+Cyrillic fall back to Inter Bold.
+
+## D-007 htmx version (C1)
+
+`static/vendor/htmx.min.js` is htmx 2.0.11 (the newest 2.0.x on 2026-09-29), 0BSD.
+The file was downloaded from two independent sources (the npm registry tarball
+`htmx.org-2.0.11.tgz` and `dist/htmx.min.js` at git tag `v2.0.11` in the htmx
+repository) and both SHA-256 digests matched; the digest is recorded in
+`docs/VERIFIED_FACTS.md` and checked by a test.
+
+## D-008 Lock file tooling (C13, 6.1)
+
+`requirements.lock` is generated with `uv pip compile --generate-hashes` from
+`pyproject.toml` (uv 0.8.17 is installed in the build environment and produces a
+pip-compatible, hash-locked file). pip-tools is not added as a dependency.
+
+## D-009 Package name (C14, Appendix B)
+
+Package and CLI are named `concierge`; `gc` would shadow the standard library module.
+
+## D-010 Structured outputs and effort (8.1, 8.4)
+
+The Anthropic adapter sends `output_config={"effort": ..., "format": {...}}`, never
+`temperature`, `top_p`, `top_k`, `thinking` or a forced `tool_choice`, matching the
+installed SDK 1.9.0 signature and the platform docs read on 2026-09-29. `inference_geo`
+is sent only for models that support it (Claude 4.6 and later); the docs state that
+Haiku 4.5 returns 400 when it is present, so the adapter omits it for the cheap model
+and logs the effective geo from `usage.inference_geo`.

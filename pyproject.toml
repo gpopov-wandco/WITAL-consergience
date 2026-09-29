@@ -1,0 +1,171 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "witalco-guest-concierge"
+version = "0.1.0"
+description = "WITALCO Guest Concierge (Gäste-Concierge): multilingual AI guest assistant for small hotels."
+readme = "README.md"
+requires-python = ">=3.13,<3.15"
+license = "LicenseRef-Proprietary"
+authors = [{ name = "WITALCO GmbH" }]
+dependencies = [
+  "fastapi>=0.141.1,<1",
+  "starlette>=1.7,<2",
+  "uvicorn>=0.54,<1",
+  "sqlalchemy[asyncio]>=2.1.1,<2.2",
+  "alembic>=1.20,<2",
+  "aiosqlite>=0.22.1,<1",
+  "asyncpg>=0.31,<1",
+  "httpx2>=2.13.1,<3",
+  "anthropic>=1.9,<2",
+  "pydantic>=2.13.5,<3",
+  "pydantic-settings>=2.15,<3",
+  "python-dotenv>=1.1,<2",
+  "jinja2>=3.1.6,<4",
+  "python-multipart>=0.0.32,<1",
+  "reportlab>=5.0.1,<6",
+  "pillow>=12.3,<13",
+  "qrcode>=8.2,<9",
+  "cryptography>=50.0.1,<51",
+  "argon2-cffi>=25.1,<26",
+  "itsdangerous>=2.2,<3",
+  "tenacity>=9.1.4,<10",
+  "limits>=5.8,<6",
+  "structlog>=26.1,<27",
+  "prometheus-client>=0.26,<1",
+  "typer>=0.27.2,<1",
+  "pyyaml>=6.0.3,<7",
+  "tzdata>=2026.4",
+  "icalendar>=7.3,<8",
+  "phonenumbers>=9.0.40,<10",
+  "lingua-language-detector>=2.2,<3",
+  "pypdf>=6.19,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "hatchling>=1.27",
+  "editables>=0.5",
+  "pytest>=9.1.1,<10",
+  "pytest-asyncio>=1.4,<2",
+  "pytest-cov>=7.1,<8",
+  "hypothesis>=6.168,<7",
+  "time-machine>=3.5.1,<4",
+  "playwright>=1.63,<2",
+  "pypdfium2>=5.13,<6",
+  "ruff>=0.16.9,<1",
+  "mypy>=2.3.1,<3",
+  "bandit>=1.9.4,<2",
+  "pip-audit>=2.10.1,<3",
+  "types-pyyaml>=6.0",
+  "greenlet>=3.3",
+  "fonttools>=4.60",
+]
+
+[project.scripts]
+concierge = "concierge.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/concierge"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/concierge", "docs", "examples", "deploy", "README.md"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-p no:cacheprovider --strict-markers --strict-config -m 'not live and not browser and not load'"
+markers = [
+  "feature(id): the feature id (F01..F36) a test verifies",
+  "browser: drives a real browser with Playwright",
+  "live: calls a live third-party service; needs operator-supplied keys",
+  "load: load smoke test",
+]
+filterwarnings = ["error::DeprecationWarning:concierge.*"]
+
+[tool.coverage.run]
+branch = true
+source = ["concierge"]
+omit = ["src/concierge/db/migrations/versions/*"]
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = false
+precision = 1
+
+# ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src", "tests"]
+extend-exclude = ["src/concierge/db/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "S", "UP", "ASYNC", "DTZ", "T20", "FIX", "PT", "SIM", "RUF"]
+ignore = [
+  "S101",   # assert is used for invariants in tests and on typed narrowing
+  "E501",   # long lines: the formatter owns line length; prompt files carry long strings
+  "RUF012", # mutable class attributes are used for SQLAlchemy models
+  "RUF001", "RUF002", "RUF003", # ambiguous unicode: six-language texts use native punctuation
+  "SIM108", # ternaries are not always clearer
+  "B008",   # typer.Option / Depends in defaults is the framework idiom
+  "B904",   # raising within except without from is used deliberately for user-facing errors
+  "S324",   # sha1 is used only for Twilio's signature scheme, which mandates it
+  "S105", "S106", "S107",  # names such as `token_type` and test fixtures trip these; a dedicated secret scan runs instead
+  "S603", "S607",  # subprocess calls with fixed argument lists in the CLI
+  "S311",   # random is only used for non-security purposes; secrets uses `secrets`
+  "S104",   # binding 0.0.0.0 inside containers is a deployment choice made in config
+  "ASYNC110", # polling loops with sleep are the job worker's design
+  "PT011",  # pytest.raises(Exception) with match is used
+  "PT012",  # multi-statement raises blocks are used around async calls
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "DTZ", "T20", "ASYNC", "PT018"]
+"src/concierge/cli.py" = ["T20"]
+"src/concierge/tools/*.py" = ["T20"]
+"src/concierge/demo/*.py" = ["T20"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["concierge"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "src"
+files = [
+  "src/concierge/security",
+]
+strict = true
+warn_unreachable = true
+explicit_package_bases = true
+namespace_packages = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["lingua.*", "icalendar.*", "phonenumbers.*", "limits.*", "qrcode.*", "reportlab.*", "pypdfium2.*", "argon2.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# bandit
+# ---------------------------------------------------------------------------
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+# B101: asserts are used for typed narrowing (Python runs without -O in production units).
+# B404/B603: `concierge check` and `concierge handout` run fixed argument lists (no shell,
+# no user input) through subprocess; the secret scan and ruff S603 cover the same risk.
+skips = ["B101", "B404", "B603"]
