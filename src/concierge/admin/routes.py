@@ -37,6 +37,14 @@ from concierge.db.models import (
     Reservation,
 )
 from concierge.gdpr.service import GdprError, Subject
+from concierge.kb.questionnaire import (
+    GROUPS,
+    ITEMS,
+    form_value,
+    items_of,
+    missing_required,
+    validate_answers,
+)
 from concierge.legal.service import LegalError
 from concierge.reports.qa import kb_key_for
 from concierge.reports.redact import redact
@@ -384,6 +392,73 @@ def build_router(services: Services, auth: AuthService, guard: AdminGuard) -> AP
         except Exception as exc:  # KbError or unknown id: show it, never crash the page
             return RedirectResponse(f"/admin/kb?error={type(exc).__name__}", status_code=303)
         return RedirectResponse("/admin/kb", status_code=303)
+
+    # ------------------------------------------------------------ questionnaire
+    def questionnaire_view(
+        request: Request,
+        ctx: AdminContext,
+        values: dict[str, str],
+        *,
+        missing: list[str],
+        errors: list[str],
+        notice: str = "",
+    ) -> Response:
+        groups = [
+            (letter, titles[0] if ctx.lang == "de" else titles[1], items_of(letter))
+            for letter, titles in GROUPS.items()
+        ]
+        return page(
+            request,
+            "questionnaire",
+            ctx,
+            groups=groups,
+            values=values,
+            missing=missing,
+            errors=errors,
+            notice=label(notice, ctx.lang) if notice else "",
+        )
+
+    @api.get("/questionnaire", response_class=HTMLResponse)
+    async def questionnaire_page(request: Request, notice: str = "") -> Response:
+        ctx = await guard.context(request)
+        if isinstance(ctx, Response):
+            return ctx
+        answers = await services.questionnaire.answers(ctx.tenant_id)
+        values = {
+            item.key: form_value(item, answers[item.key]) for item in ITEMS if item.key in answers
+        }
+        missing = [item.key for item in missing_required(answers)]
+        return questionnaire_view(request, ctx, values, missing=missing, errors=[], notice=notice)
+
+    @api.post("/questionnaire")
+    async def questionnaire_save(request: Request) -> Response:
+        ctx = await guard.context(request, mutation=True, roles=("owner", "operator"))
+        if isinstance(ctx, Response):
+            return ctx
+        form = await request.form()
+        raw = {item.key: str(form.get(item.key, "")) for item in ITEMS}
+        answers, errors = validate_answers(raw)
+        if errors:
+            values = {key: value for key, value in raw.items() if value.strip()}
+            missing = [item.key for item in missing_required(answers)]
+            return questionnaire_view(request, ctx, values, missing=missing, errors=errors)
+        await services.questionnaire.save(
+            ctx.tenant_id, answers, actor=ctx.principal.user.id, replace=True
+        )
+        return RedirectResponse("/admin/questionnaire?notice=saved", status_code=303)
+
+    @api.post("/questionnaire/apply")
+    async def questionnaire_apply(request: Request) -> Response:
+        ctx = await guard.context(request, mutation=True, roles=("owner", "operator"))
+        if isinstance(ctx, Response):
+            return ctx
+        await services.questionnaire.apply(
+            ctx.tenant_id,
+            services.kb,
+            lang=ctx.tenant_profile.default_language,
+            actor=ctx.principal.user.id,
+        )
+        return RedirectResponse("/admin/questionnaire?notice=drafts_created", status_code=303)
 
     # ----------------------------------------------------------- availability
     @api.get("/availability", response_class=HTMLResponse)

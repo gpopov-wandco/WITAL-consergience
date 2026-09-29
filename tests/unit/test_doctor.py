@@ -202,16 +202,11 @@ async def test_offline_run_flags_missing_configuration(
         missing = await doctor.run_offline(stack.services.ctx, stack.services, tenant_slug="nope")
         assert names(missing)["tenant"].status == "fail"
         # a tenant with a KB far over the prompt budget
-        big = profile.model_copy(
-            update={
-                "slug": "big-hotel",
-                "limits": {"prompt_token_budget": 1000},
-                "widget": {"public_key": "pk_bighotel"},
-            }
-        )
-        await stack.services.tenants.create(
-            TenantProfile.model_validate(big.model_dump(mode="json")), actor="test"
-        )
+        big_data = profile.model_dump(mode="json")
+        big_data["slug"] = "big-hotel"
+        big_data["limits"]["prompt_token_budget"] = 1000
+        big_data["widget"]["public_key"] = "pk_bighotel"
+        await stack.services.tenants.create(TenantProfile.model_validate(big_data), actor="test")
         tenant = await stack.services.tenants.require("big-hotel")
         for index in range(12):
             await stack.services.kb.upsert(

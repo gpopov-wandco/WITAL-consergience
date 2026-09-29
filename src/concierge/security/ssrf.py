@@ -27,6 +27,10 @@ class SSRFError(Exception):
     """The URL or its resolution is not allowed."""
 
 
+class FetchError(OSError):
+    """The transport failed (connection, protocol, timeout); the message is the cause's class name."""
+
+
 @dataclass(frozen=True)
 class FetchResult:
     url: str
@@ -109,8 +113,12 @@ class SafeFetcher:
         self.user_agent = user_agent
 
     async def fetch(self, url: str, *, headers: dict[str, str] | None = None) -> FetchResult:
-        async with asyncio.timeout(self.timeout_s):
-            return await self._fetch(url, headers or {})
+        """Fetch with pinning and caps; transport failures surface as :class:`FetchError`."""
+        try:
+            async with asyncio.timeout(self.timeout_s):
+                return await self._fetch(url, headers or {})
+        except (httpx2.HTTPError, TimeoutError) as exc:
+            raise FetchError(type(exc).__name__) from exc
 
     async def _fetch(self, url: str, extra_headers: dict[str, str]) -> FetchResult:
         current = url

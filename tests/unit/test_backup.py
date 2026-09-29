@@ -34,6 +34,41 @@ async def test_backup_restore_prune_and_tamper(
     report = await backup.restore_test(path, key, scratch_dir=tmp_path)
     assert report.ok and report.head == report.expected_head
     assert report.tables["tenant"] == 1 and report.tables["message"] == 0
+    assert report.expected_tables is not None and report.expected_tables["tenant"] == 1
+    assert "alembic_version" in report.tables and report.mismatches == {}
+    plain, kind, manifest = backup.decrypt(path.read_bytes(), key)
+    assert kind == "sqlite" and manifest is not None
+    assert manifest["tables"] == report.tables and manifest["created_at"] == now.isoformat()
+
+    # a restore that lost rows fails on the manifest, not only on the head
+    forged = out / "concierge-20260901T103000Z.sqlite.enc"  # older than the newest
+    forged.write_bytes(
+        backup.encrypt(plain, key, kind=b"sqlite", manifest={"tables": {"tenant": 2, "guest": 5}})
+    )
+    lost = await backup.restore_test(forged, key, scratch_dir=tmp_path)
+    assert lost.head_ok and not lost.ok
+    assert lost.mismatches == {"guest": (5, 0), "tenant": (2, 1)}
+
+    # files from before the manifest existed restore with the head check only
+    legacy = out / "concierge-20260901T104000Z.sqlite.enc"
+    nonce_header = backup.LEGACY_MAGIC + b"sqlite".ljust(8, b" ") + b"\x07" * backup.NONCE_BYTES
+    legacy.write_bytes(
+        nonce_header + backup.AESGCM(key).encrypt(b"\x07" * backup.NONCE_BYTES, plain, nonce_header)
+    )
+    old = await backup.restore_test(legacy, key, scratch_dir=tmp_path)
+    assert old.ok and old.expected_tables is None and old.tables["tenant"] == 1
+    with pytest.raises(backup.BackupError, match="manifest is malformed"):
+        backup.decrypt(
+            backup.MAGIC
+            + b"sqlite".ljust(8, b" ")
+            + b"\x07" * backup.NONCE_BYTES
+            + backup.AESGCM(key).encrypt(
+                b"\x07" * backup.NONCE_BYTES,
+                b"\x00\x00\x00\x03[]x",
+                backup.MAGIC + b"sqlite".ljust(8, b" ") + b"\x07" * backup.NONCE_BYTES,
+            ),
+            key,
+        )
 
     older = out / "concierge-20260801T100000Z.sqlite.enc"
     older.write_bytes(path.read_bytes())

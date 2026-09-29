@@ -134,10 +134,12 @@ def test_complaint_cue(guard: Guardrails) -> None:
         ("Buongiorno, a che ora è la colazione?", "it"),
     ],
 )
+@pytest.mark.feature("F23")
 def test_detection_six_languages(text: str, expected: str) -> None:
     assert detect(text).lang == expected
 
 
+@pytest.mark.feature("F23")
 def test_sticky_language_for_short_messages() -> None:
     supported = ["de", "en", "ru", "uk", "tr", "it"]
     assert choose_language("ok", "ru", supported, "de") == ("ru", True)
@@ -156,6 +158,7 @@ def test_sticky_language_for_short_messages() -> None:
     assert choose_language("egal", "de", supported, "de", override="tr") == ("tr", True)
 
 
+@pytest.mark.feature("F23")
 def test_ukrainian_vs_russian_scripts() -> None:
     assert script_ok("Дякуємо, ваш номер готовий з п'ятнадцятої години.", "uk")
     assert not script_ok("Спасибо, ваш номер готов с пятнадцати часов.", "uk")
@@ -166,6 +169,7 @@ def test_ukrainian_vs_russian_scripts() -> None:
     assert script_ok("15:00", "uk")
 
 
+@pytest.mark.feature("F23")
 def test_guest_texts_complete_and_rendered() -> None:
     texts = GuestTexts.load()
     keys = set(texts.keys("en"))
@@ -224,6 +228,7 @@ def test_guest_texts_complete_and_rendered() -> None:
     )
 
 
+@pytest.mark.feature("F23")
 def test_ukrainian_texts_are_native_script() -> None:
     texts = GuestTexts.load()
     for key in texts.keys("uk"):

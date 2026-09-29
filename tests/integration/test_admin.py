@@ -32,6 +32,7 @@ PAGES = (
     "/admin/inbox?status=resolved&priority=P1",
     "/admin/kb",
     "/admin/kb?status=approved&lang=de",
+    "/admin/questionnaire",
     "/admin/availability",
     "/admin/availability?month=2026-10",
     "/admin/reservations",
@@ -508,6 +509,7 @@ async def test_team_invite_deactivate_and_registration_export(demo_stack: DemoSt
 
 
 # --------------------------------------------------------------- operator
+@pytest.mark.feature("F20")
 async def test_operator_console_switch_kill_switch_and_prices(demo_stack: DemoStack) -> None:
     services, client = demo_stack.services, demo_stack.client
     assert await login(client, OPERATOR) == "/operator/"

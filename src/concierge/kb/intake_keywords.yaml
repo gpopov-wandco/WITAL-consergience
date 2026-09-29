@@ -1,0 +1,26 @@
+# Intake classification words (F06). A page or document section whose heading or
+# first lines contain one of these words is proposed as a draft for that KB block.
+# Versioned; not tenant-editable. Matching is case-insensitive on NFKC-normalised
+# text; a heading match counts three times a match in the text. Section text is
+# never interpreted, only classified.
+version: 2026.09.29-1
+parking: [parken, parkplatz, parkplätze, tiefgarage, garage, parkhaus, parking, "car park", otopark, parcheggio, парковка, паркинг, паркування]
+breakfast: [frühstück, fruehstueck, breakfast, kahvaltı, colazione, завтрак, сніданок]
+checkin: ["check-in", "check in", einchecken, anreise, "arrival time", "giriş", arrivo, заезд, заїзд]
+checkout: ["check-out", "check out", auschecken, abreise, departure, "çıkış", partenza, выезд, виїзд]
+late_arrival: ["späte anreise", "late arrival", schlüsselsafe, "key safe", keysafe, "nach 22", "after 10 pm", "geç varış", "arrivo tardivo", "поздний заезд", "пізній заїзд"]
+contact_hours: [rezeption, reception, öffnungszeiten, "opening hours", "front desk", resepsiyon, "orari di apertura", "стойка регистрации", рецепція, kontakt, contact]
+cancellation: [storno, stornierung, stornobedingungen, cancellation, cancel, iptal, cancellazione, отмена, скасування]
+payment: [zahlung, bezahlung, zahlungsarten, payment, "credit card", kreditkarte, ödeme, pagamento, оплата]
+city_tax: [kurtaxe, übernachtungssteuer, beherbergungsabgabe, tourismusbeitrag, bettensteuer, "city tax", "tourist tax", "konaklama vergisi", "tassa di soggiorno", "городской налог", "туристичний збір"]
+pets: [haustier, haustiere, hund, hunde, pets, "dogs welcome", "evcil hayvan", "animali domestici", "домашние животные", "домашні тварини"]
+wifi: [wlan, wifi, "wi-fi", internetzugang, "internet access", интернет, інтернет]
+directions: [anfahrt, "so finden sie uns", "so erreichen sie uns", directions, "how to reach", "how to get", "getting here", ulaşım, "come raggiungerci", "как добраться", "як дістатися"]
+accessibility: [barrierefrei, barrierefreiheit, rollstuhl, accessibility, accessible, wheelchair, "engelli erişimi", accessibilità, доступность, доступність]
+luggage: [gepäck, gepäckaufbewahrung, luggage, baggage, bagaj, bagagli, багаж]
+rooms: [zimmer, zimmerkategorien, suiten, rooms, suites, odalar, camere, номера, номери]
+house_rules: [hausordnung, "house rules", rauchen, smoking, ruhezeiten, "quiet hours", "ev kuralları", "regole della casa", "правила проживания", "правила проживання"]
+nearby: [umgebung, sehenswürdigkeiten, "in der nähe", nearby, surroundings, "things to do", "yakın çevre", dintorni, окрестности, околиці]
+events: [messe, messen, veranstaltungen, events, "trade fair", fuar, eventi, мероприятия, заходи]
+emergency: [notfall, notruf, emergency, "acil durum", emergenza, "экстренн", "екстрен"]
+extras: [extras, zusatzleistungen, angebote, amenities, "our services", hizmetler, servizi, услуги, послуги]

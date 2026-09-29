@@ -27,6 +27,7 @@ from concierge import audit
 from concierge.db.models import KbEntry, LegalText, Template, Tenant
 from concierge.db.session import Database
 from concierge.kb.blocks import validate_key
+from concierge.kb.questionnaire import QuestionnaireService, answers_document, load_answers
 from concierge.kb.store import KbService
 from concierge.legal.service import LegalService
 from concierge.templates.service import TemplateService
@@ -44,6 +45,8 @@ PACK_FILES = (
     "questionnaire_answers.yaml",
 )
 SECRET_MARKERS = ("secret", "token", "password", "api_key", "apikey")
+# a leaf that names a quantity (``prompt_token_budget``) is a number, not a secret
+QUANTITY_SUFFIXES = ("_budget", "_limit", "_count", "_cap", "_max", "_min", "_tokens")
 # KB entries carry guest-facing access data (the Wi-Fi password is hotel content with
 # ``verified_guest_only`` sensitivity), so only credential-style keys are refused there.
 KB_SECRET_MARKERS = ("secret", "token", "api_key", "apikey")
@@ -136,6 +139,10 @@ def validate_pack(directory: Path) -> list[str]:
     overrides = _load(directory / "templates" / "overrides.yaml")
     if overrides is not None and not isinstance(overrides, dict):
         errors.append("templates/overrides.yaml: expected a mapping name -> lang -> body")
+    answers_file = directory / "questionnaire_answers.yaml"
+    if answers_file.exists():
+        _answers, answer_errors = load_answers(answers_file)
+        errors.extend(f"questionnaire_answers.yaml: {error}" for error in answer_errors)
     return errors
 
 
@@ -150,7 +157,7 @@ def _scan_secrets(directory: Path) -> list[str]:
         for key_path in _keys(data):
             leaf = key_path.rsplit(".", 1)[-1].lower()
             if any(marker in leaf for marker in markers) and not leaf.endswith(
-                ("_secret_name", "_names")
+                ("_secret_name", "_names", *QUANTITY_SUFFIXES)
             ):
                 errors.append(f"{relative}: {key_path}: secrets never travel in a pack")
     return errors
@@ -177,12 +184,14 @@ class PackService:
         kb: KbService,
         legal: LegalService,
         templates: TemplateService,
+        questionnaire: QuestionnaireService | None = None,
     ) -> None:
         self.db = db
         self.tenants = tenants
         self.kb = kb
         self.legal = legal
         self.templates = templates
+        self.questionnaire = questionnaire or QuestionnaireService(db)
 
     async def export(self, tenant: Tenant, directory: Path) -> list[str]:
         """Write the pack files; returns the relative paths written."""
@@ -217,7 +226,7 @@ class PackService:
                     "text": {},
                 },
             )
-            block["text"][entry.lang] = entry.text
+            block["text"].setdefault(entry.lang, entry.text)  # newest version wins
             if entry.volatile:
                 block["volatile"] = True
         write("kb/entries.yaml", {"tenant": tenant.slug, "entries": list(grouped.values())})
@@ -232,7 +241,10 @@ class PackService:
             if standard is None or standard.body != template_row.body:
                 overrides.setdefault(template_row.name, {})[template_row.lang] = template_row.body
         write("templates/overrides.yaml", overrides)
-        write("questionnaire_answers.yaml", {"tenant": tenant.slug, "answers": []})
+        write(
+            "questionnaire_answers.yaml",
+            answers_document(tenant.slug, await self.questionnaire.answers(tenant.id)),
+        )
         return written
 
     async def diff(self, tenant: Tenant | None, directory: Path) -> list[str]:
@@ -277,6 +289,19 @@ class PackService:
                     for lang, body in (languages or {}).items():
                         if bodies.get((name, lang)) != body:
                             changes.append(f"template {name}/{lang}: body override")
+        answers_file = directory / "questionnaire_answers.yaml"
+        if answers_file.exists():
+            answers, _errors = load_answers(answers_file)
+            if tenant is None:
+                if answers:
+                    changes.append(f"questionnaire: {len(answers)} answers")
+            else:
+                current = await self.questionnaire.answers(tenant.id)
+                changed = sum(
+                    1 for key in set(current) | set(answers) if current.get(key) != answers.get(key)
+                )
+                if changed:
+                    changes.append(f"questionnaire: {changed} answers changed")
         return changes
 
     async def import_pack(self, directory: Path, *, dry_run: bool = True, actor: str) -> PackReport:
@@ -325,6 +350,11 @@ class PackService:
                     )
             if rows:
                 await self.kb.bulk_upsert(tenant.id, rows, actor=actor)
+        answers_file = directory / "questionnaire_answers.yaml"
+        if answers_file.exists():
+            answers, _errors = load_answers(answers_file)
+            if answers != await self.questionnaire.answers(tenant.id):
+                await self.questionnaire.save(tenant.id, answers, actor=actor, replace=True)
         legal = _load(directory / "legal" / "texts.yaml")
         async with self.db.tenant_scope(tenant.id) as session:
             if isinstance(legal, dict):

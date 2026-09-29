@@ -26,7 +26,7 @@ and the outcome per row; a failed row is a defect.
 |---|---|---|---|
 | 13 | Keyboard operation | log in, open the inbox, reply, approve a KB entry with the keyboard only | every action completes |
 | 14 | Skip link and headings | screen reader outline | one `h1` per page, a skip link to the content |
-| 15 | Forms | inspect the login, reply and KB forms | every field has a label; errors are announced near the field |
+| 15 | Forms | inspect the login, reply, KB and questionnaire forms (85 fields, grouped under headings) | every field has a label; errors are announced near the field or in the alert list at the top |
 | 16 | Tables | inbox and reservations | header cells, row scope, the SLA countdown readable as text |
 | 17 | Language | switch the admin to English | `lang` attribute changes, all labels translated |
 | 18 | Phone first | the inbox at 360 px | conversation list and thread usable without horizontal scrolling |

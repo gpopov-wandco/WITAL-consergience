@@ -48,6 +48,7 @@ from concierge.jobs.service import JobService
 from concierge.jobs.worker import JobWorker, RetryLater
 from concierge.journeys.service import ETA_SILENCE_KIND, JourneyEngine
 from concierge.journeys.service import JOB_KIND as JOURNEY_JOB_KIND
+from concierge.kb.questionnaire import QuestionnaireService
 from concierge.kb.store import KbService
 from concierge.legal.service import LegalService
 from concierge.llm.port import LLMPort, Usage
@@ -123,6 +124,7 @@ class Services:
     qa: QaService
     operator_alerts: OperatorNotifier
     maintenance: MaintenanceScheduler
+    questionnaire: QuestionnaireService
     demo: bool = False
     alerts: list[tuple[str, str, dict[str, Any]]] = field(default_factory=list)
 
@@ -266,7 +268,8 @@ def build_services(
     timers = HandoffTimers(ctx.clock, jobs, tenants, handoffs, staff_alerts)
     auth = AuthService(ctx.db, ctx.clock, signing_key=settings.signing_key())
     legal = LegalService(ctx.db, ctx.clock)
-    packs = PackService(ctx.db, tenants, kb, legal, templates)
+    questionnaire = QuestionnaireService(ctx.db)
+    packs = PackService(ctx.db, tenants, kb, legal, templates, questionnaire=questionnaire)
     voice = VoiceEngine(
         db=ctx.db,
         clock=ctx.clock,
@@ -556,6 +559,7 @@ def build_services(
         qa=qa,
         operator_alerts=operator_alerts,
         maintenance=maintenance,
+        questionnaire=questionnaire,
         demo=demo,
         alerts=alerts,
     )

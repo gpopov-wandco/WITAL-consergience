@@ -144,6 +144,7 @@ async def test_seeded_aggregates_digest_and_qa_queue(demo_stack: DemoStack) -> N
     assert len([r for r in reviews if r.reason == "handoff"]) == 1
 
 
+@pytest.mark.feature("F20")
 async def test_admin_search_flag_export_and_operator_qa_pages(demo_stack: DemoStack) -> None:
     services, client = demo_stack.services, demo_stack.client
     await chat(demo_stack, "Gibt es einen Parkplatz?")

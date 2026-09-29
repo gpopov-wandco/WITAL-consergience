@@ -22,6 +22,9 @@ Built in one continuous run from `docs/BUILD_PROMPT.md`; milestones and evidence
   test, metrics, operator alerts.
 - Evaluation: 104 golden cases, property tests, failure-injection map, load smoke,
   end-to-end conversations per language, live evaluation command.
+- Knowledge-base intake: the 85-item questionnaire (admin page, YAML in the pack,
+  draft entries), page import through the SSRF guard, text, Markdown and PDF
+  import, machine-translation drafts, coverage report.
 - Doctor (offline and live), setup wizard, demo with mock Graph and simulators,
   deployment files (systemd, Docker, Compose, Caddy), documentation.
 

@@ -21,6 +21,8 @@ var/
 *.db-shm
 *.sqlite3
 backups/
+packs/
+compliance-*/
 
 # Build artefacts
 build/

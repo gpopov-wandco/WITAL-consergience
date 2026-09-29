@@ -50,6 +50,7 @@ default location is `~/.witalco-concierge/`; `GC_DATABASE_URL` overrides it.
 | `concierge check` | all static gates in one table |
 | `pytest` | the offline test suite (unit, integration, golden, property, e2e) |
 | `pytest -m load tests/load -s` | the load smoke with its numbers |
+| `pytest -m browser tests/browser` | the browser suite (Playwright and Chromium): widget and admin driven in a real browser against a demo server |
 | `concierge golden run` | the golden cases outside pytest, one table |
 | `concierge serve` | start the service without seeding |
 | `concierge wa-sim send --tenant hotel-beispiel --text "Gibt es einen Parkplatz?"` | post a signed WhatsApp webhook to the running service |
@@ -58,6 +59,9 @@ default location is `~/.witalco-concierge/`; `GC_DATABASE_URL` overrides it.
 | `concierge tenant add\|list\|pause\|activate` | tenant lifecycle |
 | `concierge secrets set <tenant> <name>` | enter a tenant secret with a hidden prompt |
 | `concierge pack export\|import\|validate\|diff` | client packs |
+| `concierge kb import-url <url> --tenant X`, `kb import-file <path> --tenant X` | draft entries from public pages (SSRF guard) or text, Markdown and PDF files |
+| `concierge kb questionnaire items\|export\|import\|apply` | the 85-item questionnaire as YAML and its draft entries |
+| `concierge kb translate --tenant X --to ru,uk` and `kb coverage --tenant X` | machine-translation drafts through the model; go-live key coverage |
 | `concierge backup` and `concierge restore-test` | encrypted backups and restore rehearsal |
 | `concierge handout build` | the PDF handout |
 | `concierge compliance pack --tenant X` | the compliance pack |

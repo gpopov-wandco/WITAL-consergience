@@ -20,9 +20,9 @@ Updated after each unit of work.
 | M9 | Voice module and simulators | done | `src/concierge/channels/voice/` (port, speech, session engine, retell, twilio_cr, postcall, routes), `demo/voice_sim.py` (scripted sockets, live WebSocket caller), CLI `voice provision --dry-run`, `demo voice-sim`; `tests/unit/test_voice_protocols.py` (signature vectors and mutations, compact JSON, Twilio port variants and bodySHA256, TwiML escaping, speech per language, farewell and decline phrases, billing), `tests/integration/test_voice.py` (disclosure first, ping_pong, content_complete last only, filler, cancellation by a newer response id, tool round trip, transfer in staffed hours, callback at night with staff notification, decline without transcript, end-of-call pipeline with replay and signature, overage at 300 minutes, EU-only gate, paused tenant, reconciliation, Twilio relay and routes) |
 | M10 | Metering, GDPR, analytics, backup, observability | done | `src/concierge/metering/service.py`, `gdpr/{retention,service}.py`, `reports/{pdf,charts,redact,qa,analytics}.py`, `tools/backup.py`, `metrics.py`, `notify/operator.py`, `maintenance.py`; CLI `usage export`, `gdpr search|export|erase|retention`, `backup`, `restore-test`; admin data requests, transcript search, flag reply, redacted export, reports with charts and usage export; operator QA queue and usage export; `tests/unit/test_metering.py`, `tests/unit/test_backup.py`, `tests/unit/test_reports.py`, `tests/integration/test_gdpr.py`, `tests/integration/test_observability.py`, `tests/unit/test_cli.py::test_backup_restore_usage_and_gdpr_commands` |
 | M11 | Evaluation suites | done | `src/concierge/eval/golden.py` (case format, runner, reports), `src/concierge/eval/cases/*.yaml` (14 Appendix E scenarios in six languages = 84 cases, 20 cross-cutting cases), `src/concierge/eval/live.py` (budget-capped live run, never a gate), CLI `golden run`, `eval live`; `tests/golden/test_golden.py` (104 cases), `tests/property/test_properties.py` (duplicate and out-of-order webhooks, two-tenant interleaving, scheduler quiet hours and dedupe; signature mutation and secret round trips in `tests/unit/test_security.py`), `tests/integration/test_failure_injection.py` (map of every 10.4 failure to its test, SQLite busy lock, malformed iCal), `tests/load/test_load_smoke.py` (marker `load`), `tests/e2e/test_conversations.py` (one full conversation per language through wa-sim and the widget with a staff reply), `tests/unit/test_eval_live.py` |
-| M12 | Docs, deployment, doctor, wizard, demo, cold start | not started | |
-| M13 | Handout and compliance pack | not started | |
-| M14 | (S) items | not started | |
+| M12 | Docs, deployment, doctor, wizard, demo, cold start | done | `tools/doctor.py`, `tools/livechecks.py`, `tools/setup.py`, `Dockerfile`, `compose.yaml`, `Caddyfile`, `deploy/systemd/concierge.service`, `docs/{ARCHITECTURE,OPERATIONS,SECURITY,COMPLIANCE,INTEGRATIONS,CUSTOMISATION,ACCESSIBILITY_TEST,CHANGELOG,COLD_START}.md`; `tests/unit/test_doctor.py`, `tests/unit/test_deploy_files.py`; cold start executed from a fresh clone (`docs/COLD_START.md`) |
+| M13 | Handout and compliance pack; KB intake; traceability | done | `tools/handout.py` (4 pages, Inter and Syne embedded), `tools/compliance.py`, `tools/trace.py` (`docs/TRACEABILITY.md`, 0 gaps), `kb/questionnaire.py`, `kb/intake.py`, admin questionnaire page, CLI `kb ...`; `tests/unit/test_handout.py`, `tests/unit/test_questionnaire.py`, `tests/integration/test_intake.py`; every handout command executed literally in a clean environment (`docs/HANDOUT_VERIFICATION.md`) |
+| M14 | (S) items | done (listed) | none built; each item listed with its reason under "(S) items" below (G13) |
 | M15 | Final audit | not started | |
 
 ## Gates
@@ -30,20 +30,20 @@ Updated after each unit of work.
 | Gate | Status | Evidence |
 |---|---|---|
 | G1 offline pytest and browser suite | not started | |
-| G2 static gates | not started | |
+| G2 static gates | done | `concierge check --skip-audit`: 12 gates pass (ruff check and format, mypy --strict, bandit, pip check, secret scan, import boundary, C1 allow-list, forbidden markers, env parity, raw SQL); pip-audit needs network and is run in CI (`docs/OPERATIONS.md`) |
 | G3 coverage | not started | |
-| G4 cold start | not started | |
-| G5 doctor offline and live-with-fake-keys | not started | |
+| G4 cold start | done | `docs/COLD_START.md`: fresh clone, fresh venv and home, README followed literally at commit `e2e30ca`; install from the lock, setup, demo, wa-sim, widget, inbox, doctor, kill and restart with exactly one delivery; Docker build not executed (no daemon) |
+| G5 doctor offline and live-with-fake-keys | done | `docs/COLD_START.md` rows 9 and 10: offline 38 pass, 5 warn, 0 fail (exit 1); live with fake keys 46 pass, 4 warn, 5 fail (exit 2), every failure names the variable or field, no key in the output |
 | G6 golden counts, adversarial, load smoke | not started | |
-| G7 traceability | not started | |
-| G8 handout | not started | |
-| G9 no TODO, FIXME, unexplained skip | not started | |
+| G7 traceability | done | `python -m concierge.tools.trace` writes `docs/TRACEABILITY.md`: 35 features built and tested, 1 not built (F36, listed), 0 gaps; every constraint guarded |
+| G8 handout | done | `concierge handout build`: 4 pages, Inter and Syne embedded, no placeholders, register checked by `tests/unit/test_handout.py`; pages inspected and every command executed literally in a clean environment (`docs/HANDOUT_VERIFICATION.md`) |
+| G9 no TODO, FIXME, unexplained skip | done | gate "forbidden markers" (TODO, FIXME, XXX, bare NotImplementedError) passes; no `pytest.mark.skip`, `pytest.skip` or `xfail` in `tests/`; the live, browser and load markers are deselected by default and documented in the README |
 | G10 docs complete | not started | |
 | G11 every feature verified with evidence | not started | |
 | G12 VERIFIED_FACTS covers every VERIFY item code depends on | in progress | `docs/VERIFIED_FACTS.md` |
-| G13 (S) items built or listed | not started | |
+| G13 (S) items built or listed | done | none built; the list with reasons is in "(S) items" below |
 | G14 self-review found no medium or higher defect | not started | |
-| G15 no secrets; `.env.example` matches Appendix A both ways | not started | |
+| G15 no secrets; `.env.example` matches Appendix A both ways | done | gates "secret scan" and "env parity" pass (`tests/unit/test_repo_rules.py`: every `Settings` field is in `.env.example` and every `.env.example` variable is a field; fixtures use fake values with `# nosec`); the cold start and the live doctor run with fake keys showed no key in any output |
 
 ## Features
 
@@ -54,7 +54,7 @@ Updated after each unit of work.
 | F03 | Guardrails | tested | `agent/guardrails.py`, `agent/keywords.yaml`; `tests/unit/test_guardrails_languages.py` |
 | F04 | Deterministic responder | tested | `agent/responder.py`, `agent/intents.yaml`; 15 intents x 6 languages in `tests/integration/test_responder_conversations.py` |
 | F05 | Knowledge base | tested | `kb/store.py`, `kb/blocks.py`, `kb/fixtures/hotel_beispiel.yaml`; `tests/integration/test_kb.py` |
-| F06 | KB intake | not started | |
+| F06 | KB intake | tested | `kb/questionnaire.py` (85 items in groups A to I with kind, target KB key or profile field, required flag, DE/EN labels; validation with field paths; YAML in the pack; draft rows per target), `kb/intake.py` (page import through `SafeFetcher`, five pages of 1 MB, same site, keyword classification from `kb/intake_keywords.yaml`, text/Markdown/PDF import with pypdf, machine-translation drafts `draft_mt`, coverage rows), admin `/admin/questionnaire`, CLI `kb import-url|import-file|translate|coverage`, `kb questionnaire items|export|import|apply`; `tests/unit/test_questionnaire.py`, `tests/integration/test_intake.py` (page cap, size cap, SSRF: loopback, link-local, private, redirect to internal, DNS rebinding pinned; injection text stays a draft outside the snapshot; PDF and Markdown; translation drafts unseen by the resolver; pack round trip; admin page), `tests/unit/test_cli.py::test_kb_intake_and_questionnaire_commands` |
 | F07 | Availability core | tested | `availability/{models,port,chain,policy}.py`; `tests/unit/test_availability_policy.py` (one test per policy rule, chain, breaker 3 failures/60 s, single-flight, cache validity and expiry, budget, high-demand dates) |
 | F08 | PMS adapters | tested (endpoints VERIFY) | `availability/{beds24,apaleo,mews,vendor_http}.py`; `tests/unit/test_pms_adapters.py` (availability, restriction violation, 401 with token refresh, 429 Retry-After, timeout, malformed body, credit budget, write gates, Mews UTC time units); endpoints implemented without vendor docs, see D-011 and `docs/VERIFIED_FACTS.md`; Smoobu and ibelsa (S) not built |
 | F09 | Fallback sources | tested | `availability/{ical,manual,none}.py` (iCal edge cases, conditional GET, SSRF guard; manual grid with audited bulk set, CSV import with German formats and dry run, staleness; no-live-data handoff with response window); `tests/integration/test_availability_sources.py` |
@@ -76,27 +76,43 @@ Updated after each unit of work.
 | F25 | GDPR tooling | tested | `gdpr/retention.py` (daily pass at 03:00 local per profile: message texts, special-category texts seven days after the stay or receipt, voice transcripts, reservation personal data after departure, guests, notes, callbacks, webhook events, usage events, withdrawn consents; every deletion writes a `deletion_log` row), `gdpr/service.py` (subject search by blind index for phone, e-mail and booking reference; export as JSON and PDF; erasure keeps suppression and consent proof; restriction flag; requests with a 30-day deadline and sub-processor tasks; consent rows from reservation opt-in evidence), admin `/admin/data-requests`, CLI `gdpr search|export|erase|retention`; registry test that every table in `GUEST_DATA_TABLES` is exported or kept by design and erased or kept by design; `tests/integration/test_gdpr.py` (frozen-time retention, erasure, restriction, consent log) |
 | F26 | Voice fallback | tested (provider APIs VERIFY) | `channels/voice/session.py` (disclosure spoken first and recorded, filler after `voice.filler_ms`, a newer response id cancels the running generation, person requests transfer during staffed hours or capture a callback, decline gives a callback without transcript, farewell ends the call, `eu_only` gate, kill switch), `channels/voice/retell.py` (signature per the SDK, custom-LLM protocol with `ping_pong` echo and `content_complete` only on the last chunk, `transfer_number`, provisioning payloads), `channels/voice/twilio_cr.py` (request validator, TwiML, ConversationRelay protocol), `channels/voice/postcall.py` (transcript with expiry, German summary, callback task, P2 staff handoff, usage event with overage, reconciliation of calls without an end event); voice tools in `agent/tools.py`; `tests/unit/test_voice_protocols.py`, `tests/integration/test_voice.py`; `openai_compat` (S) not built |
 | F27 | Analytics and QA | tested | `reports/analytics.py` (conversations, languages, channels, topics, unanswered questions, handoffs by priority, median first response, SLA breaches, voice minutes, journey delivery, WhatsApp and model cost; conversations flagged as special category are excluded from aggregates), `reports/charts.py` (inline SVG, no script), weekly digest e-mail on Monday 08:00 local with the same charts, `reports/qa.py` (every handoff, validator rejections, a deterministic five-percent sample by conversation id hash, staff flags with a "fix in KB" link), `reports/redact.py` (phones, e-mails, IBANs, known names), admin `/admin/reports`, `/admin/search`, flag form and redacted export on the conversation page, operator `/operator/qa`; `tests/unit/test_reports.py`, `tests/integration/test_observability.py::test_seeded_aggregates_digest_and_qa_queue`, `::test_admin_search_flag_export_and_operator_qa_pages` |
-| F28 | Doctor and setup wizard | not started | |
+| F28 | Doctor and setup wizard | tested | `tools/doctor.py` (offline: environment, e-mail and model configuration, keys, migrations, fonts, tzdata, price-table age, disk, backups, dead jobs, per tenant prompt-prefix size, KB coverage and overdue entries, legal status, WhatsApp, availability and voice configuration; `--live`: `tools/livechecks.py` probes health, clock skew, Anthropic, mail, Stripe, Meta token, subscription, templates and a signed test webhook, PMS and iCal, Retell and Twilio; each check names the variable or field; the live result is recorded for the activation gate), `tools/setup.py` (`concierge setup`, non-interactive mode); `tests/unit/test_doctor.py`, `tests/unit/test_cli.py::test_setup_non_interactive_writes_env_and_link`; cold-start rows 9 and 10 in `docs/COLD_START.md` |
 | F29 | Demo and simulator | tested | `demo/{seed,mock_graph,wa_sim,routes,voice_sim}.py`, `concierge demo`, `concierge demo voice-sim` (plays a Retell call over a real WebSocket against the running server), demo accounts for the admin and operator; `tests/integration/test_demo.py` (seed idempotent and refused in production, simulator through the real Graph client into the mock server, error injection, pages), `tests/integration/test_voice.py` (scripted voice sockets) |
 | F30 | Backup and restore | tested | `tools/backup.py` (AES-GCM with the file header as associated data, SQLite online backup API or `pg_dump` custom format, prune by age, restore test into a scratch database that checks the migration head and row counts, tamper and wrong-key detection), CLI `backup [--out] [--keep-days]` (a failure writes the `backup_failed` operator alert) and `restore-test [--file]`; `tests/unit/test_backup.py`, `tests/unit/test_cli.py::test_backup_restore_usage_and_gdpr_commands`; the restore test covers SQLite snapshots, PostgreSQL dumps are restored with `pg_restore` (open item) |
 | F31 | Security foundation | tested | `security/` (envelope encryption, key rotation, blind index, signatures, SSRF-safe fetcher, limiter, passwords, sessions, links) with `tests/unit/test_security.py`; security headers and CSP in `app.py`; admin authentication, sessions, lockout, CSRF and bootstrap links in `admin/auth.py` with `tests/integration/test_admin.py` |
 | F32 | Observability | tested | structured redacted logs (`log.py`), `/healthz`, `/readyz` (db, migration head, worker heartbeat, master key), `/metrics` behind `GC_METRICS_TOKEN` (`metrics.py`: build info, jobs by status, open handoffs per tenant and priority, 24-hour cost per kind, worker heartbeat age, model breaker, active calls; no guest data in labels), `notify/operator.py` (operator alerts deduplicated per kind and key with a counter, mailed once and again after 24 hours while open, price tables older than 180 days raise `price_table_stale`, throttled to one run per 15 minutes from the timers hook); `tests/integration/test_observability.py` (401 without and with a wrong token, content, health states, alert dedupe and resend) |
-| F33 | Deployment and docs | not started | |
-| F34 | Handout and compliance pack | not started | |
+| F33 | Deployment and docs | tested (Docker build not executed: no daemon) | `Dockerfile`, `compose.yaml`, `Caddyfile`, `deploy/systemd/concierge.service`, `.env.example`, `docs/*.md`, `tools/check.py`, `tools/trace.py`; `tests/unit/test_deploy_files.py` (static review of the deploy files), `tests/unit/test_repo_rules.py` (`.env.example` parity, allow-list) |
+| F34 | Handout and compliance pack | tested | `tools/handout.py` (`concierge handout build`, 4 pages of at most 6, register 2.9, no placeholders, commands in `HANDOUT_COMMANDS`), `tools/compliance.py` (`concierge compliance pack --tenant X`: sub-processors, retention, TOM checklist, AI disclosures, record of processing, legal texts, PDF; every page "Draft for lawyer review"); `tests/unit/test_handout.py`; `docs/HANDOUT_VERIFICATION.md` (page inspection and the literal command run) |
 | F35 | Evaluation harness | tested | golden YAML cases (guest turns, scripted model steps, expected tool calls and arguments, handoff flag and priority, events, forbidden and required substrings, the canary, model-call counts) run by `concierge golden run` and `tests/golden`; `concierge eval live` refuses without `ANTHROPIC_API_KEY`, stops at `GC_EVAL_BUDGET_USD`, compares effort low and medium, reports latency percentiles, checks the prompt-cache read and a three-turn history, optional advisory judge (not run during the build, C4); load smoke through the ASGI interface: 200 concurrent signed webhooks, measured on the build sandbox over six runs: median 202 to 307 ms (target under 250 ms, met in four of six runs), p99 372 to 527 ms (target under 1 s, met in every run), one reply per message, no lock errors |
-| F36 | (S) Optional sinks | not started | |
+| F36 | (S) Optional sinks | not built | listed under "(S) items" with reasons; the usage report is exported as JSON, CSV and PDF instead |
 
 ## Open defects
 
-None recorded yet.
+Found and fixed during the build (each with a regression test):
+
+| Defect | Found | Fix |
+|---|---|---|
+| The pack secret scan flagged `limits.prompt_token_budget` (added in M12) as a secret, so `pack validate` failed for every exported profile | M13, `tests/integration/test_packs.py` | quantity suffixes (`_budget`, `_limit`, `_count`, `_cap`, `_max`, `_min`, `_tokens`) are not secret names; `test_secret_scan_flags_credentials_not_quantities` |
+| Pack export wrote the oldest version of a KB key when several versions existed, so a re-import created a stale draft | M13, `tests/integration/test_intake.py` | the newest non-retired version wins; `test_export_keeps_the_newest_version_per_language` |
+| The handout named `pack export --tenant`, `templates list --tenant` and `templates sync --tenant` although the CLI takes the tenant as an argument | M13, literal command run | commands corrected; the verification executes `HANDOUT_COMMANDS` literally |
 
 ## Open items carried forward
 
-| Item | Feature | Planned in |
+| Item | Feature | State |
 |---|---|---|
-| Widget: staff replies on web conversations are stored and shown in the inbox, but the widget does not poll for them yet | F19, F22 | M12 (widget polish) |
-| Live doctor checks recorded for the activation gate | F28 | M12 |
-| `restore-test` for PostgreSQL dump files (`pg_restore` into a scratch database); the SQLite path is tested | F30 | M12 |
+| `restore-test` for PostgreSQL dump files (`pg_restore` into a scratch database); the SQLite path is tested | F30 | open: no PostgreSQL server in the build environment; documented in `docs/OPERATIONS.md` as a manual rehearsal |
+| Docker image build | F33 | open: no Docker daemon in the build environment; `Dockerfile` and `compose.yaml` statically reviewed by `tests/unit/test_deploy_files.py` |
+| Windows run | 10.6 | open: not available; code follows the Windows rules (D-004) |
+
+## (S) items (G13)
+
+| Item | Decision | Reason |
+|---|---|---|
+| Smoobu and ibelsa adapters | not built | no documentation reachable (D-005); the port and the four other adapters show the pattern; a new adapter is one module plus contract tests |
+| `openai_compat` model provider | not built | the prompt fixes Anthropic as the provider; the port (`llm/port.py`) is provider-neutral and the scripted fake covers tests |
+| TOTP second factor for the admin | not built | sessions, lockout, single-use invites and roles cover the pilot; TOTP needs a secret per user and a recovery flow that deserves its own review |
+| HubSpot and Stripe usage sinks (F36) | not built | the usage report exports JSON, CSV and PDF; a sink adds a vendor dependency and credentials without a client asking for it |
+| SMS or phone call for P0 alerts | not built | P0 reaches the on-call number by WhatsApp template and e-mail with repeats; SMS needs a provider contract (Twilio) that the pilot has not chosen |
 
 ## Blockers
 

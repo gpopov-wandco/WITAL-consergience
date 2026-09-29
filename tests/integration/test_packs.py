@@ -159,3 +159,36 @@ async def test_new_tenant_from_pack(demo_stack: DemoStack, tmp_path: Path) -> No
         "tenant.yaml: a unique value (public key or phone number) is already used by another tenant"
     ]
     assert await services.tenants.get("hotel-drei") is None
+
+
+def test_secret_scan_flags_credentials_not_quantities(tmp_path: Path) -> None:
+    from concierge.tenants.packs import _scan_secrets
+
+    (tmp_path / "tenant.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "limits": {"prompt_token_budget": 12000, "max_tokens": 1024},
+                "whatsapp": {"wa_access_token": "x", "waba_id": "1"},
+                "pms": {"api_key": "k", "client_secret_name": "beds24_secret"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert sorted(_scan_secrets(tmp_path)) == [
+        "tenant.yaml: pms.api_key: secrets never travel in a pack",
+        "tenant.yaml: whatsapp.wa_access_token: secrets never travel in a pack",
+    ]
+
+
+async def test_export_keeps_the_newest_version_per_language(
+    demo_stack: DemoStack, tmp_path: Path
+) -> None:
+    services, tenant = demo_stack.services, demo_stack.tenant
+    await services.kb.upsert(tenant.id, "parking", "de", text="Neuer Entwurf zum Parken.")
+    target = tmp_path / "pack"
+    await services.packs.export(tenant, target)
+    entries = yaml.safe_load((target / "kb" / "entries.yaml").read_text(encoding="utf-8"))
+    parking = next(e for e in entries["entries"] if e["key"] == "parking")
+    assert parking["text"]["de"] == "Neuer Entwurf zum Parken."
+    report = await services.packs.import_pack(target, dry_run=True, actor="test")
+    assert report.changes == []

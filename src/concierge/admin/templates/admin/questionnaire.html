@@ -1,0 +1,39 @@
+{% extends "admin/layout.html" %}
+{% set active = 'questionnaire' %}
+{% block title %}{{ t.questionnaire }}{% endblock %}
+{% block admin %}
+<h1>{{ t.questionnaire }}</h1>
+<p class="meta">{{ t.questionnaire_hint }}</p>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if errors %}<ul class="error" role="alert">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+{% if missing %}<p class="meta">{{ t.missing_required }}: {{ missing|length }}</p>{% endif %}
+<form method="post" action="/admin/questionnaire">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for letter, title, items in groups %}
+  <h2>{{ letter }}. {{ title }}</h2>
+  {% for item in items %}
+  {% set v = values.get(item.key, '') %}
+  <p>
+    <label for="q-{{ item.key }}">{{ item.label(lang) }}{% if item.required %} <span class="badge">{{ t.required }}</span>{% endif %}</label>
+    {% if item.kind == 'bool' %}
+    <select id="q-{{ item.key }}" name="{{ item.key }}"><option value="">–</option><option value="yes"{% if v == 'yes' %} selected{% endif %}>{{ t.yes }}</option><option value="no"{% if v == 'no' %} selected{% endif %}>{{ t.no }}</option></select>
+    {% elif item.kind == 'choice' %}
+    <select id="q-{{ item.key }}" name="{{ item.key }}"><option value="">–</option>{% for c in item.choices %}<option value="{{ c }}"{% if v == c %} selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+    {% elif item.kind in ['text', 'list'] %}
+    <textarea id="q-{{ item.key }}" name="{{ item.key }}" rows="2" maxlength="{{ item.max_len if item.kind == 'text' else 4000 }}">{{ v }}</textarea>
+    {% else %}
+    <input id="q-{{ item.key }}" name="{{ item.key }}" value="{{ v }}">
+    {% endif %}
+    <span class="meta">{{ t.target_kb }}: {% if item.target %}{{ item.target }}{% else %}tenant.yaml {{ item.field }}{% endif %}</span>
+  </p>
+  {% endfor %}
+  {% endfor %}
+  {% if is_owner %}<button type="submit">{{ t.save }}</button>{% endif %}
+</form>
+{% if is_owner %}
+<form method="post" action="/admin/questionnaire/apply" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit" class="secondary">{{ t.create_drafts }}</button>
+</form>
+{% endif %}
+{% endblock %}

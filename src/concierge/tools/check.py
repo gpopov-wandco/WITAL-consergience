@@ -1,6 +1,6 @@
 """``concierge check``: every static gate (10.2) in one table.
 
-Implements: F33
+Implements: F33, C13
 
 Gates: ruff check, ruff format, mypy (strict packages), bandit, pip-audit, pip check,
 secret scan, import boundary, C1 allow-list, forbidden markers, env parity, raw SQL.

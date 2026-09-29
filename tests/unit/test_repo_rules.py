@@ -8,6 +8,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -38,6 +39,24 @@ pytestmark = pytest.mark.feature("F33")
 
 
 def repo_files() -> list[Path]:
+    """Files git would commit: tracked plus untracked but not ignored (runtime output such
+    as ``.env``, packs and compliance folders is ignored and never part of the repo)."""
+    try:
+        listed = subprocess.run(
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+            cwd=ROOT,
+            capture_output=True,
+            check=True,
+            timeout=60,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        listed = b""
+    if listed:
+        return [
+            ROOT / name
+            for name in listed.decode("utf-8").split("\0")
+            if name and (ROOT / name).is_file()
+        ]
     files: list[Path] = []
     for path in ROOT.rglob("*"):
         if any(

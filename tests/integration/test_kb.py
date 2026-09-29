@@ -229,6 +229,7 @@ async def test_language_fallback_to_english(kb: KbService, tenant_id: str) -> No
     assert (await kb.lookup(tenant_id, "pets", "tr")).fallback_from is None
 
 
+@pytest.mark.feature("F06")
 async def test_search_gaps_and_coverage(kb: KbService, tenant_id: str) -> None:
     count = await import_kb_file(kb, tenant_id, FIXTURES_DIR / "hotel_beispiel.yaml", approve=True)
     assert count >= 30 * 6

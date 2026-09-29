@@ -79,7 +79,7 @@ include = ["src/concierge", "docs", "examples", "deploy", "README.md"]
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]  # "." makes the tests package importable for the bare `pytest` command
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "-p no:cacheprovider --strict-markers --strict-config -m 'not live and not browser and not load'"

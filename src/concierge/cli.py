@@ -57,6 +57,10 @@ gdpr_app = typer.Typer(no_args_is_help=True, help="GDPR: search, export, erase, 
 app.add_typer(gdpr_app, name="gdpr")
 wa_sim_app = typer.Typer(no_args_is_help=True, help="WhatsApp simulator against a running server")
 app.add_typer(wa_sim_app, name="wa-sim")
+handout_app = typer.Typer(no_args_is_help=True, help="The PDF handout (section 13)")
+app.add_typer(handout_app, name="handout")
+compliance_app = typer.Typer(no_args_is_help=True, help="Compliance pack per tenant (drafts)")
+app.add_typer(compliance_app, name="compliance")
 golden_app = typer.Typer(no_args_is_help=True, help="Golden evaluation with the scripted model")
 app.add_typer(golden_app, name="golden")
 eval_app = typer.Typer(no_args_is_help=True, help="Live evaluation against the real model")
@@ -555,6 +559,7 @@ def templates_list(tenant: str) -> None:
 @templates_app.command("sync")
 def templates_sync(tenant: str) -> None:
     """Install the standard set and create the missing templates at Meta."""
+    from concierge.channels.whatsapp.port import GraphError
     from concierge.tenants.service import TenantError, TenantService
 
     async def _go() -> tuple[int, Any]:
@@ -575,6 +580,11 @@ def templates_sync(tenant: str) -> None:
         created, report = run(_go())
     except TenantError as exc:
         _fail(str(exc))
+    except GraphError as exc:
+        _fail(
+            f"Meta Graph API: {exc}; check the network, wa_access_token and whatsapp.waba_id "
+            "(docs/INTEGRATIONS.md)"
+        )
     typer.echo(
         f"installed {created} new registry rows; created at Meta: {len(report.created)}, "
         f"existing: {len(report.existing)}, skipped (budget): {len(report.skipped_budget)}"
@@ -912,15 +922,26 @@ def restore_test(
         _fail(str(exc), code=2)
     typer.echo(f"restored {target} -> {report.path}")
     typer.echo(f"migration head: {report.head} (expected {report.expected_head})")
-    typer.echo(
-        _table(
-            ["table", "rows"],
-            [[name, str(count)] for name, count in sorted(report.tables.items()) if count],
-        )
-    )
-    if not report.ok:
+    expected = report.expected_tables or {}
+    rows = [
+        [name, str(expected.get(name, "-")), str(count)]
+        for name, count in sorted(report.tables.items())
+        if count or expected.get(name)
+    ]
+    typer.echo(_table(["table", "backup", "restored"], rows))
+    if report.expected_tables is None:
+        typer.echo("no manifest in this file (older format): row counts not compared")
+    if not report.head_ok:
         _fail("restore test failed: migration head differs", code=2)
-    typer.echo("restore test ok")
+    if report.mismatches:
+        _fail(
+            "restore test failed: row counts differ from the backup manifest: "
+            + ", ".join(f"{n} {e} -> {r}" for n, (e, r) in report.mismatches.items()),
+            code=2,
+        )
+    typer.echo(
+        f"restore test ok: {sum(report.tables.values())} rows in {len(report.tables)} tables"
+    )
 
 
 def _utcnow() -> datetime:
@@ -1005,6 +1026,56 @@ def wa_sim_send(
     typer.echo(f"replies appear on {base_url}/demo/wa-sim and in the inbox {base_url}/admin/inbox")
     if status != 200:
         raise typer.Exit(code=1)
+
+
+# ------------------------------------------------------------ handout and pack
+@handout_app.command("build")
+def handout_build(
+    out: Path = typer.Option(Path("docs/handout.pdf"), "--out", help="where to write the PDF"),
+) -> None:
+    """Build the six-page handout: how to test, hand over and customise."""
+    from concierge.tools.handout import MAX_PAGES, build_handout
+
+    path = build_handout(out)
+    from pypdf import PdfReader
+
+    pages = len(PdfReader(str(path)).pages)
+    typer.echo(f"handout written to {path} ({pages} pages, limit {MAX_PAGES})")
+    if pages > MAX_PAGES:
+        _fail(f"the handout has {pages} pages; the limit is {MAX_PAGES}")
+
+
+@compliance_app.command("pack")
+def compliance_pack(
+    tenant: str = typer.Option(..., "--tenant"),
+    out: Path | None = typer.Option(None, "--out", help="directory (default: compliance-<slug>)"),
+) -> None:
+    """Sub-processors, retention, TOM checklist, disclosures and a record-of-processing draft."""
+    from datetime import UTC, datetime
+
+    from concierge.tools.compliance import build_pack_files, pack_pdf, write_pack
+
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> tuple[Any, list[Any]]:
+        row = await services.tenants.require(tenant)
+        return services.tenants.profile_of(row), await services.legal.rows(row.id)
+
+    try:
+        profile, rows = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    today = datetime.now(UTC).date()
+    files = build_pack_files(profile, rows, today=today)
+    written = write_pack(
+        out or Path(f"compliance-{tenant}"), files, pack_pdf(files, profile, today=today), tenant
+    )
+    for path in written:
+        typer.echo(f"written {path}")
+    typer.echo("every page is stamped 'Draft for lawyer review'; nothing here certifies compliance")
 
 
 # ------------------------------------------------------------------ evaluation
@@ -1463,6 +1534,316 @@ def demo_advance(
     )
     typer.echo(_table(["step", "outcome", "detail"], rows) if rows else "(nothing was due)")
     typer.echo(f"sends are listed on {base}/demo/wa-sim while `concierge demo` is running")
+
+
+# ------------------------------------------------------------------ kb intake
+kb_app = typer.Typer(
+    no_args_is_help=True, help="Knowledge-base intake: pages, files, translations, coverage"
+)
+app.add_typer(kb_app, name="kb")
+questionnaire_app = typer.Typer(
+    no_args_is_help=True, help="The 85-item questionnaire: items, export, import, apply"
+)
+kb_app.add_typer(questionnaire_app, name="questionnaire")
+
+
+def _echo_proposals(proposals: list[Any]) -> None:
+    for proposal in proposals:
+        flag = " (truncated)" if proposal.truncated else ""
+        typer.echo(f"{proposal.key}/{proposal.lang}: {len(proposal.text)} characters{flag}")
+
+
+@kb_app.command("import-url")
+def kb_import_url(
+    url: str,
+    tenant: str = typer.Option(..., "--tenant"),
+    lang: str = typer.Option(
+        "", "--lang", help="language of the pages (default: the tenant's default language)"
+    ),
+    max_pages: int = typer.Option(
+        5, "--max-pages", min=1, max=5, help="pages to fetch, same site only"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="print the proposals without writing drafts"
+    ),
+) -> None:
+    """Propose draft entries from the hotel's public pages (SSRF guard, five pages of 1 MB)."""
+    from concierge.kb.intake import MAX_PAGE_BYTES, import_url, store_proposals
+    from concierge.security.ssrf import SafeFetcher, SSRFError
+
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> tuple[Any, int]:
+        row = await services.tenants.require(tenant)
+        language = lang or services.tenants.profile_of(row).default_language
+        report = await import_url(
+            SafeFetcher(max_bytes=MAX_PAGE_BYTES), url, lang=language, max_pages=max_pages
+        )
+        written = 0
+        if not dry_run:
+            written = await store_proposals(
+                services.kb, row.id, report.proposals, actor="cli:kb-import-url"
+            )
+        return report, written
+
+    try:
+        report, written = run(go())
+    except SSRFError as exc:
+        _fail(f"refused: {exc}")
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    for page in report.pages:
+        detail = f", {page.sections} sections" if page.status == "ok" else ""
+        typer.echo(f"{page.url}: {page.status}{detail}")
+    _echo_proposals(report.proposals)
+    outcome = "dry run: nothing written" if dry_run else f"{written} drafts written"
+    typer.echo(f"{len(report.proposals)} proposals; {outcome}")
+    if not any(page.status == "ok" for page in report.pages):
+        raise typer.Exit(code=1)
+
+
+@kb_app.command("import-file")
+def kb_import_file(
+    path: Path,
+    tenant: str = typer.Option(..., "--tenant"),
+    lang: str = typer.Option("", "--lang", help="language of the text (default: tenant default)"),
+    key: str = typer.Option("", "--key", help="store the whole file as one draft under this key"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Draft entries from a text, Markdown or PDF file; the text is data, never instructions."""
+    from concierge.kb.intake import import_file, store_proposals
+
+    if not path.is_file():
+        _fail(f"{path} is not a file")
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> tuple[list[Any], int]:
+        row = await services.tenants.require(tenant)
+        language = lang or services.tenants.profile_of(row).default_language
+        proposals = import_file(path, lang=language, key=key or None)
+        written = 0
+        if not dry_run:
+            written = await store_proposals(
+                services.kb, row.id, proposals, actor="cli:kb-import-file"
+            )
+        return proposals, written
+
+    try:
+        proposals, written = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    _echo_proposals(proposals)
+    outcome = "dry run: nothing written" if dry_run else f"{written} drafts written"
+    typer.echo(f"{len(proposals)} proposals; {outcome}")
+
+
+@kb_app.command("translate")
+def kb_translate(
+    tenant: str = typer.Option(..., "--tenant"),
+    to: str = typer.Option(..., "--to", help="target languages, comma-separated"),
+    source_lang: str = typer.Option("", "--from", help="source language (default: tenant default)"),
+    key: str = typer.Option("", "--key", help="only this key or block"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="list the entries; no model call"),
+) -> None:
+    """Machine-translation drafts (draft_mt) of the approved entries through the model."""
+    from concierge.kb.intake import LANGUAGE_NAMES, translate_entries
+    from concierge.runtime import build_llm
+
+    targets = [t.strip() for t in to.split(",") if t.strip()]
+    if not targets or any(t not in LANGUAGE_NAMES for t in targets):
+        _fail("--to expects languages among " + ", ".join(LANGUAGE_NAMES))
+    ctx = _context()
+    llm = None if dry_run else build_llm(ctx.settings)
+    if llm is None and not dry_run:
+        run(ctx.db.dispose())
+        _fail("no language model configured: set GC_LLM_PROVIDER=anthropic and ANTHROPIC_API_KEY")
+    services = _services(ctx)
+    model = ctx.settings.gc_llm_model_cheap or ctx.settings.gc_llm_model_primary
+
+    async def go() -> tuple[list[Any], Any]:
+        row = await services.tenants.require(tenant)
+        profile = services.tenants.profile_of(row)
+        disabled = [t for t in targets if t not in profile.languages]
+        if disabled:
+            raise ValueError(f"language {disabled[0]} is not enabled for {tenant}")
+        source = source_lang or profile.default_language
+        seen: set[str] = set()
+        entries = []
+        for entry in await services.kb.entries(row.id, status="approved", lang=source):
+            if entry.key in seen or (
+                key and entry.key != key and not entry.key.startswith(key + ".")
+            ):
+                continue
+            seen.add(entry.key)
+            entries.append(entry)
+        if llm is None:
+            return entries, None
+        report = await translate_entries(llm, model, entries, targets)
+        written = 0
+        if report.rows:
+            written = await services.kb.bulk_upsert(row.id, report.rows, actor="cli:kb-translate")
+        return entries, (report, written)
+
+    try:
+        entries, result = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    if result is None:
+        for entry in entries:
+            typer.echo(f"{entry.key}/{entry.lang} -> {', '.join(targets)}")
+        typer.echo(f"dry run: {len(entries)} entries x {len(targets)} languages, nothing sent")
+        return
+    report, written = result
+    for failure in report.failures:
+        typer.echo(f"failed: {failure}")
+    typer.echo(
+        f"{written} draft_mt rows written from {len(entries)} entries; approve them in the admin"
+    )
+    if report.failures:
+        raise typer.Exit(code=1)
+
+
+@kb_app.command("coverage")
+def kb_coverage(tenant: str = typer.Option(..., "--tenant")) -> None:
+    """Coverage of the go-live keys per language; exit 1 while a key lacks approval."""
+    from concierge.kb.intake import coverage_rows
+
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> tuple[list[str], dict[str, dict[str, str]]]:
+        row = await services.tenants.require(tenant)
+        languages = [str(code) for code in services.tenants.profile_of(row).languages]
+        return languages, await services.kb.coverage(row.id, languages)
+
+    try:
+        languages, coverage = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    rows, complete = coverage_rows(coverage, languages)
+    typer.echo(_table(["key", *languages], rows))
+    typer.echo(f"{complete} of {len(rows)} required keys approved in every language")
+    if complete < len(rows):
+        raise typer.Exit(code=1)
+
+
+@questionnaire_app.command("items")
+def questionnaire_items(lang: str = typer.Option("en", "--lang", help="de or en")) -> None:
+    """The 85 items with kind, target and required flag."""
+    from concierge.kb.questionnaire import ITEMS
+
+    rows = [
+        [
+            item.key,
+            item.kind,
+            item.target or f"tenant.yaml {item.field}",
+            "yes" if item.required else "",
+            item.label(lang),
+        ]
+        for item in ITEMS
+    ]
+    typer.echo(_table(["key", "kind", "target", "required", "label"], rows))
+
+
+@questionnaire_app.command("export")
+def questionnaire_export(
+    tenant: str = typer.Option(..., "--tenant"),
+    out: Path | None = typer.Option(None, "--out", help="write the YAML here (default: print)"),
+) -> None:
+    """The stored answers as questionnaire_answers.yaml."""
+    from concierge.kb.questionnaire import dump_answers
+
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> tuple[str, int]:
+        row = await services.tenants.require(tenant)
+        answers = await services.questionnaire.answers(row.id)
+        return dump_answers(row.slug, answers), len(answers)
+
+    try:
+        text, count = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    if out is None:
+        typer.echo(text)
+        return
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    typer.echo(f"wrote {out} ({count} answers)")
+
+
+@questionnaire_app.command("import")
+def questionnaire_import(
+    path: Path,
+    tenant: str = typer.Option(..., "--tenant"),
+    replace: bool = typer.Option(False, "--replace", help="remove stored answers not in the file"),
+) -> None:
+    """Store answers from a YAML file; errors name the item."""
+    from concierge.kb.questionnaire import load_answers, missing_required
+
+    answers, errors = load_answers(path)
+    if errors:
+        for error in errors:
+            typer.echo(f"error: {path.name}: {error}")
+        raise typer.Exit(code=1)
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> tuple[int, int]:
+        row = await services.tenants.require(tenant)
+        saved = await services.questionnaire.save(
+            row.id, answers, actor="cli:questionnaire-import", replace=replace
+        )
+        stored = await services.questionnaire.answers(row.id)
+        return saved, len(missing_required(stored))
+
+    try:
+        saved, open_items = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    typer.echo(f"{saved} answers stored; {open_items} required items still open")
+
+
+@questionnaire_app.command("apply")
+def questionnaire_apply(
+    tenant: str = typer.Option(..., "--tenant"),
+    lang: str = typer.Option(
+        "", "--lang", help="language of the answers (default: tenant default)"
+    ),
+) -> None:
+    """Write one draft KB entry per answered target key."""
+    ctx = _context()
+    services = _services(ctx)
+
+    async def go() -> int:
+        row = await services.tenants.require(tenant)
+        language = lang or services.tenants.profile_of(row).default_language
+        return await services.questionnaire.apply(
+            row.id, services.kb, lang=language, actor="cli:questionnaire-apply"
+        )
+
+    try:
+        count = run(go())
+    except Exception as exc:
+        _fail(str(exc))
+    finally:
+        run(ctx.db.dispose())
+    typer.echo(f"{count} draft entries written; approve them in the admin (Knowledge base)")
 
 
 def main() -> None:

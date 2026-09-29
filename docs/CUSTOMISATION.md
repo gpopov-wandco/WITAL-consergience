@@ -18,11 +18,27 @@ with open questions (`needs_input`).
 
 ## The questionnaire
 
-Eighty-five items in groups A to I (business and contacts, channels, PMS and
-availability, times and arrival, policies and money, facilities, guest information,
-handoff and staff, brand and legal). The hotel answers them in the admin
-(Knowledge base, questionnaire) or as `questionnaire_answers.yaml`; each answer lands
-as a draft KB entry that the owner approves.
+Eighty-five items in groups A to I: A business and contacts (10), B channels (8),
+C PMS and availability (8), D times and arrival (10), E policies and money (12),
+F facilities (14), G guest information (8), H handoff and staff (7), I brand, legal
+and consent (8). Every item has a key (`a_hotel_name`, `f_breakfast_price`), a kind
+(text, phone, e-mail, URL, time, yes/no, choice, number, amount, list), the
+knowledge-base key it feeds or the profile field it informs, a required flag and
+German and English labels; `concierge kb questionnaire items --lang de` prints the
+list. The hotel answers in the admin (Questionnaire) or in
+`questionnaire_answers.yaml` inside the pack; amounts are written as `16.00`, lists
+one entry per line, phone numbers in international form. Answers are validated with
+field paths (`answers.a_phone: expected an international number`), stored per tenant,
+exported and imported with the pack, and turned into one draft knowledge-base entry
+per target key (`concierge kb questionnaire apply --tenant X` or the button in the
+admin). Nothing reaches a guest before the owner approves the draft. Credentials never
+belong in an answer; the PMS item asks for the property id only.
+
+```
+concierge kb questionnaire export --tenant hotel-beispiel --out answers.yaml
+concierge kb questionnaire import answers.yaml --tenant hotel-beispiel
+concierge kb questionnaire apply --tenant hotel-beispiel
+```
 
 ## Knowledge base
 
@@ -36,9 +52,26 @@ and trigger a reminder; machine translations stay `draft_mt` and fall back to En
 with a note unless the tenant allows them. The go-live keys are listed by
 `concierge doctor` (`kb.coverage`).
 
-Imports: `concierge kb import-url <url>` proposes drafts from public pages; text,
-Markdown and PDF import; machine-translation drafts. Everything imported is untrusted
-data and lands as a draft.
+### Intake
+
+`concierge kb import-url <url> --tenant X` fetches the page and the same-site pages it
+links to (five pages of one megabyte at most) through the SSRF guard, splits them into
+sections, classifies each section by the words in its heading and first lines
+(`kb/intake_keywords.yaml`: parking, breakfast, check-in, cancellation and so on) and
+writes one draft per block with the source `url:<host>`; unclassified text is dropped
+and reported. `concierge kb import-file <path> --tenant X` does the same for text,
+Markdown and PDF files (`pypdf`, first 50 pages); `--key parking` stores the whole
+file under one key. `--dry-run` prints the proposals without writing. Imported text is
+untrusted data: it is classified, never interpreted, kept verbatim for the owner to
+edit, and stays a draft that no prompt and no guest sees.
+
+`concierge kb translate --tenant X --to ru,uk` sends the approved entries of the
+default language to the configured model with a fixed translation instruction and
+stores the replies as `draft_mt` (source `mt:<model>`); without a model the command
+stops with the variables to set. Machine translations fall back to English until the
+owner approves them (or the profile allows `machine_translation_allowed`).
+`concierge kb coverage --tenant X` prints the go-live keys per language (approved,
+pending, draft, missing) and exits with 1 while a key lacks approval.
 
 ## Languages and tone
 
