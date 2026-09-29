@@ -1,0 +1,43 @@
+scenario: e12_group_booking
+group: appendix_e
+feature: F11
+description: A group from five rooms becomes a lead for staff; no quote in chat.
+turns:
+- guest:
+    de: Wir brauchen 6 Zimmer für 3 Nächte im November für unsere Firma. Was kostet das?
+    en: We need 6 rooms for 3 nights in November for our company. What would that cost?
+    ru: Нам нужно 6 номеров на 3 ночи в ноябре для нашей компании. Сколько это будет стоить?
+    uk: Нам потрібно 6 номерів на 3 ночі в листопаді для нашої компанії. Скільки це коштуватиме?
+    tr: Şirketimiz için kasımda 3 gece 6 odaya ihtiyacımız var. Ne kadar tutar?
+    it: Ci servono 6 camere per 3 notti a novembre per la nostra azienda. Quanto costerebbe?
+  model:
+  - tools:
+    - name: create_request
+      args:
+        kind: group_inquiry
+        details: 6 rooms, 3 nights in November, company group
+  - reply:
+      intent: H:group
+      fact_refs: []
+      text:
+        de: Für Gruppenanfragen erstellt die Rezeption ein individuelles Angebot. Ich habe Ihre Anfrage für 6 Zimmer und 3 Nächte im November weitergegeben; das Team meldet sich bei Ihnen.
+        en: For group requests the reception prepares an individual offer. I have passed on your request for 6 rooms and 3 nights in November; the team will get back to you.
+        ru: Для групповых запросов ресепшен готовит индивидуальное предложение. Я передал ваш запрос на 6 номеров и 3 ночи в ноябре; команда свяжется с вами.
+        uk: Для групових запитів рецепція готує індивідуальну пропозицію. Я передав ваш запит на 6 номерів і 3 ночі в листопаді; команда зв'яжеться з вами.
+        tr: Grup talepleri için resepsiyon özel bir teklif hazırlar. Kasım ayı için 6 oda ve 3 gecelik talebinizi ilettim; ekip sizinle iletişime geçecek.
+        it: Per le richieste di gruppo la reception prepara un'offerta individuale. Ho inoltrato la Sua richiesta per 6 camere e 3 notti a novembre; il team La contatterà.
+      handoff:
+        needed: true
+        priority: P2
+        reason: 'group lead: 6 rooms, 3 nights'
+  expect:
+    mode: model
+    tool_calls:
+    - name: create_request
+      args:
+        kind: group_inquiry
+    handoff: true
+    priority: P2
+    forbidden:
+    - EUR
+    - €

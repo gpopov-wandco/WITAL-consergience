@@ -1,0 +1,37 @@
+scenario: e06_cancellation_policy
+group: appendix_e
+feature: F11
+description: The cancellation text is quoted from the KB as written.
+turns:
+- guest:
+    de: Wie sind die Stornierungsbedingungen bei der flexiblen Rate?
+    en: What are the cancellation terms for the flexible rate?
+    ru: Каковы условия отмены при гибком тарифе?
+    uk: Які умови скасування за гнучким тарифом?
+    tr: Esnek tarifede iptal koşulları nedir?
+    it: Quali sono le condizioni di cancellazione della tariffa flessibile?
+  model:
+  - tools:
+    - name: lookup_kb
+      args:
+        key: cancellation.flex
+  - reply:
+      intent: A:cancellation
+      fact_refs:
+      - cancellation.flex
+      text:
+        de: 'Flexible Rate: Kostenlose Stornierung bis 18:00 Uhr am Tag vor der Anreise. Danach oder bei Nichtanreise wird die erste Nacht berechnet.'
+        en: 'Flexible rate: free cancellation until 18:00 on the day before arrival. Afterwards, or in case of no-show, the first night is charged.'
+        ru: 'Гибкий тариф: бесплатная отмена до 18:00 накануне дня заезда. После этого срока или при незаезде взимается стоимость первой ночи.'
+        uk: 'Гнучкий тариф: безкоштовне скасування до 18:00 напередодні дня заїзду. Після цього або в разі незаїзду стягується вартість першої ночі.'
+        tr: 'Esnek tarife: Varıştan önceki gün saat 18:00''e kadar ücretsiz iptal. Sonrasında veya gelinmemesi durumunda ilk gece ücreti alınır.'
+        it: 'Tariffa flessibile: cancellazione gratuita fino alle 18:00 del giorno precedente l''arrivo. Successivamente, o in caso di mancato arrivo, viene addebitata la prima notte.'
+  expect:
+    mode: model
+    tool_calls:
+    - name: lookup_kb
+      args:
+        key: cancellation.flex
+    handoff: false
+    required:
+    - '18:00'

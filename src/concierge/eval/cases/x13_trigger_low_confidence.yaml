@@ -1,0 +1,19 @@
+scenario: x13_trigger_low_confidence
+group: cross_cutting
+feature: F17
+description: 'Handoff trigger: a low-confidence model reply goes to staff.'
+languages:
+- en
+turns:
+- guest: Is the rooftop pool heated in winter?
+  model:
+  - reply:
+      intent: A:pool
+      fact_refs: []
+      text: I do not have reliable information about a heated pool.
+      confidence: 0.2
+  expect:
+    mode: model
+    events:
+    - handoff:P3:low_confidence
+    handoff: true

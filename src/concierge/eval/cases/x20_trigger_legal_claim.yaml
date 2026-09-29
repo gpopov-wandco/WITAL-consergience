@@ -1,0 +1,21 @@
+scenario: x20_trigger_legal_claim
+group: cross_cutting
+feature: F17
+description: 'Handoff trigger: legal claims go to staff, the assistant does not discuss them.'
+languages:
+- en
+turns:
+- guest: I slipped in the lobby and my lawyer will contact you; I will sue the hotel.
+  model:
+  - reply:
+      intent: H:legal
+      fact_refs: []
+      text: I am sorry to hear that. The management will contact you; I cannot discuss legal matters here.
+      handoff:
+        needed: true
+        priority: P2
+        reason: legal claim, injury in the lobby
+  expect:
+    mode: model
+    handoff: true
+    priority: P2

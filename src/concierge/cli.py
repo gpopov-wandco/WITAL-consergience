@@ -55,6 +55,10 @@ usage_app = typer.Typer(no_args_is_help=True, help="Metering: monthly usage expo
 app.add_typer(usage_app, name="usage")
 gdpr_app = typer.Typer(no_args_is_help=True, help="GDPR: search, export, erase, retention")
 app.add_typer(gdpr_app, name="gdpr")
+golden_app = typer.Typer(no_args_is_help=True, help="Golden evaluation with the scripted model")
+app.add_typer(golden_app, name="golden")
+eval_app = typer.Typer(no_args_is_help=True, help="Live evaluation against the real model")
+app.add_typer(eval_app, name="eval")
 
 
 def run[T](coro: Coroutine[Any, Any, T]) -> T:
@@ -927,6 +931,118 @@ async def _record_backup_failure(ctx: Any, error: str) -> None:
     from concierge.services import record_alert
 
     await record_alert(ctx, "backup_failed", "", {"kind": "backup", "code": error[:80]})
+
+
+# ------------------------------------------------------------------ evaluation
+@golden_app.command("run")
+def golden_run(
+    case: str = typer.Option("", "--case", help="substring of a case id, e.g. e01 or :ru"),
+    lang: str = typer.Option("", "--lang", help="one language code"),
+    as_json: bool = typer.Option(False, "--json", help="machine-readable report"),
+) -> None:
+    """Run the golden cases (Appendix E in six languages plus the cross-cutting set) offline."""
+    import json
+    import tempfile
+
+    from concierge.eval.golden import load_cases, run_cases, summary
+
+    cases = [
+        c for c in load_cases() if (not case or case in c.id) and (not lang or c.language == lang)
+    ]
+    if not cases:
+        _fail("no golden case matches")
+    with tempfile.TemporaryDirectory(prefix="gc-golden-") as tmp:
+        reports = run(run_cases(cases, Path(tmp)))
+    totals = summary(reports)
+    if as_json:
+        typer.echo(
+            json.dumps({"summary": totals, "cases": [r.to_dict() for r in reports]}, indent=2)
+        )
+    else:
+        rows = [
+            [
+                r.case_id,
+                r.feature,
+                "pass" if r.ok else "FAIL",
+                f"{r.seconds:.1f}s",
+                "; ".join(r.problems)[:100],
+            ]
+            for r in reports
+        ]
+        typer.echo(_table(["case", "feature", "result", "time", "detail"], rows))
+        for group, counts in sorted(totals["groups"].items()):
+            typer.echo(f"{group}: {counts['passed']}/{counts['total']} passed")
+        typer.echo(f"total: {totals['passed']}/{totals['total']} passed")
+    if totals["failed"]:
+        raise typer.Exit(code=1)
+
+
+@eval_app.command("live")
+def eval_live(
+    case: str = typer.Option("", "--case", help="substring of a case id"),
+    repeats: int = typer.Option(3, "--repeats", min=1, max=10),
+    budget: float | None = typer.Option(
+        None, "--budget", help="USD cap; default GC_EVAL_BUDGET_USD"
+    ),
+    judge: bool = typer.Option(False, "--judge", help="ask an advisory model judge per reply"),
+    as_json: bool = typer.Option(False, "--json"),
+) -> None:
+    """Golden scenarios against the real model (needs ANTHROPIC_API_KEY); never a release gate."""
+    import json
+    import tempfile
+
+    from concierge.eval.golden import load_cases
+    from concierge.eval.live import LiveEvalError, require_key, run_live
+    from concierge.settings import get_settings
+
+    settings = get_settings()
+    try:
+        require_key(settings)
+    except LiveEvalError as exc:
+        _fail(str(exc), code=2)
+    cases = [c for c in load_cases() if not case or case in c.id]
+    if not cases:
+        _fail("no golden case matches")
+    with tempfile.TemporaryDirectory(prefix="gc-live-") as tmp:
+        try:
+            report = run(
+                run_live(
+                    settings,
+                    cases=cases,
+                    work_dir=Path(tmp),
+                    repeats=repeats,
+                    budget_usd=budget,
+                    judge=judge,
+                )
+            )
+        except LiveEvalError as exc:
+            _fail(str(exc), code=2)
+    if as_json:
+        typer.echo(json.dumps(report.to_dict(), indent=2))
+    else:
+        rows = [
+            [
+                r.case_id,
+                r.effort,
+                str(r.repeat),
+                "pass" if r.ok else "FAIL",
+                f"{r.cost_usd:.4f}",
+                "; ".join(r.problems)[:80],
+            ]
+            for r in report.runs
+        ]
+        typer.echo(_table(["case", "effort", "run", "result", "usd", "detail"], rows))
+        for key, values in report.percentiles().items():
+            typer.echo(f"{key}: median {values['median_ms']} ms, p95 {values['p95_ms']} ms")
+        typer.echo(
+            f"spent {report.total_usd:.4f} USD of {report.budget_usd} USD"
+            + (" (stopped by budget)" if report.stopped_by_budget else "")
+        )
+        typer.echo(
+            f"cache read on repeat: {report.cache_read_ok}; three-turn history: {report.history_ok}"
+        )
+    if not report.ok:
+        raise typer.Exit(code=1)
 
 
 # ---------------------------------------------------------------------- voice

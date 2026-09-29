@@ -1,0 +1,37 @@
+scenario: e04_checkin_time
+group: appendix_e
+feature: F11
+description: Check-in time from the KB.
+turns:
+- guest:
+    de: Ab wann ist der Check-in möglich?
+    en: From what time is check-in possible?
+    ru: С какого времени возможен заезд?
+    uk: З якої години можливий заїзд?
+    tr: Giriş saat kaçtan itibaren mümkün?
+    it: Da che ora è possibile il check-in?
+  model:
+  - tools:
+    - name: lookup_kb
+      args:
+        key: checkin
+  - reply:
+      intent: A:checkin
+      fact_refs:
+      - checkin
+      text:
+        de: Der Check-in ist ab 15:00 Uhr möglich, an der Rezeption bis 22:00 Uhr.
+        en: Check-in is possible from 15:00, at the reception until 22:00.
+        ru: Заезд возможен с 15:00, на ресепшен до 22:00.
+        uk: Заїзд можливий з 15:00, на рецепції до 22:00.
+        tr: Giriş 15:00'ten itibaren, resepsiyonda 22:00'ye kadar yapılabilir.
+        it: Il check-in è possibile dalle 15:00, alla reception fino alle 22:00.
+  expect:
+    mode: model
+    tool_calls:
+    - name: lookup_kb
+      args:
+        key: checkin
+    handoff: false
+    required:
+    - '15:00'

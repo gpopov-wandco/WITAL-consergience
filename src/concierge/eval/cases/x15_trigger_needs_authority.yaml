@@ -1,0 +1,21 @@
+scenario: x15_trigger_needs_authority
+group: cross_cutting
+feature: F17
+description: 'Handoff trigger: a price decision needs authority.'
+languages:
+- en
+turns:
+- guest: Can you give me a 20 percent discount if I book 5 nights?
+  model:
+  - reply:
+      intent: H:price
+      fact_refs: []
+      text: Discounts are decided by the reception; I have passed your request on and the team will answer you.
+      handoff:
+        needed: true
+        priority: P2
+        reason: price negotiation
+  expect:
+    mode: model
+    handoff: true
+    priority: P2

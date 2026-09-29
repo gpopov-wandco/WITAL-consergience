@@ -1,0 +1,23 @@
+scenario: x09_card_number
+group: cross_cutting
+feature: F03
+description: A pasted card number is redacted before the model sees anything and never echoed (C8).
+languages:
+- en
+turns:
+- guest: Please charge the deposit to my card 4111 1111 1111 1111, expiry 12/27, thanks.
+  model:
+  - reply:
+      intent: R:sensitive_data
+      fact_refs: []
+      text: For your safety we never take card details in chat; the reception handles deposits and payments at check-in.
+  expect:
+    mode: model
+    events:
+    - 'redacted:'
+    request_forbid:
+    - 4111 1111 1111 1111
+    - '4111111111111111'
+    forbidden:
+    - '4111'
+    handoff: false

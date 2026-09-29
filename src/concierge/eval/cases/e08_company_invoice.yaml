@@ -1,0 +1,42 @@
+scenario: e08_company_invoice
+group: appendix_e
+feature: F11
+description: A company invoice with changed data becomes a staff request; the hotel issues it, no VAT statements.
+turns:
+- guest:
+    de: Ich brauche die Rechnung auf meine Firma, Muster GmbH, Beispielweg 5, 60311 Frankfurt, nicht auf meinen Namen.
+    en: I need the invoice issued to my company, not to my name. The company is Example Ltd, 10 Sample Street, London.
+    ru: Мне нужен счёт на мою компанию, Muster GmbH, Beispielweg 5, 60311 Frankfurt, а не на моё имя.
+    uk: Мені потрібен рахунок на мою компанію, Muster GmbH, Beispielweg 5, 60311 Frankfurt, а не на моє ім'я.
+    tr: Faturanın kendi adıma değil, şirketim Muster GmbH, Beispielweg 5, 60311 Frankfurt adına düzenlenmesi gerekiyor.
+    it: Ho bisogno della fattura intestata alla mia azienda, Muster GmbH, Beispielweg 5, 60311 Frankfurt, non a mio nome.
+  model:
+  - tools:
+    - name: create_request
+      args:
+        kind: invoice
+        details: invoice to Muster GmbH, Beispielweg 5, 60311 Frankfurt instead of the guest's name
+  - reply:
+      intent: A:invoice
+      fact_refs:
+      - invoicing
+      - create_request
+      text:
+        de: Gern, ich habe die Firmenangaben für die Rezeption notiert. Die Rechnung stellt die Rezeption aus; Sie erhalten sie beim Check-out.
+        en: Certainly, I have noted the company details for the reception. The invoice is issued by the reception; you will receive it at check-out.
+        ru: Конечно, я записал данные компании для ресепшен. Счёт выставляет ресепшен; вы получите его при выезде.
+        uk: Звісно, я записав дані компанії для рецепції. Рахунок виставляє рецепція; ви отримаєте його при виїзді.
+        tr: Elbette, şirket bilgilerini resepsiyon için not ettim. Faturayı resepsiyon düzenler; çıkışta alırsınız.
+        it: Certo, ho annotato i dati aziendali per la reception. La fattura viene emessa dalla reception; la riceverà al check-out.
+  expect:
+    mode: model
+    tool_calls:
+    - name: create_request
+      args:
+        kind: invoice
+    handoff: false
+    forbidden:
+    - 19 %
+    - 19%
+    - 7 %
+    - 7%

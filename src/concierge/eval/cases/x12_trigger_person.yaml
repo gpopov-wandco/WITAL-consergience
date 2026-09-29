@@ -1,0 +1,15 @@
+scenario: x12_trigger_person
+group: cross_cutting
+feature: F17
+description: 'Handoff trigger: the guest asks for a person.'
+languages:
+- en
+turns:
+- guest: I want to talk to a real person, not a bot.
+  model: []
+  expect:
+    mode: static
+    llm_calls: 0
+    events:
+    - handoff:P2:person_requested
+    handoff: true

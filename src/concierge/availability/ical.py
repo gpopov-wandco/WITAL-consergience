@@ -34,7 +34,7 @@ from concierge.availability.models import (
 from concierge.availability.port import BaseAdapter
 from concierge.clock import Clock, local_date, zone
 from concierge.log import get_logger
-from concierge.security.ssrf import SafeFetcher, SSRFError
+from concierge.security.ssrf import Fetcher, SSRFError
 
 log = get_logger(__name__)
 
@@ -59,7 +59,7 @@ class ICalAdapter(BaseAdapter):
 
     def __init__(
         self,
-        fetcher: SafeFetcher,
+        fetcher: Fetcher,
         clock: Clock,
         *,
         feeds: dict[str, str],

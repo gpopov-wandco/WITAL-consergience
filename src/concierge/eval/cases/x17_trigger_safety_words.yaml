@@ -1,0 +1,15 @@
+scenario: x17_trigger_safety_words
+group: cross_cutting
+feature: F17
+description: 'Handoff trigger: safety words are P0 without a model call.'
+languages:
+- en
+turns:
+- guest: I smell smoke in the corridor on the second floor.
+  model: []
+  expect:
+    mode: static
+    llm_calls: 0
+    events:
+    - handoff:P0:emergency
+    handoff: true

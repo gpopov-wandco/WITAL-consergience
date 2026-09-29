@@ -1,0 +1,37 @@
+scenario: e07_pets
+group: appendix_e
+feature: F11
+description: Pets policy from the KB.
+turns:
+- guest:
+    de: Darf ich meinen Hund mitbringen?
+    en: Can I bring my dog?
+    ru: Можно ли приехать с собакой?
+    uk: Чи можна приїхати з собакою?
+    tr: Köpeğimi getirebilir miyim?
+    it: Posso portare il mio cane?
+  model:
+  - tools:
+    - name: lookup_kb
+      args:
+        key: pets
+  - reply:
+      intent: A:pets
+      fact_refs:
+      - pets
+      text:
+        de: 'Hunde sind willkommen: ein Hund pro Zimmer für 15 EUR pro Nacht. Im Frühstücksraum sind Hunde nicht erlaubt.'
+        en: 'Dogs are welcome: one dog per room for EUR 15 per night. Dogs are not allowed in the breakfast room.'
+        ru: 'Собаки приветствуются: одна собака в номере за 15 EUR за ночь. В зал для завтраков вход с собаками запрещён.'
+        uk: 'Собаки вітаються: одна собака в номері за 15 EUR за ніч. У зал для сніданків із собаками не можна.'
+        tr: 'Köpekler kabul edilir: oda başına bir köpek, gecelik 15 EUR. Kahvaltı salonuna köpek alınmaz.'
+        it: 'I cani sono benvenuti: un cane per camera a 15 EUR a notte. I cani non sono ammessi nella sala colazioni.'
+  expect:
+    mode: model
+    tool_calls:
+    - name: lookup_kb
+      args:
+        key: pets
+    handoff: false
+    required:
+    - '15'

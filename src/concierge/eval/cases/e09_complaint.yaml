@@ -1,0 +1,46 @@
+scenario: e09_complaint
+group: appendix_e
+feature: F17
+description: An in-house complaint is acknowledged, asks for the room and reaches staff as P1 without promises.
+turns:
+- guest:
+    de: Die Dusche ist kaputt und das Zimmer ist dreckig!
+    en: The shower is broken and the room is dirty!
+    ru: Душ сломан, и в номере грязно!
+    uk: Душ зламано, і в номері брудно!
+    tr: Duş bozuk ve oda kirli!
+    it: La doccia è rotta e la camera è sporca!
+  model:
+  - reply:
+      intent: H:complaint
+      fact_refs: []
+      text:
+        de: Das tut mir leid. Ich habe die Rezeption sofort informiert; bitte nennen Sie mir Ihre Zimmernummer, damit das Team sich direkt kümmern kann.
+        en: I am sorry about that. I have informed the reception right away; please tell me your room number so the team can take care of it directly.
+        ru: Мне очень жаль. Я сразу сообщил на ресепшен; пожалуйста, назовите номер вашей комнаты, чтобы команда занялась этим напрямую.
+        uk: Мені дуже шкода. Я одразу повідомив рецепцію; будь ласка, назвіть номер вашої кімнати, щоб команда займалася цим напряму.
+        tr: Bunun için üzgünüm. Resepsiyonu hemen bilgilendirdim; ekibin doğrudan ilgilenebilmesi için lütfen oda numaranızı söyleyin.
+        it: Mi dispiace. Ho informato subito la reception; mi indichi il numero della Sua camera così il team può occuparsene direttamente.
+      handoff:
+        needed: true
+        priority: P1
+        reason: 'in-house complaint: broken shower, dirty room'
+  expect:
+    mode: model
+    handoff: true
+    priority: P1
+    forbidden:
+    - refund
+    - discount
+    - compensation
+    - Rückerstattung
+    - Rabatt
+    - Entschädigung
+    - возврат
+    - скидк
+    - повернення
+    - знижк
+    - iade
+    - indirim
+    - rimborso
+    - sconto

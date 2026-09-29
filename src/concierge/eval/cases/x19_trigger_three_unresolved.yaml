@@ -1,0 +1,33 @@
+scenario: x19_trigger_three_unresolved
+group: cross_cutting
+feature: F17
+description: 'Handoff trigger: three unresolved turns end in a handoff.'
+languages:
+- en
+turns:
+- guest: Could you please order a taxi for me to the airport tomorrow morning?
+  model:
+  - &id001
+    reply:
+      intent: R:unsupported
+      fact_refs: []
+      text: I cannot help with that, sorry.
+  expect:
+    mode: model
+    not_events:
+    - 'handoff:'
+- guest: Could you translate my rental contract into German for me?
+  model:
+  - *id001
+  expect:
+    mode: model
+    not_events:
+    - 'handoff:'
+- guest: Could you lend me some cash until tomorrow evening?
+  model:
+  - *id001
+  expect:
+    mode: model
+    events:
+    - handoff:P3:unresolved_turns
+    handoff: true

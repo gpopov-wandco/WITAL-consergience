@@ -1,0 +1,22 @@
+scenario: e10_emergency
+group: appendix_e
+feature: F03
+description: An emergency gets the static localised reply and P0 without any model call.
+turns:
+- guest:
+    de: Es brennt in meinem Zimmer!
+    en: There is a fire in my room!
+    ru: В моём номере пожар!
+    uk: У моєму номері пожежа!
+    tr: Odamda yangın var!
+    it: C'è un incendio nella mia camera!
+  model: []
+  expect:
+    mode: static
+    llm_calls: 0
+    handoff: true
+    priority: P0
+    events:
+    - handoff:P0:emergency
+    required:
+    - '112'

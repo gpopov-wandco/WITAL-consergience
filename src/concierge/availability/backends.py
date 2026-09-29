@@ -104,6 +104,9 @@ class ToolBackendBuilder:
                     conversation.id,
                     verified_reservation_id=found["reservation_id"],
                 )
+                await conversations.merge_meta(
+                    tenant.id, conversation.id, stay_date=str(found["arrival"])
+                )
                 await reservations.link_guest(tenant.id, found["reservation_id"], guest.id)
                 state["reservation_id"] = str(found["reservation_id"])
                 return found

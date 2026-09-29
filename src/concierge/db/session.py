@@ -42,19 +42,29 @@ class AppendOnlyError(RuntimeError):
 
 
 def make_engine(url: str, *, echo: bool = False) -> AsyncEngine:
-    engine = create_async_engine(url, echo=echo)
-    if url.startswith("sqlite"):
+    if not url.startswith("sqlite"):
+        return create_async_engine(url, echo=echo)
+    # SQLite: the pool's reset-on-return ROLLBACK is a wasted round trip to the
+    # aiosqlite thread after a committed transaction; roll back only when a
+    # transaction is still open (a session that failed without rolling back).
+    engine = create_async_engine(url, echo=echo, pool_reset_on_return=None)
 
-        @event.listens_for(engine.sync_engine, "connect")
-        def _sqlite_pragmas(dbapi_connection: Any, _record: Any) -> None:
-            cursor = dbapi_connection.cursor()
-            try:
-                cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA foreign_keys=ON")
-                cursor.execute("PRAGMA busy_timeout=5000")
-                cursor.execute("PRAGMA synchronous=NORMAL")
-            finally:
-                cursor.close()
+    @event.listens_for(engine.sync_engine, "connect")
+    def _sqlite_pragmas(dbapi_connection: Any, _record: Any) -> None:
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA busy_timeout=5000")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+        finally:
+            cursor.close()
+
+    @event.listens_for(engine.sync_engine, "reset")
+    def _sqlite_reset(dbapi_connection: Any, _record: Any, _context: Any) -> None:
+        raw = getattr(dbapi_connection, "_connection", None)
+        if getattr(raw, "in_transaction", True):
+            dbapi_connection.rollback()
 
     return engine
 

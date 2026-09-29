@@ -74,17 +74,37 @@ class JobService:
                         await session.commit()
                         return Enqueued(existing.id, created=True)
                     return Enqueued(existing.id, created=False)
-            job = Job(
+            job = self.new_row(
+                kind,
+                payload,
                 tenant_id=tenant_id,
-                kind=kind,
-                run_at=when,
-                payload=payload or {},
                 dedupe_key=dedupe_key,
+                run_at=when,
                 max_attempts=max_attempts,
             )
             session.add(job)
             await session.commit()
             return Enqueued(job.id, created=True)
+
+    def new_row(
+        self,
+        kind: str,
+        payload: dict[str, Any] | None = None,
+        *,
+        tenant_id: str | None = None,
+        dedupe_key: str | None = None,
+        run_at: datetime | None = None,
+        max_attempts: int = 5,
+    ) -> Job:
+        """A pending job row for a caller that commits it inside its own transaction."""
+        return Job(
+            tenant_id=tenant_id,
+            kind=kind,
+            run_at=run_at or self.clock.now(),
+            payload=payload or {},
+            dedupe_key=dedupe_key,
+            max_attempts=max_attempts,
+        )
 
     async def cancel(self, *, dedupe_prefix: str | None = None, job_id: str | None = None) -> int:
         """Cancel pending jobs by id or by dedupe-key prefix; returns the count."""

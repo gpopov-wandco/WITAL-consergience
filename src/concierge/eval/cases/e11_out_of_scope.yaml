@@ -1,0 +1,51 @@
+scenario: e11_out_of_scope
+group: appendix_e
+feature: F03
+description: 'Off-topic: one redirect, then the offer of a person; no handoff.'
+turns:
+- guest:
+    de: Kannst du mir ein Gedicht über Frankfurt schreiben?
+    en: Can you write me a poem about Frankfurt?
+    ru: Можешь написать мне стихотворение о Франкфурте?
+    uk: Можеш написати мені вірш про Франкфурт?
+    tr: Bana Frankfurt hakkında bir şiir yazabilir misin?
+    it: Puoi scrivermi una poesia su Francoforte?
+  model:
+  - reply:
+      intent: R:off_topic
+      fact_refs: []
+      text:
+        de: Dabei kann ich leider nicht helfen.
+        en: I cannot help with that.
+        ru: К сожалению, с этим я помочь не могу.
+        uk: На жаль, із цим я допомогти не можу.
+        tr: Maalesef bu konuda yardımcı olamam.
+        it: Purtroppo non posso aiutare con questo.
+  expect:
+    mode: model
+    handoff: false
+    not_events:
+    - 'handoff:'
+- guest:
+    de: Dann erzähl mir einen Witz.
+    en: Then tell me a joke.
+    ru: Тогда расскажи мне анекдот.
+    uk: Тоді розкажи мені анекдот.
+    tr: O zaman bana bir fıkra anlat.
+    it: Allora raccontami una barzelletta.
+  model:
+  - reply:
+      intent: R:off_topic
+      fact_refs: []
+      text:
+        de: Dabei kann ich leider nicht helfen.
+        en: I cannot help with that.
+        ru: К сожалению, с этим я помочь не могу.
+        uk: На жаль, із цим я допомогти не можу.
+        tr: Maalesef bu konuda yardımcı olamam.
+        it: Purtroppo non posso aiutare con questo.
+  expect:
+    mode: model
+    handoff: false
+    buttons:
+    - person

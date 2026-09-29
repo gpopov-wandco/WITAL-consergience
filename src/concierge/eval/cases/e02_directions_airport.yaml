@@ -1,0 +1,37 @@
+scenario: e02_directions_airport
+group: appendix_e
+feature: F11
+description: Directions from the airport come from the KB text only.
+turns:
+- guest:
+    de: Wie komme ich vom Flughafen zum Hotel?
+    en: How do I get from the airport to the hotel?
+    ru: Как добраться из аэропорта до отеля?
+    uk: Як дістатися з аеропорту до готелю?
+    tr: Havalimanından otele nasıl gelebilirim?
+    it: Come arrivo dall'aeroporto all'hotel?
+  model:
+  - tools:
+    - name: lookup_kb
+      args:
+        key: directions.airport
+  - reply:
+      intent: A:directions
+      fact_refs:
+      - directions.airport
+      text:
+        de: Vom Flughafen nehmen Sie die S-Bahn S8 oder S9 bis Hauptbahnhof, etwa 15 Minuten, dann 10 Minuten zu Fuß über die Beispielstraße. Ein Taxi braucht etwa 20 Minuten.
+        en: From the airport take the S-Bahn S8 or S9 to the main station, about 15 minutes, then walk 10 minutes along Beispielstraße. A taxi takes about 20 minutes.
+        ru: Из аэропорта поезжайте на электричке S8 или S9 до главного вокзала, около 15 минут, затем 10 минут пешком по Beispielstraße. На такси около 20 минут.
+        uk: З аеропорту їдьте електричкою S8 або S9 до головного вокзалу, близько 15 хвилин, потім 10 хвилин пішки вздовж Beispielstraße. На таксі близько 20 хвилин.
+        tr: Havalimanından S8 veya S9 banliyö treniyle ana gara gidin, yaklaşık 15 dakika, ardından Beispielstraße boyunca 10 dakika yürüyün. Taksiyle yaklaşık 20 dakika sürer.
+        it: Dall'aeroporto prenda la S-Bahn S8 o S9 fino alla stazione centrale, circa 15 minuti, poi 10 minuti a piedi lungo la Beispielstraße. In taxi circa 20 minuti.
+  expect:
+    mode: model
+    tool_calls:
+    - name: lookup_kb
+      args:
+        key: directions.airport
+    handoff: false
+    required:
+    - S8

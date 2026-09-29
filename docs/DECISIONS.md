@@ -295,3 +295,50 @@ counter; the notifier mails an open alert once, again after 24 hours while it st
 open, and runs at most every 15 minutes from the timers hook. Price tables older than
 180 days raise `price_table_stale` so the operator refreshes the rates.
 
+## D-026 Golden case format and the language margin (F35, F23)
+
+Golden cases are YAML files under `src/concierge/eval/cases/` so `concierge golden run`
+works from an installed package. Appendix E files carry six language variants of the
+guest text and the scripted reply; cross-cutting files run in one language. A case
+asserts tool names and argument subsets, the handoff flag and priority, events, the
+number of model calls, required facts and forbidden substrings, what the tool results
+contain, and that the canary never leaves the system; it never asserts wording. Every
+case runs on a fresh SQLite file with the seeded demo tenant, the scripted model and
+in-memory fakes (`ScriptedPms` for a live PMS, `StaticFetcher` for iCal feeds), so
+104 cases take about two minutes. Writing the cases showed that lingua's confidence on
+short sentences rarely reaches 0.6 for English against German, so a detection now also
+counts when it leads the runner-up by a clear margin (0.35 and 1.6 times) on texts of
+at least twelve characters; one-word messages such as "STOP" keep the previous or the
+default language.
+
+## D-027 Complaint cue, low confidence and the key-safe release (F17, F11)
+
+The guardrail complaint cue was computed but unused; it now raises a handoff to P1
+(creating one when the model answered alone), because an in-house complaint is P1 by
+F17 whatever generic reason a reply carried. A model reply below
+`limits.min_confidence` (tenant profile, default 0.5) hands off with P3. The key-safe
+code (`late_arrival.key_safe_code`, verified guests only) additionally leaves the KB
+only on the arrival day from `journeys.key_safe.at` hotel time, on the model path and
+the responder path alike; before that the tool answers with an error that tells the
+model the code is sent on the arrival day, and the journey step sends it.
+
+## D-028 Webhook acknowledgement path (10.5, F32)
+
+The 200-request burst of the load smoke ran at a median of 1.3 s at first. Three
+changes brought it to about 0.2 to 0.3 s on the build sandbox: the event row and its
+job commit in one transaction with Core inserts, writes are serialised by an in-process
+lock so SQLite's busy handler never sleeps between competing writers, and the security
+headers moved from Starlette's `BaseHTTPMiddleware` (a task group and two streams per
+request) to a pure ASGI wrapper. The SQLite pool skips the reset-on-return rollback
+after a committed transaction. The load test drives the ASGI interface directly, as a
+server does, and measures until the response starts; the 250 ms median target is met
+in most runs on the shared build machine, the 1 s p99 target in every run.
+
+## D-029 Widget polling for staff replies (F19, F22)
+
+Staff replies on the website reach the guest through `GET /w/api/updates`, polled by
+the widget every six seconds while a person handles the conversation (no push
+channel, no service worker, per the non-goals). Session and message responses carry
+the id of the last outbound message so the widget asks only for newer ones; polling
+stops when the assistant is back or the panel closes, and the per-IP limit applies.
+

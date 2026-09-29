@@ -185,6 +185,26 @@ class ToolSession:
     events: list[str] = field(default_factory=list)
     guest_text: str = ""
     """The redacted guest message of this turn (for 'how many are left' detection)."""
+    local_now: datetime | None = None
+    """Hotel-local time of the turn (arrival-day facts such as the key-safe code)."""
+    key_safe_from: time | None = None
+    """The tenant's release time for the key-safe code on the arrival day (F11)."""
+
+
+ARRIVAL_DAY_PREFIX = "late_arrival.key_safe"
+
+
+def key_safe_released(
+    stay_date: date | None, local_now: datetime | None, release: time | None
+) -> bool:
+    """The key-safe code leaves the KB only on the arrival day from the release time (F11)."""
+    return (
+        stay_date is not None
+        and local_now is not None
+        and release is not None
+        and local_now.date() == stay_date
+        and local_now.time() >= release
+    )
 
 
 @dataclass
@@ -247,6 +267,18 @@ class ToolRunner:
                     },
                     ensure_ascii=False,
                 )
+            )
+        if (
+            view.sensitivity == "verified_guest_only"
+            and view.key.startswith(ARRIVAL_DAY_PREFIX)
+            and not key_safe_released(session.stay_date, session.local_now, session.key_safe_from)
+        ):
+            when = session.key_safe_from.strftime("%H:%M") if session.key_safe_from else ""
+            return ToolOutcome(
+                _error(
+                    f"the key-safe code is released on the arrival day from {when} hotel time and sent to the guest then; say so and do not promise it earlier"
+                ),
+                True,
             )
         return ToolOutcome(
             json.dumps(

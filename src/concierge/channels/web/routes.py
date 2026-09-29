@@ -112,6 +112,7 @@ def build_router(widget: WidgetService) -> APIRouter:
             {
                 "session": created.token,
                 "lang": created.lang,
+                "last_id": created.last_id,
                 "messages": [
                     {
                         "text": created.disclosure,
@@ -122,6 +123,30 @@ def build_router(widget: WidgetService) -> APIRouter:
                 ],
             },
             headers=cors,
+        )
+
+    @api.get("/w/api/updates")
+    async def updates(request: Request) -> Response:
+        """Polled by the widget while staff handle the conversation (no push channel)."""
+        try:
+            tenant, profile, cors = await _guarded(request, None)
+            token = request.query_params.get("session") or request.headers.get("x-gc-session")
+            found = await widget.updates(
+                tenant,
+                profile,
+                token=str(token or ""),
+                after=str(request.query_params.get("after", "")),
+            )
+        except WidgetError as exc:
+            return JSONResponse({"error": exc.code, "message": exc.message}, status_code=exc.status)
+        return JSONResponse(
+            {
+                "messages": found.messages,
+                "status": found.status,
+                "handoff": found.handoff,
+                "last_id": found.last_id,
+            },
+            headers={**cors, "Cache-Control": "no-store"},
         )
 
     @api.post("/w/api/message")
@@ -146,6 +171,7 @@ def build_router(widget: WidgetService) -> APIRouter:
                 "lang": reply.lang,
                 "handoff": reply.handoff,
                 "mode": reply.mode,
+                "last_id": reply.last_id,
             },
             headers=cors,
         )

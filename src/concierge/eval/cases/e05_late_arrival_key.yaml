@@ -1,0 +1,132 @@
+scenario: e05_late_arrival_key
+group: appendix_e
+feature: F11
+description: 'Late arrival: the ETA needs a verified booking, the key-safe code stays withheld before the arrival day.'
+turns:
+- guest:
+    de: Wir kommen erst gegen 23:30 an. Wie bekommen wir den Schlüssel?
+    en: We will only arrive around 23:30. How do we get the key?
+    ru: Мы приедем только около 23:30. Как нам получить ключ?
+    uk: Ми приїдемо лише близько 23:30. Як нам отримати ключ?
+    tr: Ancak 23:30 civarında varacağız. Anahtarı nasıl alırız?
+    it: Arriveremo solo verso le 23:30. Come ritiriamo la chiave?
+  model:
+  - tools:
+    - name: lookup_kb
+      args:
+        key: late_arrival
+    - name: set_eta
+      args:
+        time: '23:30'
+  - reply:
+      intent: Q:verify
+      fact_refs:
+      - late_arrival
+      text:
+        de: Bei Ankunft nach 22:00 Uhr liegt Ihre Schlüsselkarte im Schlüsselsafe neben dem Eingang; den Code erhalten Sie am Anreisetag. Damit ich Ihre Ankunftszeit hinterlegen kann, nennen Sie mir bitte
+          Buchungsnummer, Nachname und Anreisedatum.
+        en: If you arrive after 22:00, your key card is in the key safe next to the entrance; you receive the code on the arrival day. To store your arrival time, please give me your booking reference,
+          surname and arrival date.
+        ru: При прибытии после 22:00 ваша ключ-карта находится в сейфе для ключей рядом со входом; код вы получите в день заезда. Чтобы записать время прибытия, назовите, пожалуйста, номер брони, фамилию
+          и дату заезда.
+        uk: Якщо ви прибуваєте після 22:00, ваша ключ-картка знаходиться в сейфі для ключів біля входу; код ви отримаєте в день заїзду. Щоб записати час прибуття, назвіть, будь ласка, номер бронювання,
+          прізвище та дату заїзду.
+        tr: 22:00'den sonra varırsanız anahtar kartınız girişin yanındaki anahtar kasasındadır; kodu varış gününde alırsınız. Varış saatinizi kaydedebilmem için lütfen rezervasyon numaranızı, soyadınızı
+          ve varış tarihinizi yazın.
+        it: In caso di arrivo dopo le 22:00 la Sua tessera chiave si trova nella cassetta delle chiavi accanto all'ingresso; riceverà il codice il giorno di arrivo. Per registrare l'orario di arrivo, mi
+          indichi numero di prenotazione, cognome e data di arrivo.
+  expect:
+    mode: model
+    tool_calls:
+    - name: lookup_kb
+      args:
+        key: late_arrival
+    - name: set_eta
+      args:
+        time: '23:30'
+    tool_errors: 1
+    handoff: false
+    forbidden:
+    - '4711'
+    tool_results_forbid:
+    - '4711'
+- guest:
+    de: 'Meine Buchung: RES-1001, Nachname Guest, Anreise 2026-10-02.'
+    en: 'My booking: RES-1001, surname Guest, arrival 2026-10-02.'
+    ru: 'Моя бронь: RES-1001, фамилия Guest, заезд 2026-10-02.'
+    uk: 'Моє бронювання: RES-1001, прізвище Guest, заїзд 2026-10-02.'
+    tr: 'Rezervasyonum: RES-1001, soyadı Guest, varış 2026-10-02.'
+    it: 'La mia prenotazione: RES-1001, cognome Guest, arrivo 2026-10-02.'
+  model:
+  - tools:
+    - name: verify_reservation
+      args:
+        reference: RES-1001
+        surname: Guest
+        arrival: '2026-10-02'
+  - tools:
+    - name: set_eta
+      args:
+        time: '23:30'
+  - reply:
+      intent: A:eta
+      fact_refs:
+      - verify_reservation
+      - set_eta
+      text:
+        de: Danke, Ihre Buchung RES-1001 ist geprüft und ich habe Ihre Ankunft um 23:30 Uhr hinterlegt. Den Code für den Schlüsselsafe erhalten Sie am Anreisetag.
+        en: Thank you, your booking RES-1001 is verified and I have stored your arrival at 23:30. You receive the key-safe code on the arrival day.
+        ru: Спасибо, ваша бронь RES-1001 проверена, и я записал ваше прибытие в 23:30. Код сейфа для ключей вы получите в день заезда.
+        uk: Дякую, ваше бронювання RES-1001 перевірено, і я записав ваше прибуття о 23:30. Код сейфа для ключів ви отримаєте в день заїзду.
+        tr: Teşekkürler, RES-1001 numaralı rezervasyonunuz doğrulandı ve 23:30 varışınızı kaydettim. Anahtar kasasının kodunu varış gününde alırsınız.
+        it: Grazie, la Sua prenotazione RES-1001 è verificata e ho registrato il Suo arrivo alle 23:30. Riceverà il codice della cassetta delle chiavi il giorno di arrivo.
+  expect:
+    mode: model
+    tool_calls:
+    - name: verify_reservation
+      args:
+        reference: RES-1001
+    - name: set_eta
+      args:
+        time: '23:30'
+    tool_errors: 0
+    events:
+    - verified
+    handoff: false
+    forbidden:
+    - '4711'
+- guest:
+    de: Können Sie mir den Code für den Schlüsselsafe jetzt schon geben?
+    en: Can you give me the key-safe code now?
+    ru: Можете дать мне код сейфа для ключей уже сейчас?
+    uk: Можете дати мені код сейфа для ключів вже зараз?
+    tr: Anahtar kasasının kodunu şimdi verebilir misiniz?
+    it: Può darmi già adesso il codice della cassetta delle chiavi?
+  model:
+  - tools:
+    - name: lookup_kb
+      args:
+        key: late_arrival.key_safe_code
+  - reply:
+      intent: A:key_safe
+      fact_refs:
+      - late_arrival
+      text:
+        de: Den Code für den Schlüsselsafe senden wir Ihnen am Anreisetag; vorher kann ich ihn nicht weitergeben.
+        en: We send you the key-safe code on the arrival day; I cannot pass it on before that.
+        ru: Код сейфа для ключей мы отправим вам в день заезда; раньше я не могу его передать.
+        uk: Код сейфа для ключів ми надішлемо вам у день заїзду; раніше я не можу його передати.
+        tr: Anahtar kasasının kodunu varış gününde göndeririz; daha önce paylaşamam.
+        it: Le invieremo il codice della cassetta delle chiavi il giorno di arrivo; prima non posso comunicarlo.
+  expect:
+    mode: model
+    tool_calls:
+    - name: lookup_kb
+      args:
+        key: late_arrival.key_safe_code
+    tool_errors: 1
+    forbidden:
+    - '4711'
+    tool_results_forbid:
+    - '4711'
+    handoff: false

@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -23,6 +23,7 @@ import yaml
 
 from concierge.agent.schemas import AgentReply, Button, HandoffDecision
 from concierge.agent.texts import GuestTexts
+from concierge.agent.tools import ARRIVAL_DAY_PREFIX, key_safe_released
 from concierge.clock import format_date
 from concierge.kb.store import KbService, KbView
 
@@ -137,6 +138,8 @@ class ResponderContext:
     verified: bool
     stay_date: date | None
     hotel_phone: str
+    local_now: datetime | None = None
+    key_safe_from: time | None = None
     handoff_window: str | None = None
     previous_slots: Slots | None = None
     availability_summary: Any = None
@@ -191,8 +194,15 @@ class Responder:
             view = await self.kb.lookup(
                 ctx.tenant_id, key, lang, verified=ctx.verified, stay_date=ctx.stay_date
             )
-            if view is not None:
-                views.append(view)
+            if view is None:
+                continue
+            if (
+                view.sensitivity == "verified_guest_only"
+                and view.key.startswith(ARRIVAL_DAY_PREFIX)
+                and not key_safe_released(ctx.stay_date, ctx.local_now, ctx.key_safe_from)
+            ):
+                continue  # the journey sends the code on the arrival day (F11)
+            views.append(view)
         if not views:
             return (
                 self._handoff_reply(

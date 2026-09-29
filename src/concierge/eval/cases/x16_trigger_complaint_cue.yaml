@@ -1,0 +1,19 @@
+scenario: x16_trigger_complaint_cue
+group: cross_cutting
+feature: F17
+description: 'Handoff trigger: complaint cues reach staff even when the model would answer alone.'
+languages:
+- en
+turns:
+- guest: The room is filthy and the shower is broken.
+  model:
+  - reply:
+      intent: A:housekeeping
+      fact_refs: []
+      text: I am sorry, I have informed housekeeping right away.
+  expect:
+    mode: model
+    events:
+    - handoff:P1:complaint_cue
+    handoff: true
+    priority: P1

@@ -1,0 +1,28 @@
+scenario: x14_trigger_kb_miss
+group: cross_cutting
+feature: F17
+description: 'Handoff trigger: no approved fact answers the question.'
+languages:
+- en
+turns:
+- guest: Do you have a sauna or a spa?
+  model:
+  - tools:
+    - name: search_kb
+      args:
+        query: sauna spa wellness
+  - reply:
+      intent: H:kb_miss
+      fact_refs: []
+      text: I could not find information about a sauna or spa; I have asked the reception to answer you.
+      handoff:
+        needed: true
+        priority: P3
+        reason: no KB entry about sauna or spa
+  expect:
+    mode: model
+    tool_calls:
+    - name: search_kb
+      args: {}
+    handoff: true
+    priority: P3

@@ -1,0 +1,55 @@
+scenario: e13_availability_live_pms
+group: appendix_e
+feature: F07
+description: 'Availability from a live PMS: the reply cites only the quote and names the source; nothing is binding.'
+setup:
+  chain:
+  - beds24
+  - manual
+  - none
+  pms:
+    source: beds24
+    rooms:
+    - code: dz
+      per_night_cents: 13500
+turns:
+- guest:
+    de: Haben Sie vom 6. bis 8. Oktober ein Doppelzimmer für 2 Personen?
+    en: Do you have a double room from 6 to 8 October for 2 people?
+    ru: Есть ли у вас двухместный номер с 6 по 8 октября на 2 человек?
+    uk: Чи є у вас двомісний номер з 6 по 8 жовтня на 2 особи?
+    tr: 6-8 Ekim arasında 2 kişi için çift kişilik odanız var mı?
+    it: Avete una camera doppia dal 6 all'8 ottobre per 2 persone?
+  model:
+  - tools:
+    - name: check_availability
+      args:
+        arrival: '2026-10-06'
+        departure: '2026-10-08'
+        adults: 2
+        children: 0
+        room_type: ''
+  - reply:
+      intent: P:availability
+      fact_refs:
+      - check_availability
+      text:
+        de: Das Buchungssystem zeigt aktuell ein Doppelzimmer für 135 EUR pro Nacht, 270 EUR für 2 Nächte. Der Preis ist unverbindlich; buchen können Sie über den Buchungslink oder die Rezeption.
+        en: The booking system currently shows a double room at EUR 135 per night, EUR 270 for 2 nights. The price is not binding; you can book via the booking link or the reception.
+        ru: Система бронирования сейчас показывает двухместный номер за 135 EUR за ночь, 270 EUR за 2 ночи. Цена не является обязательной; оформить можно по ссылке для бронирования или через ресепшен.
+        uk: Система бронювання зараз показує двомісний номер за 135 EUR за ніч, 270 EUR за 2 ночі. Ціна не є обов'язковою; оформити можна за посиланням для бронювання або через рецепцію.
+        tr: Rezervasyon sistemi şu anda gecelik 135 EUR, 2 gece için 270 EUR olan bir çift kişilik oda gösteriyor. Fiyat bağlayıcı değildir; rezervasyon bağlantısı veya resepsiyon üzerinden ayırtabilirsiniz.
+        it: Il sistema di prenotazione mostra al momento una camera doppia a 135 EUR a notte, 270 EUR per 2 notti. Il prezzo non è vincolante; può prenotare tramite il link di prenotazione o la reception.
+  expect:
+    mode: model
+    tool_calls:
+    - name: check_availability
+      args:
+        arrival: '2026-10-06'
+        departure: '2026-10-08'
+        adults: 2
+    handoff: false
+    tool_results_contain:
+    - live_pms
+    required:
+    - '135'

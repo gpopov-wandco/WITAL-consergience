@@ -15,6 +15,7 @@ import ipaddress
 import socket
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Protocol
 from urllib.parse import urljoin, urlsplit
 
 import httpx2
@@ -34,6 +35,12 @@ class FetchResult:
     body: bytes
     etag: str | None = None
     last_modified: str | None = None
+
+
+class Fetcher(Protocol):
+    """Anything that fetches a URL the way ``SafeFetcher`` does (fakes serve from memory)."""
+
+    async def fetch(self, url: str, *, headers: dict[str, str] | None = None) -> FetchResult: ...
 
 
 async def default_resolver(host: str) -> list[str]:

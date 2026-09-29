@@ -62,6 +62,9 @@ _SHORT_ACKS = {
 }
 MIN_CHARS_FOR_SWITCH = 12
 MIN_CONFIDENCE = 0.6
+MIN_CONFIDENCE_WITH_MARGIN = 0.35
+MIN_MARGIN = 1.6
+"""A lower confidence still counts when the best language leads the runner-up clearly."""
 _MIN_CYRILLIC_FOR_DETECTION = 30
 
 
@@ -79,6 +82,20 @@ def _cyrillic_detector():  # type: ignore[no-untyped-def]
 class Detection:
     lang: str | None
     confidence: float
+    runner_up: float = 0.0
+
+    @property
+    def strong(self) -> bool:
+        return self.lang is not None and self.confidence >= MIN_CONFIDENCE
+
+    @property
+    def clear_lead(self) -> bool:
+        """A lower confidence that still leads the runner-up clearly (longer texts only)."""
+        return (
+            self.lang is not None
+            and self.confidence >= MIN_CONFIDENCE_WITH_MARGIN
+            and self.confidence >= MIN_MARGIN * self.runner_up
+        )
 
 
 def detect(text: str) -> Detection:
@@ -90,7 +107,8 @@ def detect(text: str) -> Detection:
     if not values:
         return Detection(None, 0.0)
     best = values[0]
-    return Detection(_CODES.get(best.language), float(best.value))
+    runner_up = float(values[1].value) if len(values) > 1 else 0.0
+    return Detection(_CODES.get(best.language), float(best.value), runner_up)
 
 
 def choose_language(
@@ -107,7 +125,10 @@ def choose_language(
     if previous and (len(stripped) < MIN_CHARS_FOR_SWITCH or stripped in _SHORT_ACKS):
         return previous, previous in supported
     detection = detect(text)
-    if detection.lang is None or detection.confidence < MIN_CONFIDENCE:
+    # one word such as "STOP" is the same in many languages: only a strong detection
+    # switches on short texts, a clear lead is enough on a sentence
+    confident = detection.strong or (len(stripped) >= MIN_CHARS_FOR_SWITCH and detection.clear_lead)
+    if not confident or detection.lang is None:
         lang = previous or default
         return lang, lang in supported
     chosen: str = detection.lang

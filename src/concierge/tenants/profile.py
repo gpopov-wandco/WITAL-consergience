@@ -286,6 +286,8 @@ class LimitsConfig(Strict):
     max_tool_runs_per_message: int = Field(default=6, ge=1, le=12)
     reply_max_chars: int = Field(default=350, ge=100, le=700)
     reply_hard_cap_chars: int = Field(default=700, ge=200, le=1000)
+    min_confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    """A model reply below this confidence hands the conversation to staff (F17)."""
 
 
 class PricingConfig(Strict):

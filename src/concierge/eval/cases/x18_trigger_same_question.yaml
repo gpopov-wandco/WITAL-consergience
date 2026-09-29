@@ -1,0 +1,28 @@
+scenario: x18_trigger_same_question
+group: cross_cutting
+feature: F17
+description: 'Handoff trigger: the same question twice offers a person.'
+languages:
+- en
+turns:
+- guest: Can I check in at 10 in the morning?
+  model:
+  - reply:
+      intent: Q:early_checkin
+      fact_refs: []
+      text: Early check-in is only possible after consultation with the reception. Shall I pass on the request?
+  expect:
+    mode: model
+    handoff: false
+- guest: Can I check in at 10 in the morning?
+  model:
+  - reply:
+      intent: Q:early_checkin
+      fact_refs: []
+      text: Early check-in is only possible after consultation with the reception. Shall I pass on the request?
+  expect:
+    mode: model
+    events:
+    - same_question
+    buttons:
+    - person

@@ -1,0 +1,46 @@
+scenario: e14_availability_calendar_only
+group: appendix_e
+feature: F09
+description: 'Availability from the manual calendar: ''according to our calendar'', confirmation by the reception.'
+turns:
+- guest:
+    de: Haben Sie vom 6. bis 8. Oktober ein Doppelzimmer für 2 Personen?
+    en: Do you have a double room from 6 to 8 October for 2 people?
+    ru: Есть ли у вас двухместный номер с 6 по 8 октября на 2 человек?
+    uk: Чи є у вас двомісний номер з 6 по 8 жовтня на 2 особи?
+    tr: 6-8 Ekim arasında 2 kişi için çift kişilik odanız var mı?
+    it: Avete una camera doppia dal 6 all'8 ottobre per 2 persone?
+  model:
+  - tools:
+    - name: check_availability
+      args:
+        arrival: '2026-10-06'
+        departure: '2026-10-08'
+        adults: 2
+        children: 0
+        room_type: ''
+  - reply:
+      intent: P:availability
+      fact_refs:
+      - check_availability
+      text:
+        de: Laut unserem Kalender (Stand 29.09.2026) ist ein Doppelzimmer ab 120 EUR pro Nacht verfügbar, 240 EUR für 2 Nächte. Bitte lassen Sie sich die Verfügbarkeit von der Rezeption bestätigen; Preise
+          sind unverbindlich.
+        en: According to our calendar (updated 29.09.2026) a double room is available from EUR 120 per night, EUR 240 for 2 nights. Please confirm availability with the reception; prices are not binding.
+        ru: Согласно нашему календарю (обновлён 29.09.2026) двухместный номер доступен от 120 EUR за ночь, 240 EUR за 2 ночи. Пожалуйста, уточните наличие на ресепшен; цены не являются обязательными.
+        uk: Згідно з нашим календарем (оновлено 29.09.2026) двомісний номер доступний від 120 EUR за ніч, 240 EUR за 2 ночі. Будь ласка, уточніть наявність на рецепції; ціни не є обов'язковими.
+        tr: Takvimimize göre (29.09.2026 itibarıyla) gecelik 120 EUR'dan, 2 gece için 240 EUR'dan bir çift kişilik oda müsait. Lütfen müsaitliği resepsiyonla teyit edin; fiyatlar bağlayıcı değildir.
+        it: Secondo il nostro calendario (aggiornato il 29.09.2026) una camera doppia è disponibile da 120 EUR a notte, 240 EUR per 2 notti. La preghiamo di confermare la disponibilità con la reception;
+          i prezzi non sono vincolanti.
+  expect:
+    mode: model
+    tool_calls:
+    - name: check_availability
+      args:
+        arrival: '2026-10-06'
+        adults: 2
+    handoff: false
+    tool_results_contain:
+    - manual
+    required:
+    - '120'

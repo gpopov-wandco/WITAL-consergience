@@ -125,21 +125,49 @@ def create_app(
     if graph_state is not None:
         app.include_router(build_mock_graph_router(graph_state))
     _add_health(app, services)
-    app.middleware("http")(_security_headers)
+    app.add_middleware(SecurityHeadersMiddleware)
     return app
 
 
-async def _security_headers(
-    request: Request, call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    response = await call_next(request)
-    response.headers.setdefault("Content-Security-Policy", CSP)
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("X-Frame-Options", "DENY")
-    if not request.url.path.startswith(("/static", "/w/")):
-        response.headers.setdefault("Cache-Control", "no-store")
-    return response
+_SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
+    (b"content-security-policy", CSP.encode("ascii")),
+    (b"x-content-type-options", b"nosniff"),
+    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+    (b"x-frame-options", b"DENY"),
+)
+
+
+class SecurityHeadersMiddleware:
+    """Pure ASGI middleware: adds the security headers to every HTTP response.
+
+    A plain ASGI wrapper costs a function call per message; Starlette's
+    ``BaseHTTPMiddleware`` would add a task group and two streams per request, which
+    dominated the webhook acknowledgement time under a burst (10.5).
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        path = str(scope.get("path", ""))
+        no_store = not path.startswith(("/static", "/w/"))
+
+        async def send_with_headers(message: Any) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                present = {name.lower() for name, _ in headers}
+                for name, value in _SECURITY_HEADERS:
+                    if name not in present:
+                        headers.append((name, value))
+                if no_store and b"cache-control" not in present:
+                    headers.append((b"cache-control", b"no-store"))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
 
 
 def _add_health(app: FastAPI, services: Services) -> None:

@@ -17,11 +17,13 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit
 
+from sqlalchemy import select
+
 from concierge.agent.brain import Brain
 from concierge.agent.texts import GuestTexts
 from concierge.clock import Clock
-from concierge.conversations.service import ConversationService, Inbound
-from concierge.db.models import Tenant
+from concierge.conversations.service import BOT_SILENT_STATUSES, ConversationService, Inbound
+from concierge.db.models import Conversation, Message, MessageText, Tenant
 from concierge.security.limiter import MovingWindowLimiter
 from concierge.tenants.profile import TenantProfile
 from concierge.tenants.service import TenantService
@@ -43,6 +45,7 @@ class WidgetSession:
     lang: str
     disclosure: str
     conversation_id: str
+    last_id: str = ""
 
 
 @dataclass
@@ -52,6 +55,17 @@ class WidgetReply:
     handoff: bool
     mode: str
     events: list[str] = field(default_factory=list)
+    last_id: str = ""
+
+
+@dataclass
+class WidgetUpdates:
+    """Outbound messages newer than the id the widget saw last (staff replies, F19/F22)."""
+
+    messages: list[dict[str, Any]]
+    status: str
+    handoff: bool
+    last_id: str
 
 
 class WidgetService:
@@ -140,7 +154,7 @@ class WidgetService:
         disclosure = self.texts.render(
             "disclosure", chosen, hotel=profile.name, privacy_url=profile.contacts.privacy_url or ""
         )
-        await self.conversations.record_outbound(
+        stored = await self.conversations.record_outbound(
             tenant.id,
             conversation.id,
             disclosure,
@@ -153,7 +167,11 @@ class WidgetService:
         await self.conversations.mark_disclosed(tenant.id, conversation.id)
         await self.conversations.update(tenant.id, conversation.id, lang=chosen)
         return WidgetSession(
-            token=token, lang=chosen, disclosure=disclosure, conversation_id=conversation.id
+            token=token,
+            lang=chosen,
+            disclosure=disclosure,
+            conversation_id=conversation.id,
+            last_id=stored.id,
         )
 
     async def message(
@@ -199,12 +217,64 @@ class WidgetService:
             }
             for m in result.messages
         ]
+        ids = [m.message_id for m in result.messages if m.message_id]
         return WidgetReply(
             messages=messages,
             lang=result.language,
             handoff=result.handoff_id is not None,
             mode=result.mode,
             events=result.events,
+            last_id=max(ids) if ids else "",
+        )
+
+    async def updates(
+        self, tenant: Tenant, profile: TenantProfile, *, token: str, after: str
+    ) -> WidgetUpdates:
+        """Staff replies and other outbound messages the widget has not shown yet."""
+        if not token or len(token) > 128:
+            raise WidgetError(400, "bad_session", "missing session")
+        key = _hash(token)
+        guest = await self.conversations.get_guest(tenant.id, "web", key)
+        if guest is None:
+            raise WidgetError(400, "bad_session", "unknown session")
+        async with self.conversations.db.tenant_scope(tenant.id) as session:
+            conversation = await session.scalar(
+                select(Conversation)
+                .where(Conversation.guest_id == guest.id, Conversation.channel == "web")
+                .order_by(Conversation.created_at.desc())
+                .limit(1)
+            )
+            if conversation is None:
+                raise WidgetError(400, "bad_session", "unknown session")
+            query = (
+                select(Message, MessageText)
+                .join(MessageText, MessageText.id == Message.id)
+                .where(
+                    Message.conversation_id == conversation.id,
+                    Message.direction == "out",
+                )
+                .order_by(Message.id)
+                .limit(50)
+            )
+            if after:
+                query = query.where(Message.id > after[:64])
+            rows = (await session.execute(query)).all()
+            status = conversation.status
+        messages = [
+            {
+                "id": m.id,
+                "text": t.text,
+                "kind": m.kind,
+                "lang": m.lang,
+                "role": "staff" if (m.intent or "").startswith("S:") else "bot",
+            }
+            for m, t in rows
+        ]
+        return WidgetUpdates(
+            messages=messages,
+            status=status,
+            handoff=status in BOT_SILENT_STATUSES,
+            last_id=str(messages[-1]["id"]) if messages else after,
         )
 
 

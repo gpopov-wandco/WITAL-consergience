@@ -1,0 +1,16 @@
+scenario: x11_emergency_medical
+group: cross_cutting
+feature: F03
+description: A medical emergency in English gets the static reply and P0 at once.
+languages:
+- en
+turns:
+- guest: My husband collapsed and is not breathing!
+  model: []
+  expect:
+    mode: static
+    llm_calls: 0
+    events:
+    - handoff:P0:emergency
+    required:
+    - '112'

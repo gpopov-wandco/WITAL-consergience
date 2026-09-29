@@ -1,0 +1,72 @@
+scenario: e03_breakfast_diet
+group: appendix_e
+feature: F11
+description: Breakfast facts from the KB; a severe allergy becomes a staff request and a handoff.
+turns:
+- guest:
+    de: Wann gibt es Frühstück und gibt es vegane Optionen?
+    en: When is breakfast and are there vegan options?
+    ru: Когда завтрак и есть ли веганские блюда?
+    uk: Коли сніданок і чи є веганські страви?
+    tr: Kahvaltı ne zaman ve vegan seçenekler var mı?
+    it: A che ora è la colazione e ci sono opzioni vegane?
+  model:
+  - tools:
+    - name: lookup_kb
+      args:
+        key: breakfast
+  - reply:
+      intent: A:breakfast
+      fact_refs:
+      - breakfast
+      text:
+        de: Frühstück gibt es täglich von 07:00 bis 10:00 Uhr für 16 EUR pro Person. Vegane Optionen sind auf Anfrage möglich; bitte sagen Sie der Rezeption am Vortag Bescheid.
+        en: Breakfast is served daily from 07:00 to 10:00 for EUR 16 per person. Vegan options are available on request; please tell the reception the day before.
+        ru: Завтрак подаётся ежедневно с 07:00 до 10:00 и стоит 16 EUR с человека. Веганские блюда доступны по запросу; пожалуйста, сообщите на ресепшен накануне.
+        uk: Сніданок подається щодня з 07:00 до 10:00 і коштує 16 EUR з особи. Веганські страви доступні за запитом; будь ласка, повідомте рецепцію напередодні.
+        tr: Kahvaltı her gün 07:00 ile 10:00 arasında kişi başı 16 EUR'ya servis edilir. Vegan seçenekler talep üzerine mümkündür; lütfen bir gün önceden resepsiyona bildirin.
+        it: La colazione è servita ogni giorno dalle 07:00 alle 10:00 al prezzo di 16 EUR a persona. Opzioni vegane sono disponibili su richiesta; avvisi la reception il giorno prima.
+  expect:
+    mode: model
+    tool_calls:
+    - name: lookup_kb
+      args:
+        key: breakfast
+    handoff: false
+    required:
+    - '16'
+- guest:
+    de: Ich habe eine schwere Nussallergie. Ist das Frühstück für mich sicher?
+    en: I have a severe nut allergy. Is the breakfast safe for me?
+    ru: У меня тяжёлая аллергия на орехи. Завтрак для меня безопасен?
+    uk: У мене тяжка алергія на горіхи. Чи безпечний для мене сніданок?
+    tr: Ciddi fındık alerjim var. Kahvaltı benim için güvenli mi?
+    it: Ho una grave allergia alle noci. La colazione è sicura per me?
+  model:
+  - tools:
+    - name: create_request
+      args:
+        kind: allergy
+        details: severe nut allergy, asks whether breakfast is safe
+  - reply:
+      intent: H:allergy
+      fact_refs: []
+      text:
+        de: Bei einer schweren Allergie kann ich keine verlässliche Zusage geben. Ich habe Ihre Anfrage an das Team weitergegeben; die Rezeption meldet sich bei Ihnen.
+        en: With a severe allergy I cannot give a reliable answer. I have passed your request to the team; the reception will get back to you.
+        ru: При тяжёлой аллергии я не могу дать точный ответ. Я передал ваш запрос команде; ресепшен свяжется с вами.
+        uk: При тяжкій алергії я не можу дати точну відповідь. Я передав ваш запит команді; рецепція зв'яжеться з вами.
+        tr: Ciddi bir alerjide kesin bir yanıt veremem. Talebinizi ekibe ilettim; resepsiyon sizinle iletişime geçecek.
+        it: In caso di allergia grave non posso dare una risposta certa. Ho inoltrato la Sua richiesta al team; la reception La contatterà.
+      handoff:
+        needed: true
+        priority: P2
+        reason: severe allergy needs a person
+  expect:
+    mode: model
+    tool_calls:
+    - name: create_request
+      args:
+        kind: allergy
+    handoff: true
+    priority: P2

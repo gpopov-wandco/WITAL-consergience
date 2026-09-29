@@ -19,8 +19,9 @@ import re
 import unicodedata
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
-from typing import Any, Protocol
+from datetime import date, datetime, time, timedelta
+from typing import Any, Literal, Protocol
+from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
@@ -127,6 +128,8 @@ class ModelConfig:
     turn_timeout_s: float = 25.0
     inference_geo: str = "global"
     max_tokens: int = 1024
+    effort_override: Literal["low", "medium"] | None = None
+    """Forces one effort for every turn (the live evaluation compares low and medium)."""
 
 
 @dataclass
@@ -510,7 +513,16 @@ class Brain:
                     tenant.id, conversation.id, demo_banner_sent=True
                 )
         result.reply = reply
-        await self._post_process(tenant, profile, conversation, inbound, reply, reply_lang, result)
+        await self._post_process(
+            tenant,
+            profile,
+            conversation,
+            inbound,
+            reply,
+            reply_lang,
+            result,
+            complaint_cue=guard.complaint,
+        )
         return await self._finish(tenant, profile, conversation, result)
 
     # ------------------------------------------------------------- model
@@ -567,6 +579,8 @@ class Brain:
                 tenant.id, conversation.id
             ),
             guest_text=guest_text,
+            local_now=self.clock.now().astimezone(ZoneInfo(profile.timezone)),
+            key_safe_from=time.fromisoformat(profile.journeys.key_safe.at),
         )
         backends = (
             await self.backends_factory(tenant, profile, conversation, guest, tool_session)
@@ -580,7 +594,7 @@ class Brain:
             messages=messages,
             tools=runner.specs(inbound.channel),
             max_tokens=self.models.max_tokens,
-            effort="low",
+            effort=self.models.effort_override or "low",
             output_schema=output_schema() if self.models.structured_outputs else None,
             inference_geo=self.models.inference_geo,
             metadata={"user_id": guest.id},
@@ -624,7 +638,7 @@ class Brain:
                             Message("assistant", list(response.content), raw=response.raw)
                         )
                         request.messages.append(Message("user", list(results)))
-                        request.effort = "medium"
+                        request.effort = self.models.effort_override or "medium"
                         continue
                     if response.stop_reason in {"refusal", "max_tokens"}:
                         raise BrainFailure(f"stop_reason:{response.stop_reason}")
@@ -811,6 +825,8 @@ class Brain:
             channel=conversation.channel,
             verified=conversation.verified_reservation_id is not None,
             stay_date=_stay_date(conversation),
+            local_now=self.clock.now().astimezone(ZoneInfo(profile.timezone)),
+            key_safe_from=time.fromisoformat(profile.journeys.key_safe.at),
             hotel_phone=profile.contacts.reception_phone,
             previous_slots=slots,
             availability_summary=availability_summary,
@@ -838,6 +854,8 @@ class Brain:
         reply: AgentReply,
         reply_lang: str,
         result: BrainResult,
+        *,
+        complaint_cue: bool = False,
     ) -> None:
         code = reply.intent_code
         normalised = _normalise_question(inbound.text)
@@ -869,6 +887,19 @@ class Brain:
             priority = "P3"
             trigger = "unresolved_turns"
             reason = "three unresolved turns"
+        if complaint_cue and not handoff_needed:
+            # F17: a complaint reaches staff even when the model answered it
+            handoff_needed = True
+            priority = "P1"
+            trigger = "complaint_cue"
+            reason = "complaint cue in the guest's message"
+        elif complaint_cue and priority in {"P2", "P3"}:
+            priority = "P1"  # an in-house complaint is P1 whatever the generic reason was
+        if reply.confidence < profile.limits.min_confidence and not handoff_needed:
+            handoff_needed = True
+            priority = "P3"
+            trigger = "low_confidence"
+            reason = f"model confidence {reply.confidence:.2f}"
         result.messages.append(Outbound(text, reply_lang, buttons=buttons[:3], intent=reply.intent))
         if handoff_needed:
             await self._handoff(tenant, profile, conversation, result, priority, trigger, reason)

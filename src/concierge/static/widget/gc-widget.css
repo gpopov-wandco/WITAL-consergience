@@ -23,6 +23,7 @@
 .gc-msg.bot { background: var(--gc-bot); align-self: flex-start; border-bottom-left-radius: 4px; }
 .gc-msg.user { background: var(--gc-user); align-self: flex-end; border-bottom-right-radius: 4px; }
 .gc-msg.system { background: transparent; color: var(--gc-muted); font-size: 13px; align-self: center; text-align: center; }
+.gc-msg.staff { background: var(--gc-bot); align-self: flex-start; border-bottom-left-radius: 4px; border-left: 3px solid var(--gc-accent); }
 .gc-msg a { color: var(--gc-focus); }
 .gc-quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 8px; }
 .gc-quick button { font: inherit; font-size: 14px; min-height: 32px; padding: 4px 12px; border-radius: 16px; border: 1px solid var(--gc-accent); background: transparent; color: var(--gc-ink); cursor: pointer; }

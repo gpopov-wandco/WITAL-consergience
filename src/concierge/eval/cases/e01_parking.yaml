@@ -1,0 +1,40 @@
+scenario: e01_parking
+group: appendix_e
+feature: F11
+description: 'Parking answered from the KB: garage price and clearance, no space promised.'
+turns:
+- guest:
+    de: Gibt es einen Parkplatz am Hotel?
+    en: Is there parking at the hotel?
+    ru: Есть ли у отеля парковка?
+    uk: Чи є в готелі парковка?
+    tr: Otelde otopark var mı?
+    it: C'è un parcheggio in hotel?
+  model:
+  - tools:
+    - name: lookup_kb
+      args:
+        key: parking
+  - reply:
+      intent: A:parking
+      fact_refs:
+      - parking
+      text:
+        de: Ja, die hoteleigene Tiefgarage kostet 18 EUR pro Nacht; die Einfahrtshöhe beträgt 2,10 m. Einen Platz kann nur die Rezeption auf Anfrage vormerken.
+        en: Yes, the hotel's underground garage costs EUR 18 per night; the clearance is 2.10 m. A space can only be requested through the reception.
+        ru: Да, подземный гараж отеля стоит 18 EUR за ночь; высота въезда 2,10 м. Место можно запросить только через ресепшен.
+        uk: Так, підземний гараж готелю коштує 18 EUR за ніч; висота в'їзду 2,10 м. Місце можна запросити лише через рецепцію.
+        tr: Evet, otelin yer altı otoparkı gecelik 18 EUR'dur; giriş yüksekliği 2,10 m'dir. Yer yalnızca resepsiyon üzerinden talep edilebilir.
+        it: Sì, il garage sotterraneo dell'hotel costa 18 EUR a notte; l'altezza massima è 2,10 m. Un posto può essere richiesto solo tramite la reception.
+  expect:
+    mode: model
+    llm_calls: 2
+    tool_calls:
+    - name: lookup_kb
+      args:
+        key: parking
+    handoff: false
+    required:
+    - '18'
+    forbidden:
+    - '4711'

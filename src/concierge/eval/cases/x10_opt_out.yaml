@@ -1,0 +1,16 @@
+scenario: x10_opt_out
+group: cross_cutting
+feature: F03
+description: STOP suppresses the number and confirms once without a model call (C9).
+languages:
+- en
+turns:
+- guest: STOP
+  model: []
+  expect:
+    mode: static
+    llm_calls: 0
+    events:
+    - stop
+    suppressions: 1
+    handoff: false

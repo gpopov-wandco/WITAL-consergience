@@ -27,7 +27,7 @@ from concierge.availability.port import AvailabilityPort
 from concierge.clock import Clock
 from concierge.db.models import RoomType, Tenant
 from concierge.db.session import Database
-from concierge.security.ssrf import SafeFetcher
+from concierge.security.ssrf import Fetcher, SafeFetcher
 from concierge.tenants.profile import TenantProfile
 from concierge.tenants.secrets import SecretStore
 
@@ -37,10 +37,12 @@ class AdapterFactory:
     db: Database
     clock: Clock
     secrets: SecretStore
-    fetcher: SafeFetcher = field(default_factory=SafeFetcher)
+    fetcher: Fetcher = field(default_factory=SafeFetcher)
     transports: dict[str, Any] = field(default_factory=dict)
     """Per-source httpx2 transports for tests (the adapters type them; core stays vendor-free)."""
     base_urls: dict[str, str] = field(default_factory=dict)
+    overrides: dict[str, AvailabilityPort] = field(default_factory=dict)
+    """Ports used instead of the real adapter for a source (fakes in tests and golden runs)."""
     _beds24_tokens: dict[str, Beds24Token] = field(default_factory=dict)
     _beds24_credits: dict[str, CreditState] = field(default_factory=dict)
     _apaleo_tokens: dict[str, ApaleoToken] = field(default_factory=dict)
@@ -50,6 +52,8 @@ class AdapterFactory:
         self, source: str, tenant: Tenant, profile: TenantProfile
     ) -> AvailabilityPort | None:
         config = profile.availability
+        if source in self.overrides:
+            return self.overrides[source]
         if source == "manual":
             return ManualAdapter(
                 self.db,

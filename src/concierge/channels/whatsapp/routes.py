@@ -13,6 +13,7 @@ key), queues the processing job and returns 200 at once.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -20,13 +21,14 @@ from typing import Any
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 
 from concierge.channels.whatsapp.webhook import parse_webhook
 from concierge.clock import Clock
-from concierge.db.models import Tenant, WebhookEvent
+from concierge.db.models import Job, Tenant, WebhookEvent
 from concierge.db.session import Database
+from concierge.ids import new_id
 from concierge.jobs.service import JobService
 from concierge.log import get_logger
 from concierge.security.signatures import meta_signature_ok
@@ -88,6 +90,7 @@ class WebhookIngress:
         self.clock = clock
         self.jobs = jobs
         self.cache = cache
+        self._write_lock = asyncio.Lock()
 
     async def verify(self, mode: str | None, token: str | None, challenge: str | None) -> Response:
         if mode != "subscribe" or not token or challenge is None:
@@ -139,23 +142,45 @@ class WebhookIngress:
         return PlainTextResponse("ok", status_code=200, headers={"x-events": str(stored)})
 
     async def _store(self, tenant_id: str, key: str, payload: dict[str, Any]) -> int:
-        async with self.db.scope() as session:
-            event = WebhookEvent(
-                tenant_id=tenant_id, source="meta", event_key=key[:160], payload=payload
-            )
-            session.add(event)
+        """The event row and its job commit together in one transaction.
+
+        Writers are serialised in the process: SQLite lets one writer through at a time
+        and its busy handler sleeps between retries, so an in-process lock keeps a burst
+        of webhooks moving at the speed of the inserts themselves.
+        """
+        event_id = new_id("evt")
+        now = self.clock.now()
+        event_row = {
+            "id": event_id,
+            "tenant_id": tenant_id,
+            "source": "meta",
+            "event_key": key[:160],
+            "received_at": now,
+            "status": "received",
+            "payload": payload,
+        }
+        job_row = {
+            "id": new_id("job"),
+            "tenant_id": tenant_id,
+            "kind": "wa_inbound",
+            "run_at": now,
+            "status": "pending",
+            "attempts": 0,
+            "max_attempts": 5,
+            "dedupe_key": f"wa_inbound:{event_id}",
+            "payload": {"event_id": event_id, "tenant_id": tenant_id},
+            "created_at": now,
+            "updated_at": now,
+        }
+        # Core inserts: no unit-of-work bookkeeping on the hot path
+        async with self._write_lock, self.db.scope() as session:
             try:
+                await session.execute(insert(WebhookEvent).values(**event_row))
+                await session.execute(insert(Job).values(**job_row))
                 await session.commit()
             except IntegrityError:
                 await session.rollback()
-                return 0
-            event_id = event.id
-        await self.jobs.enqueue(
-            "wa_inbound",
-            {"event_id": event_id, "tenant_id": tenant_id},
-            tenant_id=tenant_id,
-            dedupe_key=f"wa_inbound:{event_id}",
-        )
+                return 0  # a Meta retry of an event already stored
         return 1
 
 

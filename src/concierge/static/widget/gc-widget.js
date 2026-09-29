@@ -4,7 +4,8 @@
    sessionStorage only; no cookies, no other browser storage. */
 (() => {
   "use strict";
-  const state = { open: false, cfg: null, session: null, lang: "de", root: null, els: {}, busy: false, opts: null };
+  const state = { open: false, cfg: null, session: null, lang: "de", root: null, els: {}, busy: false, opts: null, lastId: "", poll: null };
+  const POLL_MS = 6000;
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const linkify = (text) => esc(text).replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
@@ -127,6 +128,7 @@
     const data = await api("session", { lang: state.lang });
     state.session = data.session;
     state.lang = data.lang;
+    state.lastId = data.last_id || "";
     try { sessionStorage.setItem(storageKey(), data.session); } catch { /* storage may be blocked; the session lives in memory */ }
     for (const m of data.messages) append("bot", m.text, m.lang);
   }
@@ -145,7 +147,8 @@
       state.els.lang.value = state.lang;
       let quick = [];
       for (const m of data.messages) { append("bot", m.text, m.lang); if (m.buttons && m.buttons.length) quick = m.buttons; }
-      if (data.handoff) append("system", labels().staff, state.lang);
+      if (data.last_id) state.lastId = data.last_id;
+      if (data.handoff) { append("system", labels().staff, state.lang); startPolling(); }
       showQuick(quick);
     } catch (error) {
       append("system", labels().error, state.lang);
@@ -156,8 +159,29 @@
     }
   }
 
+  // Staff replies arrive while a person handles the conversation; the widget polls
+  // the updates endpoint (no push channel, no service worker) and stops when the
+  // assistant is back or the panel closes.
+  async function poll() {
+    if (!state.open || !state.session) { stopPolling(); return; }
+    try {
+      const params = new URLSearchParams({ key: state.opts.key, session: state.session, after: state.lastId });
+      const response = await fetch(`${state.opts.base}/w/api/updates?${params}`);
+      if (!response.ok) throw new Error(`gc-widget: updates ${response.status}`);
+      const data = await response.json();
+      for (const m of data.messages) append(m.role === "staff" ? "staff" : "bot", m.text, m.lang);
+      if (data.last_id) state.lastId = data.last_id;
+      if (!data.handoff) stopPolling();
+    } catch {
+      stopPolling();
+    }
+  }
+  function startPolling() { if (!state.poll) state.poll = setInterval(poll, POLL_MS); }
+  function stopPolling() { if (state.poll) { clearInterval(state.poll); state.poll = null; } }
+
   function close() {
     state.open = false;
+    stopPolling();
     state.els.panel.hidden = true;
     state.opts.launcher.hidden = false;
     state.opts.launcher.setAttribute("aria-expanded", "false");
@@ -186,6 +210,7 @@
     opts.launcher.disabled = false;
     opts.launcher.setAttribute("aria-expanded", "true");
     try { await ensureSession(); } catch { append("system", labels().error, state.lang); }
+    if (state.lastId) poll();
     state.els.input.focus();
   }
 
