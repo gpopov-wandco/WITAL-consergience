@@ -21,6 +21,7 @@ from concierge.agent.guardrails import Guardrails
 from concierge.agent.prompting import PromptAssembler, PromptTexts, canary_for
 from concierge.agent.responder import Responder
 from concierge.agent.texts import GuestTexts, guest_texts
+from concierge.channels.web.service import WidgetService
 from concierge.channels.whatsapp.inbound import WhatsAppInbound
 from concierge.channels.whatsapp.outbox import OutboxService, RetryableSend
 from concierge.channels.whatsapp.port import WhatsAppPort
@@ -59,6 +60,7 @@ class Services:
     wa_inbound: WhatsAppInbound
     secret_cache: SecretCache
     ingress: WebhookIngress
+    widget: WidgetService
     demo: bool = False
     alerts: list[tuple[str, str, dict[str, Any]]] = field(default_factory=list)
 
@@ -132,6 +134,14 @@ def build_services(
     )
     secret_cache = SecretCache(ctx.db, secrets, ctx.clock)
     ingress = WebhookIngress(ctx.db, ctx.clock, jobs, secret_cache)
+    widget = WidgetService(
+        tenants=tenants,
+        conversations=conversations,
+        brain=brain,
+        texts=texts,
+        clock=ctx.clock,
+        own_origin=settings.public_base_url(),
+    )
 
     async def on_dead(job: Job, error: str) -> None:
         await alert_sink(
@@ -170,6 +180,7 @@ def build_services(
         wa_inbound=wa_inbound,
         secret_cache=secret_cache,
         ingress=ingress,
+        widget=widget,
         demo=demo,
         alerts=alerts,
     )

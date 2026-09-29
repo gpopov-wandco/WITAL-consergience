@@ -1,0 +1,40 @@
+/* WITALCO Guest Concierge widget styles. Loaded into the shadow root on open.
+   Brand tokens: ink #141414, panel #0F1012, signal red #C22113, page #F2F2F2. */
+:host { all: initial; }
+* { box-sizing: border-box; }
+.gc { --gc-ink: #141414; --gc-bg: #ffffff; --gc-muted: #5b5b5b; --gc-line: #d9d9d9; --gc-panel: #0F1012;
+  --gc-accent: #C22113; --gc-bot: #F2F2F2; --gc-user: #e8e8e8; --gc-focus: #1a5fb4;
+  position: fixed; bottom: 16px; width: min(380px, calc(100vw - 32px)); height: min(600px, calc(100vh - 32px));
+  display: flex; flex-direction: column; background: var(--gc-bg); color: var(--gc-ink); border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .3); font: 15px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden; z-index: 2147483001; }
+.gc[data-position="right"] { right: 16px; }
+.gc[data-position="left"] { left: 16px; }
+@media (max-width: 480px) { .gc { width: calc(100vw - 16px); height: calc(100vh - 16px); bottom: 8px; right: 8px; left: 8px; } }
+@media (prefers-color-scheme: dark) { .gc { --gc-ink: #f2f2f2; --gc-bg: #1b1c1f; --gc-muted: #b5b5b5; --gc-line: #3a3b3f;
+  --gc-bot: #2a2b2f; --gc-user: #34363b; --gc-focus: #8ab4f8; } }
+.gc-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--gc-panel); color: #fff; }
+.gc-title { font-weight: 700; font-size: 15px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gc-ai { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 10px; background: var(--gc-accent); color: #fff; white-space: nowrap; }
+.gc-lang { font: inherit; font-size: 13px; background: #fff; color: #141414; border: 1px solid var(--gc-line); border-radius: 6px; padding: 4px 6px; min-height: 28px; }
+.gc-close { border: 0; background: transparent; color: #fff; font-size: 22px; line-height: 1; min-width: 32px; min-height: 32px; cursor: pointer; border-radius: 6px; }
+.gc-log { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; }
+.gc-msg { max-width: 88%; padding: 8px 12px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.gc-msg.bot { background: var(--gc-bot); align-self: flex-start; border-bottom-left-radius: 4px; }
+.gc-msg.user { background: var(--gc-user); align-self: flex-end; border-bottom-right-radius: 4px; }
+.gc-msg.system { background: transparent; color: var(--gc-muted); font-size: 13px; align-self: center; text-align: center; }
+.gc-msg a { color: var(--gc-focus); }
+.gc-quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 8px; }
+.gc-quick button { font: inherit; font-size: 14px; min-height: 32px; padding: 4px 12px; border-radius: 16px; border: 1px solid var(--gc-accent); background: transparent; color: var(--gc-ink); cursor: pointer; }
+.gc-form { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--gc-line); }
+.gc-input { flex: 1; font: inherit; padding: 8px 10px; border: 1px solid var(--gc-line); border-radius: 8px; background: var(--gc-bg); color: var(--gc-ink); min-height: 40px; resize: none; }
+.gc-send { font: inherit; font-weight: 600; min-width: 64px; min-height: 40px; border: 0; border-radius: 8px; background: var(--gc-accent); color: #fff; cursor: pointer; }
+.gc-send[disabled], .gc-quick button[disabled] { opacity: .6; cursor: default; }
+.gc-footer { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 12px 10px; font-size: 12px; color: var(--gc-muted); border-top: 1px solid var(--gc-line); }
+.gc-footer a { color: var(--gc-muted); }
+.gc-typing { font-size: 13px; color: var(--gc-muted); padding: 0 12px 6px; min-height: 18px; }
+.gc :focus-visible { outline: 3px solid var(--gc-focus); outline-offset: 2px; }
+.gc-close:focus-visible, .gc-lang:focus-visible { outline-color: #fff; }
+.gc-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .gc-log { scroll-behavior: auto; } }
+@media (max-width: 320px) { .gc-header { flex-wrap: wrap; } .gc-msg { max-width: 100%; } }

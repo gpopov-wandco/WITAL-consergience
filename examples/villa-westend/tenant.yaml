@@ -1,0 +1,35 @@
+# Pilot skeleton for Villa Westend (Hotel An der Messe, Frankfurt). No real data was
+# available at build time (D-001, Q3): every required field is empty and listed under
+# `needs_input`. Fill the fields with the hotel, then run `concierge pack validate`.
+slug: villa-westend
+name: Villa Westend
+timezone: Europe/Berlin
+status: pilot
+ai_mode: full
+languages: [de, en]
+default_language: de
+needs_input:
+  - contacts.reception_phone
+  - contacts.email
+  - contacts.privacy_url
+  - contacts.imprint_url
+  - whatsapp.waba_id
+  - whatsapp.phone_number_id
+  - whatsapp.display_phone_number
+  - availability.chain (PMS or channel manager unknown, VERIFY with the hotel)
+  - availability.booking_url
+  - widget.origins (the Strato-hosted website origin)
+  - handoff.contacts
+  - staffed_hours
+contacts: {reception_phone: "", email: "", privacy_url: "", imprint_url: "", website: ""}
+staffed_hours: {mon-sun: "07:00-22:00"}
+handoff: {sla: {p1_min: 10, p2_min: 120}, contacts: []}
+whatsapp: {waba_id: "", phone_number_id: "", display_phone_number: ""}
+availability: {chain: [none], stale_after_hours: 36, booking_url: ""}
+journeys: {quiet_hours: "21:00-08:00"}
+registration: {enabled: false}
+voice: {provider: none}
+widget: {public_key: pk_villawestend, origins: [], primary_color: "#C22113", logo_text: Villa Westend}
+limits: {daily_llm_budget_usd: 5, messages_per_guest_per_hour: 20}
+pricing: {price_table: default_de, model_prices: default, usd_eur: default}
+legal: {status: draft_unreviewed}

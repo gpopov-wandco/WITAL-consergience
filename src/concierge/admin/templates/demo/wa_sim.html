@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}WhatsApp-Simulator{% endblock %}
+{% block nav %}<a href="/demo/">Demo</a> <a href="/demo/widget">Widget-Testseite</a> <a href="/admin/">Admin</a>{% endblock %}
+{% block content %}
+<h1>WhatsApp-Simulator</h1>
+<p>Sendet einen signierten Webhook an <code>/wa/webhook</code>, verarbeitet ihn und zeigt die Antworten, die der Mock-Graph-Server erhalten hat.</p>
+<div class="columns">
+  <section aria-labelledby="send-title">
+    <h2 id="send-title">Nachricht senden</h2>
+    <form method="post" action="/demo/wa-sim/send" class="stack">
+      <label for="sender">Absender (Ziffern)</label>
+      <input id="sender" name="sender" value="{{ sender }}" inputmode="numeric" pattern="[0-9]{6,16}">
+      <label for="kind">Art</label>
+      <select id="kind" name="kind">
+        <option value="text">Text</option>
+        <option value="button">Button-Antwort (Mitarbeiter)</option>
+        <option value="list">Listen-Antwort (Parken)</option>
+        <option value="media">Bild (nicht unterstützt)</option>
+        <option value="location">Standort</option>
+      </select>
+      <label for="text">Text</label>
+      <textarea id="text" name="text" rows="3">Gibt es einen Parkplatz?</textarea>
+      <label><input type="checkbox" name="duplicate" value="1"> Webhook doppelt senden (Duplikat-Test)</label>
+      <button type="submit">Senden</button>
+    </form>
+    <h2>Zustellstatus und Fehler</h2>
+    <form method="post" action="/demo/wa-sim/status" class="inline">
+      <input type="hidden" name="sender" value="{{ sender }}">
+      <label for="status">Status für letzte Antwort</label>
+      <select id="status" name="status"><option>sent</option><option selected>delivered</option><option>read</option><option>failed</option></select>
+      <button type="submit">Status senden</button>
+    </form>
+    <form method="post" action="/demo/wa-sim/inject" class="inline">
+      <input type="hidden" name="sender" value="{{ sender }}">
+      <label for="code">Fehler beim nächsten Senden</label>
+      <select id="code" name="code">{% for e in errors %}<option>{{ e }}</option>{% endfor %}<option>timeout</option></select>
+      <button type="submit">Fehler einplanen</button>
+    </form>
+  </section>
+  <section aria-labelledby="transcript-title">
+    <h2 id="transcript-title">Verlauf ({{ sender }})</h2>
+    {% if not transcript %}<p>Noch keine Nachrichten.</p>{% endif %}
+    <ol class="transcript">
+      {% for m in transcript %}
+      <li class="{{ m.direction }}" lang="{{ m.lang }}"><span class="meta">{{ 'Gast' if m.direction == 'in' else 'Assistent' }} · {{ m.kind }}{% if m.intent %} · {{ m.intent }}{% endif %} · {{ m.status }}</span><br>{{ m.text }}</li>
+      {% endfor %}
+    </ol>
+    {% if transcript %}<p class="meta">Konversationsstatus: {{ transcript[-1].conversation_status }}</p>{% endif %}
+    <h2>Beim Mock-Graph-Server angekommen</h2>
+    <ol class="transcript">
+      {% for s in sent %}<li class="out"><span class="meta">{{ s.wamid }} · {{ s.payload.type }}</span><br>{% if s.payload.type == 'text' %}{{ s.payload.text.body }}{% elif s.payload.type == 'interactive' %}{{ s.payload.interactive.body.text }} [{{ s.payload.interactive.action.buttons | map(attribute='reply.title') | join(', ') }}]{% else %}{{ s.payload }}{% endif %}</li>{% endfor %}
+    </ol>
+  </section>
+</div>
+{% endblock %}

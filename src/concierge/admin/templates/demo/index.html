@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Demo{% endblock %}
+{% block nav %}<a href="/demo/wa-sim">WhatsApp-Simulator</a> <a href="/demo/widget">Widget-Testseite</a> <a href="/admin/">Admin</a>{% endblock %}
+{% block content %}
+<h1>Demo-Modus</h1>
+<p class="banner">Demo-Modus: skriptgesteuerter Antwortgeber, nicht das Sprachmodell, sofern kein API-Schlüssel gesetzt ist.</p>
+{% if tenant %}
+<dl class="facts">
+  <dt>Mandant</dt><dd>{{ tenant.name }} ({{ tenant.slug }})</dd>
+  <dt>WhatsApp-Nummer (Fixture)</dt><dd>{{ tenant.display_phone_number or '–' }}</dd>
+  <dt>Mock-Graph-Server</dt><dd>{{ 'aktiv' if graph else 'nicht aktiv' }}</dd>
+</dl>
+{% else %}
+<p>Der Demo-Mandant ist nicht angelegt. Führen Sie <code>concierge demo</code> aus.</p>
+{% endif %}
+<ul>
+  <li><a href="/demo/wa-sim">WhatsApp-Simulator</a>: signierte Webhooks senden, Antworten und Zustellstatus sehen.</li>
+  <li><a href="/demo/widget">Widget-Testseite</a>: das Website-Widget mit einem Script-Tag.</li>
+  <li><a href="/admin/">Admin und Inbox</a>: Anmeldung mit den Demo-Zugängen aus der Konsolenausgabe.</li>
+</ul>
+{% endblock %}

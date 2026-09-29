@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="{{ lang or 'de' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Guest Concierge{% endblock %}</title>
+  <link rel="stylesheet" href="/static/admin.css">
+  <script src="/static/vendor/htmx.min.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">{{ 'Zum Inhalt springen' if (lang or 'de') == 'de' else 'Skip to content' }}</a>
+  <header class="topbar">
+    <span class="lockup"><span class="w">WITAL</span><span class="co">CO</span></span>
+    <span class="product">Guest Concierge</span>
+    <nav aria-label="{{ 'Hauptnavigation' if (lang or 'de') == 'de' else 'Main navigation' }}">
+      {% block nav %}{% endblock %}
+    </nav>
+  </header>
+  <main id="main" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,44 @@
+# Fictional demo tenant "Hotel Beispiel" (fixture, not a real hotel). Every value is a
+# placeholder used by `concierge demo`; secrets are never part of a client pack.
+slug: hotel-beispiel
+name: Hotel Beispiel
+timezone: Europe/Berlin
+status: demo
+ai_mode: full
+languages: [de, en, ru, uk, tr, it]
+default_language: de
+fixture: true
+contacts:
+  reception_phone: "+49 69 000000"
+  email: reception@example.invalid
+  privacy_url: https://example.invalid/privacy
+  imprint_url: https://example.invalid/impressum
+  website: https://example.invalid
+staffed_hours: {mon-sun: "07:00-22:00"}
+handoff:
+  sla: {p1_min: 10, p2_min: 120}
+  contacts:
+    - {name: Front desk, role: reception, whatsapp: "+49 69 000001", email: desk@example.invalid, on_call: true}
+  response_window_text: {de: "2 Stunden", en: "2 hours", ru: "2 часов", uk: "2 годин", tr: "2 saat", it: "2 ore"}
+whatsapp: {waba_id: "demo-waba", phone_number_id: "demo-phone-number-id", display_phone_number: "+49 69 000000"}
+availability:
+  chain: [manual, none]
+  stale_after_hours: 36
+  booking_url: "https://example.invalid/book?from={arrival}&to={departure}&adults={adults}&children={children}&lang={lang}"
+  tax_inclusive: true
+  currency: EUR
+journeys:
+  quiet_hours: "21:00-08:00"
+  t_minus_7: true
+  t_minus_2: {at: "10:00"}
+  review_request: {enabled: true, review_url: "https://example.invalid/review"}
+registration: {enabled: true, psp: fake}
+voice: {provider: none, eu_only: false, us_transfer_acknowledged: false, included_minutes: 300, overage_eur_per_min: 0.19}
+widget:
+  public_key: pk_demo
+  origins: ["http://localhost:8000", "http://127.0.0.1:8000"]
+  primary_color: "#C22113"
+  logo_text: Hotel Beispiel
+limits: {daily_llm_budget_usd: 5, messages_per_guest_per_hour: 20}
+pricing: {price_table: default_de, model_prices: default, usd_eur: default}
+legal: {status: draft_unreviewed}

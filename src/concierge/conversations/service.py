@@ -106,6 +106,16 @@ class ConversationService:
             await session.refresh(guest)
             return guest
 
+    async def get_guest(self, tenant_id: str, channel: str, channel_key: str) -> Guest | None:
+        async with self.db.tenant_scope(tenant_id) as session:
+            return await session.scalar(
+                select(Guest).where(
+                    Guest.tenant_id == tenant_id,
+                    Guest.channel == channel,
+                    Guest.channel_key == channel_key,
+                )
+            )
+
     def guest_phone(self, guest: Guest) -> str | None:
         if guest.phone_enc is None:
             return None

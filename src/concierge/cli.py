@@ -468,6 +468,75 @@ def secrets_rotate() -> None:
     typer.echo(f"re-encrypted {touched} rows under the active key")
 
 
+# --------------------------------------------------------------------- serving
+def _reachable_host(host: str) -> str:
+    """The host the process can reach itself on (an unspecified bind maps to loopback)."""
+    import ipaddress
+
+    try:
+        if ipaddress.ip_address(host).is_unspecified:
+            return "127.0.0.1"
+    except ValueError:
+        pass
+    return host
+
+
+def _serve(*, demo: bool, host: str, port: int) -> None:
+    import uvicorn
+
+    from concierge.db.migrate import upgrade
+    from concierge.db.session import Database
+    from concierge.runtime import build_runtime
+    from concierge.settings import get_settings
+
+    settings = get_settings()
+    if demo and settings.is_production:
+        _fail("the demo is refused when GC_ENV=production")
+
+    async def _migrate() -> None:
+        database = Database(settings.database_url())
+        try:
+            await upgrade(database.engine)
+        finally:
+            await database.dispose()
+
+    run(_migrate())
+    bind_url = f"http://{_reachable_host(host)}:{port}"
+    runtime = build_runtime(settings, demo=demo, bind_url=bind_url)
+    typer.echo(f"WITALCO Guest Concierge {__version__} on {bind_url}")
+    if demo:
+        typer.echo(
+            "demo mode: Hotel Beispiel is seeded on startup; the mock Graph server answers sends"
+        )
+        typer.echo(f"  widget test page: {bind_url}/demo/widget")
+        typer.echo(f"  WhatsApp simulator: {bind_url}/demo/wa-sim")
+        if not runtime.llm_configured:
+            typer.echo(
+                "  no ANTHROPIC_API_KEY: the scripted responder answers, not the language model"
+            )
+    uvicorn.run(
+        runtime.app, host=host, port=port, proxy_headers=True, access_log=False, log_level="warning"
+    )
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host"),
+    port: int = typer.Option(8000, "--port"),
+) -> None:
+    """Start the service (migrates first, one process with the job worker)."""
+    _serve(demo=False, host=host, port=port)
+
+
+@app.command()
+def demo(
+    host: str = typer.Option("127.0.0.1", "--host"),
+    port: int = typer.Option(8000, "--port"),
+) -> None:
+    """Seed the fictional Hotel Beispiel and start the service in demo mode."""
+    _serve(demo=True, host=host, port=port)
+
+
 def main() -> None:
     _utf8_streams()
     app()

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Widget-Testseite{% endblock %}
+{% block nav %}<a href="/demo/">Demo</a> <a href="/demo/wa-sim">WhatsApp-Simulator</a> <a href="/admin/">Admin</a>{% endblock %}
+{% block content %}
+<h1>Widget-Testseite</h1>
+<p>Diese Seite bindet das Widget mit einem einzigen Script-Tag ein, so wie eine Hotel-Website es tut:</p>
+<pre><code>&lt;script src="/w/loader.js" data-key="{{ public_key }}" defer&gt;&lt;/script&gt;</code></pre>
+<p>Bis zum Klick auf den Chat-Button lädt das Widget nichts weiter und legt keine Daten im Browser ab.</p>
+<p>{{ tenant.name if tenant else 'Hotel Beispiel' }} · Beispielstraße 1 · Frankfurt am Main (Fixture)</p>
+<script src="/w/loader.js" data-key="{{ public_key }}" data-lang="de" defer></script>
+{% endblock %}

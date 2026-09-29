@@ -183,7 +183,10 @@ class JobService:
         return counts
 
 
+_jitter = random.SystemRandom()
+
+
 def backoff_seconds(attempt: int, *, base: float = 5.0, cap: float = 900.0) -> float:
     """Exponential backoff with full jitter: 5 s, 10 s, 20 s ... capped at 15 min."""
     upper = min(cap, base * (2 ** max(attempt - 1, 0)))
-    return random.uniform(base / 2, upper)
+    return _jitter.uniform(base / 2, upper)

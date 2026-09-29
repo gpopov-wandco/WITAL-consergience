@@ -13,7 +13,7 @@ Updated after each unit of work.
 | M2 | Build-time research and dependency install | done | `docs/VERIFIED_FACTS.md`, `requirements.lock`, D-005 |
 | M3 | Scaffold, settings, DB, migrations, CLI, `concierge check`, security foundation | done | `pyproject.toml`, `requirements.lock` (hashes), `src/concierge/{settings,clock,ids,log,cli,context}.py`, `db/`, `security/`, `tenants/`; `concierge check` 12 gates pass; `tests/unit/test_security.py`, `tests/integration/test_db.py`, `tests/integration/test_tenants.py`, `tests/unit/test_cli.py` |
 | M4 | Core: KB, LLM port, Brain, tools, guardrails, validators, F04, prompts | done | `src/concierge/{agent,kb,llm,conversations,handoff}`; `tests/integration/test_brain.py` (15 orchestration scenarios with `ScriptedLLM`), `tests/integration/test_responder_conversations.py` (15 intents x 6 languages), `tests/unit/test_tools_validators.py`, `tests/unit/test_guardrails_languages.py`, `tests/integration/test_kb.py`; mypy strict on `agent` |
-| M5 | Channels: WhatsApp, widget, wa-sim, mock Graph | not started | |
+| M5 | Channels: WhatsApp, widget, wa-sim, mock Graph | done | `src/concierge/channels/whatsapp/` (webhook parsing, Graph client, outbox, inbound pipeline, ingress), `channels/web/` (widget API and the three static widget files), `jobs/`, `demo/` (seed, mock Graph, simulator, pages), `runtime.py`, `concierge serve` and `concierge demo`; `tests/integration/test_whatsapp_pipeline.py`, `tests/integration/test_jobs.py`, `tests/integration/test_widget.py`, `tests/integration/test_demo.py`, `tests/unit/test_whatsapp_parsing.py`, `tests/unit/test_graph_client.py` |
 | M6 | Availability, adapters, policy, booking handoff, reservation intake | not started | |
 | M7 | Journeys, templates, registration, upsells | not started | |
 | M8 | Handoff, inbox, notifications, admin UI, operator console | not started | |
@@ -66,21 +66,21 @@ Updated after each unit of work.
 | F15 | Registration module | not started | |
 | F16 | Honest upsells | not started | |
 | F17 | Handoff and staff inbox | not started | |
-| F18 | E-mail and notifications | not started | |
+| F18 | E-mail and notifications | in progress | operator alerts persisted (`OperatorAlert`, `services.record_alert`); e-mail port not started |
 | F19 | Hotel admin UI | not started | |
 | F20 | Operator console | not started | |
-| F21 | Tenant config and client packs | not started | |
-| F22 | Widget and branding | not started | |
+| F21 | Tenant config and client packs | in progress | `examples/hotel-beispiel/tenant.yaml`, `examples/villa-westend/tenant.yaml` (needs_input skeleton); pack CLI not started |
+| F22 | Widget and branding | tested | `channels/web/`, `static/widget/{loader.js,gc-widget.js,gc-widget.css}` (279 lines together); `tests/integration/test_widget.py` (CORS matrix, sessions, limits, inert loader, hashed session key) |
 | F23 | Multilingual behaviour | tested | `agent/languages.py`, `agent/texts/*.yaml`; `tests/unit/test_guardrails_languages.py` |
 | F24 | Metering and cost | not started | |
 | F25 | GDPR tooling | not started | |
 | F26 | Voice fallback | not started | |
 | F27 | Analytics and QA | not started | |
 | F28 | Doctor and setup wizard | not started | |
-| F29 | Demo and simulator | not started | |
+| F29 | Demo and simulator | tested | `demo/{seed,mock_graph,wa_sim,routes}.py`, `concierge demo`; `tests/integration/test_demo.py` (seed idempotent and refused in production, simulator through the real Graph client into the mock server, error injection, pages) |
 | F30 | Backup and restore | not started | |
-| F31 | Security foundation | in progress | |
-| F32 | Observability | not started | |
+| F31 | Security foundation | in progress | `security/` (envelope encryption, key rotation, blind index, signatures, SSRF-safe fetcher, limiter, passwords, sessions, links) with `tests/unit/test_security.py`; security headers and CSP in `app.py`; admin auth pending (M8) |
+| F32 | Observability | in progress | structured redacted logs (`log.py`), `/healthz`, `/readyz` (db, migration head, worker heartbeat, master key); metrics endpoint pending (M10) |
 | F33 | Deployment and docs | not started | |
 | F34 | Handout and compliance pack | not started | |
 | F35 | Evaluation harness | not started | |
