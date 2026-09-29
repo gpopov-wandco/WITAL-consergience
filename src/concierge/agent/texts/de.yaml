@@ -1,0 +1,102 @@
+# Guest-facing system texts, German (Sie). Legal texts carry status draft_unreviewed (C10).
+lang: de
+register: Sie
+texts:
+  disclosure:
+    status: draft_unreviewed
+    text: "Willkommen. Ich bin der KI-Assistent von {hotel}, keine Person. Ich beantworte Fragen zu Anreise, Parken, Frühstück und Verfügbarkeit. Wenn Sie mit einem Menschen sprechen möchten, schreiben Sie „Mitarbeiter“. Datenschutz: {privacy_url}"
+  degraded:
+    text: "Der Assistent ist gerade nur eingeschränkt verfügbar. Ihre Nachricht wurde an die Rezeption weitergeleitet; Sie erreichen sie unter {phone}."
+  handoff_ack:
+    text: "Ich habe Ihre Nachricht an das Hotelteam weitergegeben. Sie erhalten hier eine Antwort von einer Person."
+  handoff_ack_with_window:
+    text: "Ich habe Ihre Nachricht an das Hotelteam weitergegeben. Eine Antwort kommt in der Regel innerhalb von {window}."
+  staff_active_ack:
+    text: "Ein Mitarbeiter kümmert sich um Ihr Anliegen. Der Assistent pausiert so lange."
+  emergency:
+    status: draft_unreviewed
+    text: "Bei Feuer oder einem medizinischen Notfall rufen Sie bitte sofort 112, bei Gefahr durch andere Personen 110. Ich informiere jetzt das Hotelteam."
+  opt_out_confirm:
+    status: draft_unreviewed
+    text: "Sie erhalten von uns keine automatischen Nachrichten mehr. Fragen können Sie hier weiterhin stellen."
+  off_topic_redirect:
+    text: "Dazu kann ich leider nichts sagen. Ich helfe gern bei Fragen zum Hotel, zur Anreise oder zu Ihrer Buchung."
+  off_topic_person:
+    text: "Dazu kann ich nichts sagen. Möchten Sie mit einem Mitarbeiter sprechen?"
+  card_warning:
+    text: "Bitte senden Sie keine Karten- oder Ausweisdaten im Chat. Ich habe die Daten nicht gespeichert. Für Zahlungen wenden Sie sich bitte an die Rezeption."
+  other_guest_refusal:
+    text: "Auskünfte über andere Gäste kann ich nicht geben, auch nicht für Angehörige oder Behörden. Bitte wenden Sie sich an die Rezeption."
+  unsupported_media:
+    text: "Sprachnachrichten, Bilder und Dateien kann ich nicht auswerten. Bitte schreiben Sie mir kurz, worum es geht, oder schreiben Sie „Mitarbeiter“."
+  verification_ask:
+    text: "Dafür brauche ich Ihre Buchungsnummer, Ihren Nachnamen und das Anreisedatum."
+  verification_failed:
+    text: "Die Angaben passen zu keiner Buchung. Bitte prüfen Sie Buchungsnummer, Nachname und Anreisedatum."
+  verification_locked:
+    text: "Zu viele Versuche. Bitte wenden Sie sich an die Rezeption unter {phone}."
+  unsupported_language:
+    text: "Ich kann in diesen Sprachen antworten: {languages}. Wenn Sie lieber mit einer Person sprechen möchten, schreiben Sie „Mitarbeiter“."
+  person_offer:
+    text: "Möchten Sie, dass ich Sie an einen Mitarbeiter weitergebe?"
+  demo_banner:
+    text: "Demo-Modus: skriptgesteuerter Antwortgeber, nicht das Sprachmodell."
+  availability_fresh:
+    text: "Das Buchungssystem zeigt aktuell: {summary}."
+  availability_cached:
+    text: "Stand {time}: {summary}."
+  availability_calendar:
+    text: "Laut unserem Kalender (Stand {date}): {summary}. Bitte bestätigen Sie die Verfügbarkeit mit der Rezeption."
+  availability_unknown:
+    text: "Ich frage die Rezeption nach der Verfügbarkeit und melde mich. Nennen Sie mir bitte Anreise, Abreise und Personenzahl."
+  availability_indicative:
+    text: "Preise sind unverbindlich; die Buchung erfolgt über den Buchungslink oder die Rezeption."
+  availability_ask_dates:
+    text: "Für welche Daten möchten Sie übernachten (Anreise und Abreise)?"
+  availability_ask_guests:
+    text: "Für wie viele Erwachsene und Kinder?"
+  booking_link_intro:
+    text: "Hier ist der Buchungslink für {arrival} bis {departure}, {adults} Erwachsene: {url}"
+  group_lead:
+    text: "Für Anfragen ab fünf Zimmern erstellt die Rezeption ein Angebot. Ich habe Ihre Anfrage weitergegeben."
+  complaint_ack:
+    text: "Das tut mir leid. Bitte nennen Sie mir Ihre Zimmernummer und was genau nicht in Ordnung ist, damit sich das Team sofort kümmern kann."
+  feedback_thanks:
+    text: "Vielen Dank für Ihre Rückmeldung."
+  review_link:
+    text: "Wenn Sie mögen, hinterlassen Sie hier eine Bewertung: {url}"
+  allergy_severe:
+    text: "Bei einer schweren Allergie sprechen Sie bitte direkt mit dem Team; ich gebe Ihre Angaben weiter."
+  eta_ask:
+    text: "Wann werden Sie voraussichtlich ankommen? Bitte nennen Sie eine Uhrzeit."
+  eta_saved:
+    text: "Danke, ich habe {eta} Uhr als Ankunftszeit vermerkt."
+  kb_miss:
+    text: "Diese Information liegt mir nicht vor. Ich gebe Ihre Frage an das Hotelteam weiter."
+  same_question:
+    text: "Ich kann Ihre Frage nicht besser beantworten. Möchten Sie mit einem Mitarbeiter sprechen?"
+  request_recorded:
+    text: "Ich habe Ihre Anfrage für das Team notiert. Sie gilt erst als bestätigt, wenn die Rezeption antwortet."
+  voice_disclosure:
+    status: draft_unreviewed
+    text: "Guten Tag, hier ist der digitale Assistent von {hotel}. Ich bin ein KI-System, keine Person. Das Gespräch wird nicht aufgezeichnet; eine Textfassung wird {days} Tage gespeichert. Datenschutzhinweise finden Sie auf der Website des Hotels. Sagen Sie jederzeit „Mitarbeiter“, um eine Person zu erreichen."
+  voice_filler:
+    text: "Einen Moment bitte."
+  voice_transfer:
+    text: "Ich verbinde Sie mit der Rezeption."
+  voice_callback:
+    text: "Die Rezeption ist gerade nicht erreichbar. Ich notiere einen Rückruf; bitte nennen Sie Ihren Namen."
+  voice_goodbye:
+    text: "Vielen Dank für Ihren Anruf. Auf Wiederhören."
+buttons:
+  person: Mitarbeiter
+  book: Buchen
+  eta: Ankunftszeit
+  directions: Anfahrt
+  parking: Parken
+  breakfast: Frühstück
+  "yes": Ja
+  "no": Nein
+  more: Mehr
+  verify: Buchung prüfen
+  privacy: Datenschutz

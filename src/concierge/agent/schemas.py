@@ -146,6 +146,14 @@ def output_schema() -> dict[str, Any]:
                 },
             },
         },
-        "required": ["reply_text", "language", "intent", "handoff", "fact_refs", "confidence", "buttons"],
+        "required": [
+            "reply_text",
+            "language",
+            "intent",
+            "handoff",
+            "fact_refs",
+            "confidence",
+            "buttons",
+        ],
         "additionalProperties": False,
     }

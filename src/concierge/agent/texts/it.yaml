@@ -1,0 +1,102 @@
+# Guest-facing system texts, Italian (Lei). Legal texts carry status draft_unreviewed (C10).
+lang: it
+register: Lei
+texts:
+  disclosure:
+    status: draft_unreviewed
+    text: "Le diamo il benvenuto. Sono l'assistente IA di {hotel}, non una persona. Rispondo a domande su arrivo, parcheggio, colazione e disponibilità. Se desidera parlare con una persona, scriva „personale“. Informativa sulla privacy: {privacy_url}"
+  degraded:
+    text: "L'assistente è al momento disponibile solo in parte. Il Suo messaggio è stato inoltrato alla reception, raggiungibile al numero {phone}."
+  handoff_ack:
+    text: "Ho inoltrato il Suo messaggio al team dell'hotel. Una persona Le risponderà qui."
+  handoff_ack_with_window:
+    text: "Ho inoltrato il Suo messaggio al team dell'hotel. Di norma riceverà una risposta entro {window}."
+  staff_active_ack:
+    text: "Un membro del personale si sta occupando della Sua richiesta. L'assistente resta in pausa nel frattempo."
+  emergency:
+    status: draft_unreviewed
+    text: "In caso di incendio o emergenza medica chiami subito il 112; in caso di pericolo da parte di altre persone il 110. Sto avvisando il team dell'hotel."
+  opt_out_confirm:
+    status: draft_unreviewed
+    text: "Non riceverà più messaggi automatici da parte nostra. Può comunque continuare a fare domande qui."
+  off_topic_redirect:
+    text: "Su questo non posso aiutarLa. Rispondo a domande sull'hotel, sull'arrivo o sulla Sua prenotazione."
+  off_topic_person:
+    text: "Su questo non posso aiutarLa. Desidera parlare con un membro del personale?"
+  card_warning:
+    text: "La prego di non inviare dati di carte o documenti in chat. Non li ho memorizzati. Per i pagamenti si rivolga alla reception."
+  other_guest_refusal:
+    text: "Non posso fornire informazioni su altri ospiti, nemmeno a familiari o autorità. La prego di rivolgersi alla reception."
+  unsupported_media:
+    text: "Non posso leggere messaggi vocali, immagini o file. Mi scriva in breve di cosa si tratta oppure scriva „personale“."
+  verification_ask:
+    text: "Per questo mi servono il numero di prenotazione, il cognome e la data di arrivo."
+  verification_failed:
+    text: "Questi dati non corrispondono a nessuna prenotazione. Verifichi numero di prenotazione, cognome e data di arrivo."
+  verification_locked:
+    text: "Troppi tentativi. La prego di contattare la reception al numero {phone}."
+  unsupported_language:
+    text: "Posso rispondere in queste lingue: {languages}. Se preferisce parlare con una persona, scriva „personale“."
+  person_offer:
+    text: "Desidera che La metta in contatto con un membro del personale?"
+  demo_banner:
+    text: "Modalità demo: risponditore basato su script, non il modello linguistico."
+  availability_fresh:
+    text: "Il sistema di prenotazione mostra al momento: {summary}."
+  availability_cached:
+    text: "Alle ore {time}: {summary}."
+  availability_calendar:
+    text: "Secondo il nostro calendario (aggiornato il {date}): {summary}. La prego di confermare la disponibilità con la reception."
+  availability_unknown:
+    text: "Chiederò la disponibilità alla reception e Le farò sapere. Mi indichi per favore le date di arrivo e partenza e il numero di ospiti."
+  availability_indicative:
+    text: "I prezzi sono indicativi; la prenotazione avviene tramite il link di prenotazione o la reception."
+  availability_ask_dates:
+    text: "Per quali date desidera soggiornare (arrivo e partenza)?"
+  availability_ask_guests:
+    text: "Per quanti adulti e bambini?"
+  booking_link_intro:
+    text: "Ecco il link di prenotazione dal {arrival} al {departure}, {adults} adulti: {url}"
+  group_lead:
+    text: "Per richieste da cinque camere in su la reception prepara un'offerta. Ho inoltrato la Sua richiesta."
+  complaint_ack:
+    text: "Mi dispiace. Mi indichi il numero della camera e cosa esattamente non va, così il team può intervenire subito."
+  feedback_thanks:
+    text: "Grazie per il Suo riscontro."
+  review_link:
+    text: "Se lo desidera, può lasciare una recensione qui: {url}"
+  allergy_severe:
+    text: "In caso di allergia grave parli direttamente con il team; inoltro le Sue indicazioni."
+  eta_ask:
+    text: "A che ora prevede di arrivare? Mi indichi un orario, per favore."
+  eta_saved:
+    text: "Grazie, ho annotato le {eta} come orario di arrivo."
+  kb_miss:
+    text: "Non dispongo di questa informazione. Inoltro la Sua domanda al team dell'hotel."
+  same_question:
+    text: "Non riesco a rispondere meglio alla Sua domanda. Desidera parlare con un membro del personale?"
+  request_recorded:
+    text: "Ho registrato la Sua richiesta per il team. Non è confermata finché la reception non risponde."
+  voice_disclosure:
+    status: draft_unreviewed
+    text: "Buongiorno, sono l'assistente digitale di {hotel}. Sono un sistema di intelligenza artificiale, non una persona. La chiamata non viene registrata; una versione testuale è conservata per {days} giorni. L'informativa sulla privacy si trova sul sito dell'hotel. Dica „personale“ in qualsiasi momento per parlare con una persona."
+  voice_filler:
+    text: "Un momento, per favore."
+  voice_transfer:
+    text: "La metto in contatto con la reception."
+  voice_callback:
+    text: "La reception non è raggiungibile al momento. Prendo nota di una richiamata; mi dica il Suo nome, per favore."
+  voice_goodbye:
+    text: "Grazie per la chiamata. Arrivederci."
+buttons:
+  person: Personale
+  book: Prenota
+  eta: Orario di arrivo
+  directions: Indicazioni
+  parking: Parcheggio
+  breakfast: Colazione
+  "yes": Sì
+  "no": "No"
+  more: Altro
+  verify: Verifica dati
+  privacy: Privacy

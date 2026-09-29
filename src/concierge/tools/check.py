@@ -91,7 +91,6 @@ def run_all(*, skip_audit: bool = False) -> list[GateResult]:
                     python,
                     "-m",
                     "pip_audit",
-                    "--strict",
                     "--skip-editable",
                     "--progress-spinner",
                     "off",

@@ -1,0 +1,186 @@
+# Keyword and regex intents for the deterministic responder (F04), per language.
+# Each intent maps to KB keys answered from the approved knowledge base. Matching is
+# case-insensitive on NFKC-normalised text; `patterns` are regular expressions.
+version: 2026.09.29-1
+intents:
+  checkin:
+    keys: [checkin]
+    patterns:
+      de: ["check[- ]?in\\b", "einchecken", "ab wann.*zimmer", "wann.*anreise", "bezieh"]
+      en: ["check[- ]?in\\b", "what time.*arriv", "when can (we|i) (get|have) the room"]
+      ru: ["заезд", "заселени", "во сколько.*номер", "регистраци"]
+      uk: ["заїзд", "заселенн", "о котрій.*номер", "реєстрац"]
+      tr: ["giriş saat", "check-?in", "kaçta.*giriş", "odaya.*ne zaman"]
+      it: ["check[- ]?in\\b", "a che ora.*arriv", "quando.*camera"]
+  checkout:
+    keys: [checkout]
+    patterns:
+      de: ["check[- ]?out", "auschecken", "abreise", "wann.*raus", "zimmer.*räumen"]
+      en: ["check[- ]?out", "leave the room", "what time.*depart"]
+      ru: ["выезд", "выселени", "освободить номер"]
+      uk: ["виїзд", "виселенн", "звільнити номер"]
+      tr: ["çıkış saat", "check-?out", "odayı.*boşalt"]
+      it: ["check[- ]?out", "lasciare la camera", "a che ora.*partenz"]
+  hours:
+    keys: [contact_hours]
+    patterns:
+      de: ["rezeption.*(offen|besetzt|zeiten|uhr)", "öffnungszeit", "wie lange.*rezeption", "erreichbar"]
+      en: ["reception (hours|open)", "opening hours", "how late.*reception", "reach (you|the reception)"]
+      ru: ["ресепшен.*(работает|часы)", "часы работы", "до скольки.*ресепшен"]
+      uk: ["рецепці.*(працює|години)", "години роботи", "до котрої.*рецепці"]
+      tr: ["resepsiyon.*(saat|açık)", "çalışma saat", "kaça kadar.*resepsiyon"]
+      it: ["reception.*(orari|aperta)", "orari di apertura", "fino a che ora.*reception"]
+  parking:
+    keys: [parking]
+    patterns:
+      de: ["park", "garage", "stellplatz", "auto abstellen"]
+      en: ["\\bpark", "garage", "\\bcars?\\b"]
+      ru: ["парк", "гараж", "машин", "автомоб"]
+      uk: ["парк", "гараж", "машин", "автомоб"]
+      tr: ["park", "otopark", "garaj", "araba"]
+      it: ["parchegg", "garage", "macchina", "auto\\b"]
+  breakfast:
+    keys: [breakfast]
+    patterns:
+      de: ["frühstück", "fruehstueck", "vegan", "vegetarisch", "glutenfrei"]
+      en: ["breakfast", "vegan", "vegetarian", "gluten"]
+      ru: ["завтрак", "веган", "вегетариан", "без глютена"]
+      uk: ["сніданок", "сніданк", "веган", "вегетаріан", "без глютену"]
+      tr: ["kahvaltı", "vegan", "vejetaryen", "glütensiz"]
+      it: ["colazione", "vegan", "vegetarian", "senza glutine"]
+  pets:
+    keys: [pets]
+    patterns:
+      de: ["\\bhund", "haustier", "katze"]
+      en: ["\\bdogs?\\b", "\\bpets?\\b", "\\bcats?\\b"]
+      ru: ["собак", "питомц", "кошк", "животн"]
+      uk: ["собак", "тварин", "кіт\\b", "кішк"]
+      tr: ["köpek", "evcil", "kedi"]
+      it: ["\\bcane\\b", "\\bcani\\b", "animal", "gatto"]
+  directions:
+    keys: [directions.airport, directions.hbf, directions.car]
+    patterns:
+      de: ["anfahrt", "wie komm", "flughafen", "hauptbahnhof", "bahnhof", "weg zum hotel", "adresse"]
+      en: ["direction", "how (do|can) (i|we) get", "airport", "main station", "train station", "address"]
+      ru: ["как добраться", "как доехать", "аэропорт", "вокзал", "адрес"]
+      uk: ["як дістатися", "як доїхати", "аеропорт", "вокзал", "адрес"]
+      tr: ["nasıl gel", "nasıl ulaş", "havaliman", "gar\\b", "adres"]
+      it: ["come (si )?arriv", "aeroporto", "stazione", "indirizzo", "indicazioni"]
+  wifi:
+    keys: [wifi]
+    verified_only: true
+    patterns:
+      de: ["wlan", "wi-?fi", "internet", "passwort"]
+      en: ["wi-?fi", "wlan", "internet", "password"]
+      ru: ["wi-?fi", "вай-?фай", "интернет", "пароль"]
+      uk: ["wi-?fi", "вай-?фай", "інтернет", "пароль"]
+      tr: ["wi-?fi", "internet", "şifre"]
+      it: ["wi-?fi", "internet", "password"]
+  late_arrival:
+    keys: [late_arrival]
+    patterns:
+      de: ["spät.*(ankomm|anreise)", "nach 22", "nachts.*ankomm", "schlüssel", "key-?safe", "spätanreise"]
+      en: ["arriv.*late", "late arrival", "after 22", "midnight", "key ?safe", "key box"]
+      ru: ["поздн.*(приезд|прибыт|заезд)", "после 22", "ночью.*приед", "ключ"]
+      uk: ["пізн.*(приїзд|прибутт|заїзд)", "після 22", "вночі.*приїд", "ключ"]
+      tr: ["geç.*(varış|geliş|gel)", "22.*sonra", "gece.*gel", "anahtar"]
+      it: ["arriv.*tardi", "dopo le 22", "notte.*arriv", "chiav"]
+  luggage:
+    keys: [luggage]
+    patterns:
+      de: ["gepäck", "koffer", "aufbewahr"]
+      en: ["luggage", "baggage", "suitcase", "store (my|our) bags"]
+      ru: ["багаж", "чемодан", "камер.*хранени"]
+      uk: ["багаж", "валіз", "камер.*схов"]
+      tr: ["bagaj", "valiz", "bavul", "emanet"]
+      it: ["bagagl", "valigi", "deposito"]
+  city_tax:
+    keys: [city_tax]
+    patterns:
+      de: ["kurtaxe", "bettensteuer", "tourismus(beitrag|abgabe|steuer)", "city ?tax", "übernachtungssteuer"]
+      en: ["city ?tax", "tourist tax", "tourism (levy|tax)", "bed tax"]
+      ru: ["туристическ.*(сбор|налог)", "городск.*налог", "курортн.*сбор"]
+      uk: ["туристичн.*(збір|податок)", "міськ.*податок", "курортн.*збір"]
+      tr: ["turizm (vergisi|katkı)", "konaklama vergisi", "şehir vergisi"]
+      it: ["tassa di soggiorno", "imposta di soggiorno", "tassa turistica"]
+  cancellation:
+    keys: [cancellation.flex, cancellation.nonrefundable]
+    patterns:
+      de: ["storn", "absagen", "kostenlos.*(absag|storn)", "rücktritt"]
+      en: ["cancel", "cancellation", "free of charge.*cancel"]
+      ru: ["отмен", "аннулир", "отказ.*брон"]
+      uk: ["скасув", "анулюв", "відмов.*брон"]
+      tr: ["iptal", "vazgeç"]
+      it: ["cancell", "annull", "disdett"]
+  payment:
+    keys: [payment]
+    patterns:
+      de: ["bezahl", "zahlung", "kreditkarte", "barzahlung", "ec-?karte", "girocard", "vorkasse", "anzahlung"]
+      en: ["pay", "payment", "credit card", "cash", "deposit", "prepay"]
+      ru: ["оплат", "заплат", "картой", "наличн", "предоплат", "депозит"]
+      uk: ["оплат", "заплат", "карткою", "готівк", "передоплат", "депозит"]
+      tr: ["ödeme", "öde", "kredi kartı", "nakit", "ön ödeme", "depozito"]
+      it: ["pag", "carta di credito", "contanti", "caparra", "acconto"]
+  contact:
+    keys: [contact_hours, identity]
+    patterns:
+      de: ["telefonnummer", "e-?mail", "kontakt", "anrufen"]
+      en: ["phone number", "e-?mail", "contact", "call you"]
+      ru: ["телефон", "почт", "контакт", "позвонить"]
+      uk: ["телефон", "пошт", "контакт", "зателефонувати"]
+      tr: ["telefon", "e-?posta", "iletişim", "aramak"]
+      it: ["telefono", "e-?mail", "contatt", "chiamar"]
+  accessibility:
+    keys: [accessibility]
+    patterns:
+      de: ["barrierefrei", "rollstuhl", "aufzug", "behindert"]
+      en: ["accessib", "wheelchair", "lift\\b", "elevator", "disab"]
+      ru: ["доступн.*среда", "инвалидн", "коляск", "лифт"]
+      uk: ["доступн", "інвалідн", "візк", "ліфт"]
+      tr: ["engelli", "tekerlekli", "asansör", "erişilebilir"]
+      it: ["accessib", "disabil", "sedia a rotelle", "ascensore"]
+  invoice:
+    keys: [invoicing]
+    patterns:
+      de: ["rechnung", "firmenadresse", "umsatzsteuer", "beleg"]
+      en: ["invoice", "receipt", "company address", "vat\\b"]
+      ru: ["счёт", "счет\\b", "счет-фактур", "чек\\b", "на компанию"]
+      uk: ["рахунок", "рахунк", "квитанц", "на компанію"]
+      tr: ["fatura", "makbuz", "şirket adresi"]
+      it: ["fattura", "ricevuta", "partita iva", "intestazione"]
+  house_rules:
+    keys: [house_rules]
+    patterns:
+      de: ["rauch", "hausordnung", "nachtruhe", "besuch"]
+      en: ["smok", "house rules", "quiet hours", "visitor"]
+      ru: ["курить", "курени", "правила", "тишин", "посетител"]
+      uk: ["курити", "курінн", "правила", "тиш", "відвідувач"]
+      tr: ["sigara", "kurallar", "sessizlik", "ziyaretçi"]
+      it: ["fuma", "regolamento", "silenzio", "visitator"]
+  extras:
+    keys: [extras]
+    patterns:
+      de: ["babybett", "kinderbett", "bügeleisen", "zustellbett"]
+      en: ["cot\\b", "crib", "baby bed", "iron", "extra bed"]
+      ru: ["детск.*кроват", "утюг", "дополнительн.*кроват"]
+      uk: ["дитяч.*ліжеч", "праск", "додатков.*ліжк"]
+      tr: ["bebek yatağı", "ütü", "ek yatak"]
+      it: ["culla", "lettino", "ferro da stiro", "letto supplementare"]
+  group:
+    keys: []
+    patterns:
+      de: ["gruppe", "\\b([5-9]|[1-9][0-9]) zimmer", "reisegruppe", "busgruppe"]
+      en: ["group", "\\b([5-9]|[1-9][0-9]) rooms"]
+      ru: ["групп", "\\b([5-9]|[1-9][0-9]) номер"]
+      uk: ["груп", "\\b([5-9]|[1-9][0-9]) номер"]
+      tr: ["grup", "\\b([5-9]|[1-9][0-9]) oda"]
+      it: ["grupp", "\\b([5-9]|[1-9][0-9]) camere"]
+  availability:
+    keys: []
+    patterns:
+      de: ["frei(es)? zimmer", "zimmer frei", "verfügbar", "noch (ein )?zimmer", "haben sie.*zimmer", "gibt es.*zimmer", "was kostet.*(nacht|zimmer)", "preis.*(nacht|zimmer)", "übernachtung.*(vom|ab|am)", "buchen"]
+      en: ["availab", "any rooms?", "do you have (a|any) rooms?", "rooms? (for|free|from)", "how much.*(night|room)", "price.*(night|room)", "book(ing)?\\b", "vacanc"]
+      ru: ["свободн.*номер", "есть.*номер", "сколько стоит.*(ночь|номер)", "цена.*(ночь|номер)", "заброниров"]
+      uk: ["вільн.*номер", "є.*номер", "скільки кошту.*(ніч|номер)", "ціна.*(ніч|номер)", "забронюв"]
+      tr: ["boş oda", "müsait", "oda var mı", "ne kadar.*(gece|oda)", "fiyat.*(gece|oda)", "rezervasyon yap"]
+      it: ["disponibil", "camera libera", "camere libere", "quanto costa.*(notte|camera)", "prezzo.*(notte|camera)", "prenotare"]

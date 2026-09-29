@@ -12,7 +12,7 @@ Updated after each unit of work.
 | M1 | `docs/PLAN.md` | done | `docs/PLAN.md` |
 | M2 | Build-time research and dependency install | done | `docs/VERIFIED_FACTS.md`, `requirements.lock`, D-005 |
 | M3 | Scaffold, settings, DB, migrations, CLI, `concierge check`, security foundation | done | `pyproject.toml`, `requirements.lock` (hashes), `src/concierge/{settings,clock,ids,log,cli,context}.py`, `db/`, `security/`, `tenants/`; `concierge check` 12 gates pass; `tests/unit/test_security.py`, `tests/integration/test_db.py`, `tests/integration/test_tenants.py`, `tests/unit/test_cli.py` |
-| M4 | Core: KB, LLM port, Brain, tools, guardrails, validators, F04, prompts | not started | |
+| M4 | Core: KB, LLM port, Brain, tools, guardrails, validators, F04, prompts | done | `src/concierge/{agent,kb,llm,conversations,handoff}`; `tests/integration/test_brain.py` (15 orchestration scenarios with `ScriptedLLM`), `tests/integration/test_responder_conversations.py` (15 intents x 6 languages), `tests/unit/test_tools_validators.py`, `tests/unit/test_guardrails_languages.py`, `tests/integration/test_kb.py`; mypy strict on `agent` |
 | M5 | Channels: WhatsApp, widget, wa-sim, mock Graph | not started | |
 | M6 | Availability, adapters, policy, booking handoff, reservation intake | not started | |
 | M7 | Journeys, templates, registration, upsells | not started | |
@@ -49,11 +49,11 @@ Updated after each unit of work.
 
 | Id | Feature | Status | Evidence |
 |---|---|---|---|
-| F01 | Conversation engine | not started | |
-| F02 | Agent tools | not started | |
-| F03 | Guardrails | not started | |
-| F04 | Deterministic responder | not started | |
-| F05 | Knowledge base | not started | |
+| F01 | Conversation engine | tested | `agent/brain.py`; `tests/integration/test_brain.py` (caps, tool packing, cache-prefix stability, failure injection, timeout, breaker, budget, concurrency) |
+| F02 | Agent tools | tested | `agent/tools.py`; `tests/unit/test_tools_validators.py` (schema contract, cross-tenant, bad-input matrix) |
+| F03 | Guardrails | tested | `agent/guardrails.py`, `agent/keywords.yaml`; `tests/unit/test_guardrails_languages.py` |
+| F04 | Deterministic responder | tested | `agent/responder.py`, `agent/intents.yaml`; 15 intents x 6 languages in `tests/integration/test_responder_conversations.py` |
+| F05 | Knowledge base | tested | `kb/store.py`, `kb/blocks.py`, `kb/fixtures/hotel_beispiel.yaml`; `tests/integration/test_kb.py` |
 | F06 | KB intake | not started | |
 | F07 | Availability core | not started | |
 | F08 | PMS adapters | not started | |
@@ -71,7 +71,7 @@ Updated after each unit of work.
 | F20 | Operator console | not started | |
 | F21 | Tenant config and client packs | not started | |
 | F22 | Widget and branding | not started | |
-| F23 | Multilingual behaviour | not started | |
+| F23 | Multilingual behaviour | tested | `agent/languages.py`, `agent/texts/*.yaml`; `tests/unit/test_guardrails_languages.py` |
 | F24 | Metering and cost | not started | |
 | F25 | GDPR tooling | not started | |
 | F26 | Voice fallback | not started | |

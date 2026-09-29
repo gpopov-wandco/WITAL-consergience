@@ -1,0 +1,41 @@
+# Guardrail keyword tables (F03). Versioned; not tenant-editable. Matching is
+# case-insensitive on NFKC-normalised text. Single words in `stop` match only when
+# the whole message is that word; phrases match anywhere.
+version: 2026.09.29-1
+emergency:
+  de: [feuer, brand, "es brennt", rauch, notarzt, "es ist ein notfall", herzinfarkt, bewusstlos, "atmet nicht", "blutet stark", schlaganfall, überfall, überfallen, einbruch, bedroht, waffe, messer, vergewaltigung, "kind vermisst", "kind verschwunden", umbringen, suizid, selbstmord, "polizei rufen"]
+  en: [fire, smoke, burning, ambulance, "this is an emergency", "it's an emergency", "heart attack", unconscious, "not breathing", "bleeding heavily", stroke, assault, attacked, robbery, threatened, weapon, knife, rape, "child missing", "missing child", "kill myself", suicide, "want to die", "call the police"]
+  ru: [пожар, горит, дым, скорая, скорую, неотложка, "сердечный приступ", инфаркт, "без сознания", "не дышит", "сильное кровотечение", инсульт, нападение, напали, ограбили, угрожает, оружие, нож, изнасилование, "ребёнок пропал", "пропал ребёнок", "покончить с собой", суицид, "вызовите полицию"]
+  uk: [пожежа, горить, дим, швидка, швидку, "серцевий напад", інфаркт, непритомний, "без свідомості", "не дихає", "сильна кровотеча", інсульт, напад, напали, пограбували, погрожує, зброя, ніж, зґвалтування, "дитина зникла", "зникла дитина", "покінчити з собою", суїцид, "викличте поліцію"]
+  tr: [yangın, yanıyor, duman, ambulans, "acil durum", "kalp krizi", baygın, "bilinci kapalı", "nefes almıyor", "çok kanıyor", "kanaması var", felç, saldırı, saldırdı, soygun, "tehdit ediyor", silah, bıçak, tecavüz, "çocuk kayıp", "kayıp çocuk", intihar, "kendimi öldürmek", "polis çağırın"]
+  it: [incendio, fuoco, brucia, fumo, ambulanza, "è un'emergenza", infarto, svenuto, incosciente, "non respira", "sanguina molto", ictus, aggressione, aggredito, rapina, minaccia, arma, coltello, stupro, "bambino scomparso", "bambina scomparsa", suicidio, uccidermi, "chiamate la polizia"]
+stop:
+  de: [stop, stopp, abmelden, abbestellen, "keine nachrichten mehr", "nicht mehr schreiben", "bitte nicht mehr anschreiben"]
+  en: [stop, unsubscribe, "no more messages", "stop messaging me", "stop texting me"]
+  ru: [стоп, отписаться, отписка, "не пишите", "больше не пишите"]
+  uk: [стоп, відписатися, "не пишіть", "більше не пишіть"]
+  tr: [dur, durdur, "abonelikten çık", "mesaj atmayın", "mesaj göndermeyin"]
+  it: [stop, "annulla iscrizione", "non scrivetemi più", "basta messaggi"]
+person:
+  de: [mitarbeiter, mitarbeiterin, "echte person", "echten menschen", "mit einem menschen", "rezeption sprechen", "jemanden sprechen", "mit jemandem sprechen", "kein bot", "keinen bot", "mit einer person"]
+  en: [staff, human, "real person", "talk to someone", "speak to someone", "speak to a person", "talk to a person", "speak to the reception", "not a bot", "an agent", "an operator"]
+  ru: [сотрудник, сотрудника, сотрудником, "живой человек", "с человеком", оператор, оператора, соедините, "не бот"]
+  uk: [працівник, працівника, працівником, "жива людина", "з людиною", оператор, оператора, "з'єднайте", "не бот"]
+  tr: [personel, "gerçek bir insan", "bir insanla", yetkili, "biriyle görüşmek", "resepsiyonla görüşmek", "bot değil"]
+  it: [personale, "una persona vera", "con una persona", operatore, "parlare con qualcuno", "parlare con la reception", "non un bot"]
+other_guest:
+  de: ["welches zimmer hat", "in welchem zimmer wohnt", "in welchem zimmer ist", "wohnt bei ihnen", "wohnt bei euch", "gast namens", "zimmernummer von", "ist herr", "ist frau", "übernachtet bei ihnen"]
+  en: ["which room is", "what room is", "room number of", "staying with you", "staying at your hotel", "guest named", "guest called", "is mr", "is mrs", "is ms"]
+  ru: ["в каком номере", "остановился ли", "остановилась ли", "проживает ли", "номер комнаты гостя", "гость по имени"]
+  uk: ["у якому номері", "в якому номері", "чи зупинився", "чи зупинилася", "чи проживає", "номер кімнати гостя", "гість на ім'я"]
+  tr: ["hangi odada", "kalıyor mu", "misafiriniz mi", "odasının numarası", "adlı misafir"]
+  it: ["in quale camera", "in che camera", "alloggia da voi", "è ospite da voi", "numero di camera di", "ospite di nome"]
+injection:
+  any: ["ignore previous instructions", "ignore all previous", "ignore the above", "system prompt", "you are now", "developer mode", jailbreak, "reveal your instructions", "print your prompt", "show your prompt", "act as an", "<system>", "[inst]", "###instruction", "ignoriere alle anweisungen", "ignoriere deine anweisungen", "vergiss deine anweisungen", "zeige deinen prompt", "игнорируй инструкции", "игнорируй все предыдущие", "покажи свой промпт", "ігноруй інструкції", "ігноруй усі попередні", "покажи свій промпт", "önceki talimatları yoksay", "talimatları görmezden gel", "ignora le istruzioni", "ignora tutte le istruzioni", "mostra il tuo prompt"]
+complaint:
+  de: [beschwerde, beschweren, "nicht in ordnung", kaputt, defekt, dreckig, schmutzig, "zu laut", lärm, "funktioniert nicht", "kein warmes wasser", "kalt im zimmer", enttäuscht, unverschämt, unzumutbar]
+  en: [complaint, complain, "not working", broken, dirty, filthy, "too loud", noise, noisy, "no hot water", "room is cold", disappointed, unacceptable, terrible, awful]
+  ru: [жалоба, жаловаться, "не работает", сломан, сломано, грязно, грязный, "слишком шумно", шум, "нет горячей воды", "холодно в номере", разочарован, недопустимо, ужасно]
+  uk: [скарга, скаржитися, "не працює", зламано, зламаний, брудно, брудний, "надто гучно", шум, "немає гарячої води", "холодно в номері", розчарований, неприпустимо, жахливо]
+  tr: [şikayet, "şikayet etmek", çalışmıyor, bozuk, kirli, pis, "çok gürültülü", gürültü, "sıcak su yok", "oda soğuk", "hayal kırıklığı", "kabul edilemez", berbat]
+  it: [reclamo, lamentarmi, "non funziona", rotto, sporco, sporca, "troppo rumore", rumore, "niente acqua calda", "camera fredda", deluso, inaccettabile, terribile]

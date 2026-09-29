@@ -149,6 +149,8 @@ python_version = "3.13"
 mypy_path = "src"
 files = [
   "src/concierge/security",
+  "src/concierge/agent",
+  "src/concierge/metering",
 ]
 strict = true
 warn_unreachable = true

@@ -1,0 +1,309 @@
+# Fixture knowledge base for the fictional demo tenant "Hotel Beispiel" (C5).
+# Every value is a fixture, not a real hotel fact. Texts are provided in six languages
+# (de, en, ru, uk, tr, it) and reuse the fixture values from Appendix E: check-in from
+# 15:00, reception 07:00 to 22:00, key safe after 22:00, garage EUR 18 per night with
+# 2.10 m clearance, breakfast 07:00 to 10:00 at EUR 16.
+tenant: hotel-beispiel
+fixture: true
+entries:
+  - key: identity
+    value: {name: "Hotel Beispiel", legal_name: "Hotel Beispiel GmbH (fixture)", address: "Beispielstraße 1, 60000 Frankfurt am Main", phone: "+49 69 000000", email: "reception@example.invalid", website: "https://example.invalid", imprint_url: "https://example.invalid/impressum"}
+    text:
+      de: "Hotel Beispiel, Beispielstraße 1, 60000 Frankfurt am Main. Telefon +49 69 000000, E-Mail reception@example.invalid. Betreiber: Hotel Beispiel GmbH (Fixture). Impressum: https://example.invalid/impressum"
+      en: "Hotel Beispiel, Beispielstraße 1, 60000 Frankfurt am Main. Phone +49 69 000000, e-mail reception@example.invalid. Operator: Hotel Beispiel GmbH (fixture). Imprint: https://example.invalid/impressum"
+      ru: "Hotel Beispiel, Beispielstraße 1, 60000 Франкфурт-на-Майне. Телефон +49 69 000000, e-mail reception@example.invalid. Оператор: Hotel Beispiel GmbH (fixture). Выходные данные: https://example.invalid/impressum"
+      uk: "Hotel Beispiel, Beispielstraße 1, 60000 Франкфурт-на-Майні. Телефон +49 69 000000, e-mail reception@example.invalid. Оператор: Hotel Beispiel GmbH (fixture). Вихідні дані: https://example.invalid/impressum"
+      tr: "Hotel Beispiel, Beispielstraße 1, 60000 Frankfurt am Main. Telefon +49 69 000000, e-posta reception@example.invalid. İşletmeci: Hotel Beispiel GmbH (fixture). Künye: https://example.invalid/impressum"
+      it: "Hotel Beispiel, Beispielstraße 1, 60000 Francoforte sul Meno. Telefono +49 69 000000, e-mail reception@example.invalid. Gestore: Hotel Beispiel GmbH (fixture). Note legali: https://example.invalid/impressum"
+  - key: contact_hours
+    value: {reception_hours: "07:00-22:00", phone: "+49 69 000000", email: "reception@example.invalid"}
+    text:
+      de: "Die Rezeption ist täglich von 07:00 bis 22:00 Uhr besetzt. Telefon +49 69 000000, E-Mail reception@example.invalid. Außerhalb dieser Zeiten erreichen Sie den Nachtdienst über die Notfallnummer an der Eingangstür."
+      en: "The reception is staffed daily from 07:00 to 22:00. Phone +49 69 000000, e-mail reception@example.invalid. Outside these hours the night service can be reached via the emergency number at the entrance door."
+      ru: "Ресепшен работает ежедневно с 07:00 до 22:00. Телефон +49 69 000000, e-mail reception@example.invalid. В другое время ночная служба доступна по номеру экстренной связи у входной двери."
+      uk: "Рецепція працює щодня з 07:00 до 22:00. Телефон +49 69 000000, e-mail reception@example.invalid. В інший час нічна служба доступна за номером екстреного зв'язку біля вхідних дверей."
+      tr: "Resepsiyon her gün 07:00 ile 22:00 arasında hizmet verir. Telefon +49 69 000000, e-posta reception@example.invalid. Bu saatler dışında gece servisine giriş kapısındaki acil numaradan ulaşılabilir."
+      it: "La reception è presidiata ogni giorno dalle 07:00 alle 22:00. Telefono +49 69 000000, e-mail reception@example.invalid. Al di fuori di questi orari il servizio notturno è raggiungibile tramite il numero di emergenza alla porta d'ingresso."
+  - key: checkin
+    value: {from: "15:00", until: "22:00", early_checkin: "on_request", early_fee_cents: 0}
+    text:
+      de: "Check-in ist ab 15:00 Uhr möglich, an der Rezeption bis 22:00 Uhr. Ein früherer Check-in ist nur nach Rücksprache mit der Rezeption möglich und wird nicht garantiert."
+      en: "Check-in is possible from 15:00, at the reception until 22:00. Earlier check-in is only possible after consultation with the reception and is not guaranteed."
+      ru: "Заезд возможен с 15:00, на ресепшен до 22:00. Более ранний заезд возможен только по согласованию с ресепшен и не гарантируется."
+      uk: "Заїзд можливий з 15:00, на рецепції до 22:00. Раніший заїзд можливий лише за погодженням з рецепцією і не гарантується."
+      tr: "Giriş 15:00'ten itibaren, resepsiyonda 22:00'ye kadar yapılabilir. Daha erken giriş yalnızca resepsiyonla görüşülerek mümkündür ve garanti edilmez."
+      it: "Il check-in è possibile dalle 15:00, alla reception fino alle 22:00. Un check-in anticipato è possibile solo previo accordo con la reception e non è garantito."
+  - key: checkout
+    value: {until: "11:00", late_checkout: "on_request", late_fee_cents: 2000}
+    text:
+      de: "Check-out ist bis 11:00 Uhr. Ein späterer Check-out bis 14:00 Uhr kostet 20 EUR und ist nur möglich, wenn die Rezeption ihn bestätigt."
+      en: "Check-out is until 11:00. Late check-out until 14:00 costs EUR 20 and is only possible when the reception confirms it."
+      ru: "Выезд до 11:00. Поздний выезд до 14:00 стоит 20 EUR и возможен только при подтверждении ресепшен."
+      uk: "Виїзд до 11:00. Пізній виїзд до 14:00 коштує 20 EUR і можливий лише за підтвердженням рецепції."
+      tr: "Çıkış saati 11:00'e kadardır. 14:00'e kadar geç çıkış 20 EUR'dur ve yalnızca resepsiyon onaylarsa mümkündür."
+      it: "Il check-out è entro le 11:00. Il check-out posticipato fino alle 14:00 costa 20 EUR ed è possibile solo se confermato dalla reception."
+  - key: late_arrival
+    value: {latest_reception: "22:00", key_safe: true, after_hours_contact: "+49 69 000000"}
+    text:
+      de: "Bei Ankunft nach 22:00 Uhr liegt Ihre Schlüsselkarte im Schlüsselsafe neben dem Eingang. Den Code erhalten Sie am Anreisetag, sobald Ihre Buchung bestätigt ist. Bitte teilen Sie uns Ihre Ankunftszeit mit."
+      en: "If you arrive after 22:00, your key card is in the key safe next to the entrance. You receive the code on the arrival day once your booking is verified. Please let us know your arrival time."
+      ru: "При прибытии после 22:00 ваша ключ-карта находится в сейфе для ключей рядом со входом. Код вы получите в день заезда после проверки бронирования. Пожалуйста, сообщите нам время прибытия."
+      uk: "Якщо ви прибуваєте після 22:00, ваша ключ-картка знаходиться в сейфі для ключів біля входу. Код ви отримаєте в день заїзду після перевірки бронювання. Будь ласка, повідомте нам час прибуття."
+      tr: "22:00'den sonra varırsanız anahtar kartınız girişin yanındaki anahtar kasasındadır. Kodu, rezervasyonunuz doğrulandıktan sonra varış gününde alırsınız. Lütfen varış saatinizi bize bildirin."
+      it: "In caso di arrivo dopo le 22:00 la Sua tessera chiave si trova nella cassetta delle chiavi accanto all'ingresso. Riceverà il codice il giorno di arrivo, una volta verificata la prenotazione. La preghiamo di comunicarci l'orario di arrivo."
+  - key: late_arrival.key_safe_code
+    sensitivity: verified_guest_only
+    value: {code: "4711"}
+    text:
+      de: "Der Code des Schlüsselsafes lautet 4711. Der Safe befindet sich rechts neben der Eingangstür."
+      en: "The key-safe code is 4711. The safe is to the right of the entrance door."
+      ru: "Код сейфа для ключей: 4711. Сейф находится справа от входной двери."
+      uk: "Код сейфа для ключів: 4711. Сейф розташований праворуч від вхідних дверей."
+      tr: "Anahtar kasasının kodu 4711'dir. Kasa giriş kapısının sağındadır."
+      it: "Il codice della cassetta delle chiavi è 4711. La cassetta si trova a destra della porta d'ingresso."
+  - key: rooms
+    value: {items: [{code: "ez", name: "Einzelzimmer", max_occupancy: 1}, {code: "dz", name: "Doppelzimmer", max_occupancy: 2}]}
+    text:
+      de: "Es gibt Einzelzimmer (1 Person) und Doppelzimmer (bis 2 Personen), alle mit Bad, WLAN und Schreibtisch."
+      en: "There are single rooms (1 person) and double rooms (up to 2 persons), all with bathroom, Wi-Fi and desk."
+      ru: "Есть одноместные номера (1 человек) и двухместные (до 2 человек), все с ванной, Wi-Fi и письменным столом."
+      uk: "Є одномісні номери (1 особа) та двомісні (до 2 осіб), усі з ванною, Wi-Fi та письмовим столом."
+      tr: "Tek kişilik odalar (1 kişi) ve çift kişilik odalar (en fazla 2 kişi) vardır; tümünde banyo, Wi-Fi ve çalışma masası bulunur."
+      it: "Sono disponibili camere singole (1 persona) e camere doppie (fino a 2 persone), tutte con bagno, Wi-Fi e scrivania."
+  - key: rates_policy
+    value: {tax_inclusive: true, currency: "EUR", children: "Kinder bis 6 Jahre im Bett der Eltern kostenfrei", extra_bed: "on_request"}
+    text:
+      de: "Alle Preise verstehen sich inklusive Mehrwertsteuer. Kinder bis 6 Jahre übernachten im Bett der Eltern kostenfrei. Ein Zustellbett ist nur nach Rücksprache mit der Rezeption möglich."
+      en: "All prices include VAT. Children up to 6 years stay free in their parents' bed. An extra bed is only possible after consultation with the reception."
+      ru: "Все цены включают НДС. Дети до 6 лет размещаются бесплатно в кровати родителей. Дополнительная кровать возможна только по согласованию с ресепшен."
+      uk: "Усі ціни включають ПДВ. Діти до 6 років розміщуються безкоштовно в ліжку батьків. Додаткове ліжко можливе лише за погодженням з рецепцією."
+      tr: "Tüm fiyatlara KDV dahildir. 6 yaşına kadar çocuklar ebeveynlerinin yatağında ücretsiz konaklar. Ek yatak yalnızca resepsiyonla görüşülerek mümkündür."
+      it: "Tutti i prezzi includono l'IVA. I bambini fino a 6 anni soggiornano gratuitamente nel letto dei genitori. Un letto supplementare è possibile solo previo accordo con la reception."
+  - key: cancellation.flex
+    value: {rate_plan: "flex", free_until_hours: 24}
+    text:
+      de: "Flexible Rate: Kostenlose Stornierung bis 18:00 Uhr am Tag vor der Anreise. Danach oder bei Nichtanreise wird die erste Nacht berechnet."
+      en: "Flexible rate: free cancellation until 18:00 on the day before arrival. Afterwards, or in case of no-show, the first night is charged."
+      ru: "Гибкий тариф: бесплатная отмена до 18:00 накануне дня заезда. После этого срока или при незаезде взимается стоимость первой ночи."
+      uk: "Гнучкий тариф: безкоштовне скасування до 18:00 напередодні дня заїзду. Після цього або в разі незаїзду стягується вартість першої ночі."
+      tr: "Esnek tarife: Varıştan önceki gün saat 18:00'e kadar ücretsiz iptal. Sonrasında veya gelinmemesi durumunda ilk gece ücreti alınır."
+      it: "Tariffa flessibile: cancellazione gratuita fino alle 18:00 del giorno precedente l'arrivo. Successivamente, o in caso di mancato arrivo, viene addebitata la prima notte."
+  - key: cancellation.nonrefundable
+    value: {rate_plan: "nonrefundable"}
+    text:
+      de: "Nicht erstattbare Rate: Der gesamte Aufenthalt wird bei Buchung berechnet und ist nicht stornierbar oder erstattbar."
+      en: "Non-refundable rate: the whole stay is charged at booking and cannot be cancelled or refunded."
+      ru: "Невозвратный тариф: полная стоимость проживания списывается при бронировании и не подлежит отмене или возврату."
+      uk: "Тариф без повернення: повна вартість проживання списується під час бронювання і не підлягає скасуванню чи поверненню."
+      tr: "İade edilmez tarife: Konaklamanın tamamı rezervasyon sırasında tahsil edilir; iptal veya iade edilemez."
+      it: "Tariffa non rimborsabile: l'intero soggiorno viene addebitato al momento della prenotazione e non può essere cancellato o rimborsato."
+  - key: payment
+    value: {methods: ["Visa", "Mastercard", "girocard", "Barzahlung"], deposit: "none", prepayment: "nonrefundable_only"}
+    text:
+      de: "Wir akzeptieren Visa, Mastercard, girocard und Barzahlung. Bei der flexiblen Rate zahlen Sie vor Ort; die nicht erstattbare Rate wird bei Buchung berechnet."
+      en: "We accept Visa, Mastercard, girocard and cash. The flexible rate is paid on site; the non-refundable rate is charged at booking."
+      ru: "Мы принимаем Visa, Mastercard, girocard и наличные. Гибкий тариф оплачивается на месте; невозвратный тариф списывается при бронировании."
+      uk: "Ми приймаємо Visa, Mastercard, girocard і готівку. Гнучкий тариф оплачується на місці; тариф без повернення списується під час бронювання."
+      tr: "Visa, Mastercard, girocard ve nakit kabul ediyoruz. Esnek tarife yerinde ödenir; iade edilmez tarife rezervasyon sırasında tahsil edilir."
+      it: "Accettiamo Visa, Mastercard, girocard e contanti. La tariffa flessibile si paga in loco; la tariffa non rimborsabile viene addebitata al momento della prenotazione."
+  - key: city_tax
+    value: {rate_text: "2 EUR pro Person und Nacht (fixture)", exemptions: "handoff"}
+    text:
+      de: "In Frankfurt wird eine Tourismusbeitrag von 2 EUR pro Person und Nacht erhoben (Fixture-Wert, vom Hotel zu bestätigen). Fragen zu Ausnahmen, etwa für Geschäftsreisende, beantwortet die Rezeption."
+      en: "Frankfurt charges a tourism levy of EUR 2 per person and night (fixture value, to be confirmed by the hotel). The reception answers questions about exemptions, for example for business travellers."
+      ru: "Во Франкфурте взимается туристический сбор 2 EUR с человека за ночь (значение-fixture, подлежит подтверждению отелем). На вопросы об исключениях, например для деловых поездок, отвечает ресепшен."
+      uk: "У Франкфурті стягується туристичний збір 2 EUR з особи за ніч (значення-fixture, підлягає підтвердженню готелем). На запитання про винятки, наприклад для ділових поїздок, відповідає рецепція."
+      tr: "Frankfurt'ta kişi başı gece başına 2 EUR turizm katkı payı alınır (fixture değeri, otel tarafından teyit edilmelidir). Örneğin iş seyahatleri için muafiyetlerle ilgili soruları resepsiyon yanıtlar."
+      it: "Francoforte applica un contributo turistico di 2 EUR a persona per notte (valore fixture, da confermare dall'hotel). Alle domande sulle esenzioni, ad esempio per i viaggi di lavoro, risponde la reception."
+  - key: breakfast
+    value: {from: "07:00", to: "10:00", price_cents: 1600, included: false, diet: "vegetarian, vegan and gluten-free options on request"}
+    text:
+      de: "Frühstück gibt es täglich von 07:00 bis 10:00 Uhr für 16 EUR pro Person. Vegetarische, vegane und glutenfreie Optionen sind auf Anfrage möglich; bitte sagen Sie der Rezeption am Vortag Bescheid."
+      en: "Breakfast is served daily from 07:00 to 10:00 for EUR 16 per person. Vegetarian, vegan and gluten-free options are available on request; please tell the reception the day before."
+      ru: "Завтрак подаётся ежедневно с 07:00 до 10:00 и стоит 16 EUR с человека. Вегетарианские, веганские и безглютеновые варианты доступны по запросу; пожалуйста, сообщите на ресепшен накануне."
+      uk: "Сніданок подається щодня з 07:00 до 10:00 і коштує 16 EUR з особи. Вегетаріанські, веганські та безглютенові варіанти доступні за запитом; будь ласка, повідомте рецепцію напередодні."
+      tr: "Kahvaltı her gün 07:00 ile 10:00 arasında kişi başı 16 EUR'ya servis edilir. Vejetaryen, vegan ve glütensiz seçenekler talep üzerine mümkündür; lütfen bir gün önceden resepsiyona bildirin."
+      it: "La colazione è servita ogni giorno dalle 07:00 alle 10:00 al prezzo di 16 EUR a persona. Opzioni vegetariane, vegane e senza glutine sono disponibili su richiesta; La preghiamo di avvisare la reception il giorno prima."
+  - key: parking
+    value: {type: "garage", price_cents_per_night: 1800, clearance_m: 2.1, reservation: "on_request", spaces_total: 12}
+    text:
+      de: "Die hoteleigene Tiefgarage kostet 18 EUR pro Nacht; die Einfahrtshöhe beträgt 2,10 m. Es gibt 12 Stellplätze, eine Reservierung ist nur über die Rezeption möglich und wird nicht garantiert."
+      en: "The hotel's underground garage costs EUR 18 per night; the clearance is 2.10 m. There are 12 spaces; a reservation is only possible through the reception and is not guaranteed."
+      ru: "Подземный гараж отеля стоит 18 EUR за ночь; высота въезда 2,10 м. Всего 12 мест; бронирование возможно только через ресепшен и не гарантируется."
+      uk: "Підземний гараж готелю коштує 18 EUR за ніч; висота в'їзду 2,10 м. Усього 12 місць; бронювання можливе лише через рецепцію і не гарантується."
+      tr: "Otelin yer altı otoparkı gecelik 18 EUR'dur; giriş yüksekliği 2,10 m'dir. 12 park yeri vardır; rezervasyon yalnızca resepsiyon üzerinden mümkündür ve garanti edilmez."
+      it: "Il garage sotterraneo dell'hotel costa 18 EUR a notte; l'altezza massima è 2,10 m. Ci sono 12 posti; la prenotazione è possibile solo tramite la reception e non è garantita."
+  - key: pets
+    value: {allowed: true, fee_cents_per_night: 1500, conditions: "one dog per room, not in the breakfast room"}
+    text:
+      de: "Hunde sind willkommen: ein Hund pro Zimmer für 15 EUR pro Nacht. Im Frühstücksraum sind Hunde nicht erlaubt."
+      en: "Dogs are welcome: one dog per room for EUR 15 per night. Dogs are not allowed in the breakfast room."
+      ru: "Собаки приветствуются: одна собака в номере за 15 EUR за ночь. В зал для завтраков вход с собаками запрещён."
+      uk: "Собаки вітаються: одна собака в номері за 15 EUR за ніч. У зал для сніданків із собаками не можна."
+      tr: "Köpekler kabul edilir: oda başına bir köpek, gecelik 15 EUR. Kahvaltı salonuna köpek alınmaz."
+      it: "I cani sono benvenuti: un cane per camera a 15 EUR a notte. I cani non sono ammessi nella sala colazioni."
+  - key: extras
+    text:
+      de: "Auf Anfrage stellen wir ein Babybett kostenfrei bereit. Bügeleisen und Bügelbrett erhalten Sie an der Rezeption."
+      en: "A cot is provided free of charge on request. Iron and ironing board are available at the reception."
+      ru: "По запросу мы бесплатно предоставляем детскую кроватку. Утюг и гладильную доску можно получить на ресепшен."
+      uk: "За запитом ми безкоштовно надаємо дитяче ліжечко. Праску та дошку для прасування можна отримати на рецепції."
+      tr: "Talep üzerine ücretsiz bebek yatağı sağlanır. Ütü ve ütü masası resepsiyondan alınabilir."
+      it: "Su richiesta forniamo gratuitamente una culla. Ferro e asse da stiro sono disponibili alla reception."
+  - key: accessibility
+    text:
+      de: "Der Eingang ist stufenlos, ein Aufzug erreicht alle Etagen. Ein Zimmer im Erdgeschoss ist barrierearm; bitte fragen Sie die Rezeption nach Details."
+      en: "The entrance is step-free and a lift serves all floors. One ground-floor room has reduced barriers; please ask the reception for details."
+      ru: "Вход без ступеней, лифт обслуживает все этажи. Один номер на первом этаже имеет пониженные барьеры; за подробностями обратитесь на ресепшен."
+      uk: "Вхід без сходинок, ліфт обслуговує всі поверхи. Один номер на першому поверсі має знижені бар'єри; за деталями зверніться на рецепцію."
+      tr: "Giriş basamaksızdır ve asansör tüm katlara hizmet verir. Zemin kattaki bir oda engelleri azaltılmış şekildedir; ayrıntılar için resepsiyona sorun."
+      it: "L'ingresso è privo di gradini e un ascensore serve tutti i piani. Una camera al piano terra ha barriere ridotte; per i dettagli chieda alla reception."
+  - key: wifi
+    sensitivity: verified_guest_only
+    value: {network: "HotelBeispiel-Gast", password: "beispiel2026"}
+    text:
+      de: "WLAN: Netzwerk HotelBeispiel-Gast, Passwort beispiel2026. Das WLAN ist kostenfrei."
+      en: "Wi-Fi: network HotelBeispiel-Gast, password beispiel2026. Wi-Fi is free of charge."
+      ru: "Wi-Fi: сеть HotelBeispiel-Gast, пароль beispiel2026. Wi-Fi бесплатный."
+      uk: "Wi-Fi: мережа HotelBeispiel-Gast, пароль beispiel2026. Wi-Fi безкоштовний."
+      tr: "Wi-Fi: ağ HotelBeispiel-Gast, şifre beispiel2026. Wi-Fi ücretsizdir."
+      it: "Wi-Fi: rete HotelBeispiel-Gast, password beispiel2026. Il Wi-Fi è gratuito."
+  - key: luggage
+    text:
+      de: "Gepäck können Sie vor dem Check-in und nach dem Check-out kostenfrei im Gepäckraum an der Rezeption abgeben."
+      en: "Luggage can be left free of charge in the luggage room at the reception before check-in and after check-out."
+      ru: "Багаж можно бесплатно оставить в камере хранения на ресепшен до заезда и после выезда."
+      uk: "Багаж можна безкоштовно залишити в камері схову на рецепції до заїзду та після виїзду."
+      tr: "Bagajınızı giriş öncesinde ve çıkış sonrasında resepsiyondaki bagaj odasına ücretsiz bırakabilirsiniz."
+      it: "I bagagli possono essere lasciati gratuitamente nel deposito alla reception prima del check-in e dopo il check-out."
+  - key: directions.airport
+    value: {origin: "airport", minutes_train: 15, minutes_taxi: 20}
+    text:
+      de: "Vom Flughafen Frankfurt fahren Sie mit der S-Bahn S8 oder S9 bis Hauptbahnhof (etwa 15 Minuten), dann 10 Minuten zu Fuß über die Beispielstraße. Ein Taxi braucht etwa 20 Minuten."
+      en: "From Frankfurt Airport take the S-Bahn S8 or S9 to the main station (about 15 minutes), then walk 10 minutes along Beispielstraße. A taxi takes about 20 minutes."
+      ru: "Из аэропорта Франкфурта езжайте на электричке S8 или S9 до главного вокзала (около 15 минут), затем 10 минут пешком по Beispielstraße. На такси около 20 минут."
+      uk: "З аеропорту Франкфурта їдьте електричкою S8 або S9 до головного вокзалу (близько 15 хвилин), потім 10 хвилин пішки вздовж Beispielstraße. На таксі близько 20 хвилин."
+      tr: "Frankfurt Havalimanı'ndan S8 veya S9 banliyö treniyle ana gara gidin (yaklaşık 15 dakika), ardından Beispielstraße boyunca 10 dakika yürüyün. Taksiyle yaklaşık 20 dakika sürer."
+      it: "Dall'aeroporto di Francoforte prenda la S-Bahn S8 o S9 fino alla stazione centrale (circa 15 minuti), poi 10 minuti a piedi lungo la Beispielstraße. In taxi circa 20 minuti."
+  - key: directions.hbf
+    value: {origin: "main station", minutes_walk: 10}
+    text:
+      de: "Vom Hauptbahnhof sind es 10 Minuten zu Fuß: Ausgang Süd, dann die Beispielstraße geradeaus bis Hausnummer 1."
+      en: "From the main station it is a 10-minute walk: south exit, then straight along Beispielstraße to number 1."
+      ru: "От главного вокзала 10 минут пешком: южный выход, затем прямо по Beispielstraße до дома 1."
+      uk: "Від головного вокзалу 10 хвилин пішки: південний вихід, потім прямо вздовж Beispielstraße до будинку 1."
+      tr: "Ana gardan 10 dakikalık yürüme mesafesi: güney çıkışı, ardından Beispielstraße boyunca düz ilerleyip 1 numaraya kadar."
+      it: "Dalla stazione centrale sono 10 minuti a piedi: uscita sud, poi dritto lungo la Beispielstraße fino al numero 1."
+  - key: directions.car
+    value: {origin: "car"}
+    text:
+      de: "Mit dem Auto: A5 bis Ausfahrt Frankfurt-Westend, dann der Beschilderung Innenstadt folgen. Die Einfahrt zur Tiefgarage liegt in der Beispielstraße 1 (Höhe 2,10 m)."
+      en: "By car: A5 to exit Frankfurt-Westend, then follow the signs to the city centre. The garage entrance is at Beispielstraße 1 (clearance 2.10 m)."
+      ru: "На автомобиле: A5 до съезда Frankfurt-Westend, затем по указателям в центр. Въезд в гараж по адресу Beispielstraße 1 (высота 2,10 м)."
+      uk: "Автомобілем: A5 до з'їзду Frankfurt-Westend, далі за вказівниками до центру. В'їзд до гаража за адресою Beispielstraße 1 (висота 2,10 м)."
+      tr: "Arabayla: A5'ten Frankfurt-Westend çıkışına, ardından şehir merkezi tabelalarını takip edin. Otopark girişi Beispielstraße 1'dedir (yükseklik 2,10 m)."
+      it: "In auto: A5 fino all'uscita Frankfurt-Westend, poi seguire le indicazioni per il centro. L'ingresso del garage è in Beispielstraße 1 (altezza 2,10 m)."
+  - key: nearby
+    value: {items: [{name: "Messe Frankfurt", kind: "fair", distance: "2 km"}, {name: "Palmengarten", kind: "park", distance: "1 km"}]}
+    text:
+      de: "In der Nähe: Messe Frankfurt (2 km, 8 Minuten mit der U-Bahn), Palmengarten (1 km zu Fuß), Bankenviertel (15 Minuten zu Fuß)."
+      en: "Nearby: Messe Frankfurt (2 km, 8 minutes by underground), Palmengarten (1 km on foot), banking district (15 minutes on foot)."
+      ru: "Рядом: Messe Frankfurt (2 км, 8 минут на метро), Palmengarten (1 км пешком), банковский квартал (15 минут пешком)."
+      uk: "Поруч: Messe Frankfurt (2 км, 8 хвилин на метро), Palmengarten (1 км пішки), банківський квартал (15 хвилин пішки)."
+      tr: "Yakında: Messe Frankfurt (2 km, metroyla 8 dakika), Palmengarten (yürüyerek 1 km), bankacılık bölgesi (yürüyerek 15 dakika)."
+      it: "Nelle vicinanze: Messe Frankfurt (2 km, 8 minuti in metropolitana), Palmengarten (1 km a piedi), quartiere bancario (15 minuti a piedi)."
+  - key: events
+    value: {items: [{name: "Buchmesse (fixture)", from: "2026-10-14", to: "2026-10-18", high_demand: true}]}
+    text:
+      de: "Während der Buchmesse vom 14. bis 18. Oktober 2026 ist die Nachfrage hoch; Preise und Verfügbarkeit bestätigt in dieser Zeit nur die Rezeption."
+      en: "During the book fair from 14 to 18 October 2026 demand is high; in this period only the reception confirms prices and availability."
+      ru: "Во время книжной ярмарки с 14 по 18 октября 2026 года спрос высокий; в этот период цены и наличие подтверждает только ресепшен."
+      uk: "Під час книжкового ярмарку з 14 по 18 жовтня 2026 року попит високий; у цей період ціни та наявність підтверджує лише рецепція."
+      tr: "14-18 Ekim 2026 tarihlerindeki kitap fuarı sırasında talep yüksektir; bu dönemde fiyat ve müsaitliği yalnızca resepsiyon teyit eder."
+      it: "Durante la fiera del libro dal 14 al 18 ottobre 2026 la domanda è alta; in questo periodo prezzi e disponibilità sono confermati solo dalla reception."
+  - key: house_rules
+    text:
+      de: "Rauchen ist im gesamten Haus untersagt. Nachtruhe ist von 22:00 bis 07:00 Uhr. Besucher melden sich bitte an der Rezeption an."
+      en: "Smoking is prohibited throughout the building. Quiet hours are from 22:00 to 07:00. Visitors please register at the reception."
+      ru: "Курение запрещено во всём здании. Ночная тишина с 22:00 до 07:00. Посетители регистрируются на ресепшен."
+      uk: "Куріння заборонене в усій будівлі. Нічна тиша з 22:00 до 07:00. Відвідувачі реєструються на рецепції."
+      tr: "Binanın tamamında sigara içmek yasaktır. Sessizlik saatleri 22:00 ile 07:00 arasındadır. Ziyaretçiler lütfen resepsiyona kayıt yaptırsın."
+      it: "È vietato fumare in tutto l'edificio. Il silenzio è dalle 22:00 alle 07:00. I visitatori sono pregati di registrarsi alla reception."
+  - key: invoicing
+    text:
+      de: "Rechnungen stellt die Rezeption aus. Für eine Firmenrechnung nennen Sie bitte Firmenname, Anschrift und gegebenenfalls die Umsatzsteuer-ID; Änderungen an einer bereits ausgestellten Rechnung prüft die Rezeption."
+      en: "Invoices are issued by the reception. For a company invoice please give the company name, address and VAT number if applicable; changes to an invoice already issued are checked by the reception."
+      ru: "Счета выставляет ресепшен. Для счёта на компанию укажите название компании, адрес и при необходимости номер НДС; изменения уже выставленного счёта рассматривает ресепшен."
+      uk: "Рахунки виставляє рецепція. Для рахунку на компанію вкажіть назву компанії, адресу та за потреби номер платника ПДВ; зміни до вже виставленого рахунку розглядає рецепція."
+      tr: "Faturalar resepsiyon tarafından düzenlenir. Şirket faturası için lütfen şirket adını, adresini ve varsa KDV numarasını bildirin; düzenlenmiş bir faturadaki değişiklikleri resepsiyon inceler."
+      it: "Le fatture sono emesse dalla reception. Per una fattura aziendale indichi ragione sociale, indirizzo ed eventuale partita IVA; le modifiche a una fattura già emessa sono verificate dalla reception."
+  - key: lost_property
+    text:
+      de: "Fundsachen bewahren wir drei Monate auf. Bitte beschreiben Sie den Gegenstand und Ihre Aufenthaltsdaten; die Rezeption meldet sich."
+      en: "Lost property is kept for three months. Please describe the item and your stay dates; the reception will get back to you."
+      ru: "Забытые вещи хранятся три месяца. Опишите, пожалуйста, предмет и даты проживания; ресепшен свяжется с вами."
+      uk: "Забуті речі зберігаються три місяці. Опишіть, будь ласка, предмет і дати проживання; рецепція зв'яжеться з вами."
+      tr: "Kayıp eşyalar üç ay saklanır. Lütfen eşyayı ve konaklama tarihlerinizi belirtin; resepsiyon size dönecektir."
+      it: "Gli oggetti smarriti sono conservati per tre mesi. Descriva l'oggetto e le date del soggiorno; la reception La ricontatterà."
+  - key: emergency
+    text:
+      de: "Im Notfall wählen Sie 112 (Feuerwehr, Rettungsdienst) oder 110 (Polizei). Das Hotelteam ist rund um die Uhr über +49 69 000000 erreichbar. Fluchtpläne hängen auf jeder Etage."
+      en: "In an emergency call 112 (fire, ambulance) or 110 (police). The hotel team can be reached around the clock at +49 69 000000. Escape plans are posted on every floor."
+      ru: "В экстренной ситуации звоните 112 (пожарные, скорая) или 110 (полиция). Команда отеля доступна круглосуточно по телефону +49 69 000000. Планы эвакуации размещены на каждом этаже."
+      uk: "У надзвичайній ситуації телефонуйте 112 (пожежна, швидка) або 110 (поліція). Команда готелю доступна цілодобово за телефоном +49 69 000000. Плани евакуації розміщені на кожному поверсі."
+      tr: "Acil durumda 112 (itfaiye, ambulans) veya 110 (polis) numarasını arayın. Otel ekibine günün her saati +49 69 000000 numarasından ulaşılabilir. Kaçış planları her katta asılıdır."
+      it: "In caso di emergenza chiami il 112 (vigili del fuoco, ambulanza) o il 110 (polizia). Il team dell'hotel è raggiungibile 24 ore su 24 al +49 69 000000. I piani di evacuazione sono affissi a ogni piano."
+  - key: handoff
+    value: {sla: "innerhalb von 2 Stunden", sla_minutes: 120, staffed_hours: "07:00-22:00"}
+    text:
+      de: "Ein Mitarbeiter antwortet in der Regel innerhalb von 2 Stunden während der Rezeptionszeiten (07:00 bis 22:00 Uhr)."
+      en: "A member of staff usually answers within 2 hours during reception hours (07:00 to 22:00)."
+      ru: "Сотрудник обычно отвечает в течение 2 часов в часы работы ресепшен (с 07:00 до 22:00)."
+      uk: "Працівник зазвичай відповідає протягом 2 годин у години роботи рецепції (з 07:00 до 22:00)."
+      tr: "Bir çalışan genellikle resepsiyon saatleri içinde (07:00-22:00) 2 saat içinde yanıt verir."
+      it: "Un membro del personale risponde di norma entro 2 ore durante gli orari della reception (dalle 07:00 alle 22:00)."
+  - key: upsells.late_checkout
+    value: {id: "late_checkout", name: "Late check-out", price_cents: 2000, includes: "room until 14:00", conditions: "subject to confirmation by the reception", availability_check: true}
+    text:
+      de: "Später Check-out bis 14:00 Uhr für 20 EUR, sofern die Rezeption ihn bestätigt."
+      en: "Late check-out until 14:00 for EUR 20, subject to confirmation by the reception."
+      ru: "Поздний выезд до 14:00 за 20 EUR при подтверждении ресепшен."
+      uk: "Пізній виїзд до 14:00 за 20 EUR за підтвердженням рецепції."
+      tr: "Resepsiyon onayına bağlı olarak 14:00'e kadar geç çıkış 20 EUR."
+      it: "Check-out posticipato fino alle 14:00 a 20 EUR, previa conferma della reception."
+  - key: upsells.breakfast
+    value: {id: "breakfast", name: "Breakfast", price_cents: 1600, includes: "buffet 07:00-10:00", conditions: "book by 20:00 the evening before", availability_check: false}
+    text:
+      de: "Frühstück für 16 EUR pro Person, buchbar bis 20:00 Uhr am Vorabend."
+      en: "Breakfast for EUR 16 per person, bookable until 20:00 the evening before."
+      ru: "Завтрак за 16 EUR с человека, заказ до 20:00 накануне вечером."
+      uk: "Сніданок за 16 EUR з особи, замовлення до 20:00 напередодні ввечері."
+      tr: "Kişi başı 16 EUR kahvaltı, bir önceki akşam 20:00'ye kadar ayırtılabilir."
+      it: "Colazione a 16 EUR a persona, prenotabile fino alle 20:00 della sera precedente."
+  - key: tone
+    sensitivity: staff_only
+    text:
+      de: "Freundlich, ruhig, sachlich. Kurze Sätze. Keine Ausrufezeichen, keine Emojis."
+      en: "Friendly, calm, factual. Short sentences. No exclamation marks, no emojis."
+      ru: "Дружелюбно, спокойно, по существу. Короткие предложения. Без восклицательных знаков и эмодзи."
+      uk: "Привітно, спокійно, по суті. Короткі речення. Без знаків оклику та емодзі."
+      tr: "Samimi, sakin, nesnel. Kısa cümleler. Ünlem işareti ve emoji yok."
+      it: "Cordiale, calmo, concreto. Frasi brevi. Niente punti esclamativi, niente emoji."
+  - key: refusals
+    sensitivity: staff_only
+    text:
+      de: "Keine Auskünfte über andere Gäste, keine Preiszusagen, keine Rabatte, keine medizinischen oder rechtlichen Ratschläge."
+      en: "No information about other guests, no price commitments, no discounts, no medical or legal advice."
+      ru: "Никакой информации о других гостях, никаких ценовых обещаний, скидок, медицинских или юридических советов."
+      uk: "Жодної інформації про інших гостей, жодних цінових обіцянок, знижок, медичних чи юридичних порад."
+      tr: "Diğer misafirler hakkında bilgi yok, fiyat taahhüdü yok, indirim yok, tıbbi veya hukuki tavsiye yok."
+      it: "Nessuna informazione su altri ospiti, nessun impegno sui prezzi, nessuno sconto, nessun consiglio medico o legale."
+  - key: legal
+    value: {privacy_url: "https://example.invalid/privacy", imprint_url: "https://example.invalid/impressum", terms_url: "https://example.invalid/agb"}
+    text:
+      de: "Datenschutzhinweise: https://example.invalid/privacy. Impressum: https://example.invalid/impressum. AGB: https://example.invalid/agb"
+      en: "Privacy notice: https://example.invalid/privacy. Imprint: https://example.invalid/impressum. Terms: https://example.invalid/agb"
+      ru: "Политика конфиденциальности: https://example.invalid/privacy. Выходные данные: https://example.invalid/impressum. Условия: https://example.invalid/agb"
+      uk: "Політика конфіденційності: https://example.invalid/privacy. Вихідні дані: https://example.invalid/impressum. Умови: https://example.invalid/agb"
+      tr: "Gizlilik bildirimi: https://example.invalid/privacy. Künye: https://example.invalid/impressum. Koşullar: https://example.invalid/agb"
+      it: "Informativa sulla privacy: https://example.invalid/privacy. Note legali: https://example.invalid/impressum. Condizioni: https://example.invalid/agb"

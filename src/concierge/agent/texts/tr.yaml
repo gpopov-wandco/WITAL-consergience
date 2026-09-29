@@ -1,0 +1,102 @@
+# Guest-facing system texts, Turkish (siz). Legal texts carry status draft_unreviewed (C10).
+lang: tr
+register: siz
+texts:
+  disclosure:
+    status: draft_unreviewed
+    text: "Hoş geldiniz. Ben {hotel} otelinin yapay zekâ asistanıyım, bir insan değilim. Varış, otopark, kahvaltı ve müsaitlik hakkındaki sorularınızı yanıtlayabilirim. Bir çalışanla görüşmek isterseniz „personel“ yazın. Gizlilik bildirimi: {privacy_url}"
+  degraded:
+    text: "Asistan şu anda yalnızca kısıtlı olarak kullanılabilir. Mesajınız resepsiyona iletildi; resepsiyona {phone} numarasından ulaşabilirsiniz."
+  handoff_ack:
+    text: "Mesajınızı otel ekibine ilettim. Size burada bir çalışan yanıt verecek."
+  handoff_ack_with_window:
+    text: "Mesajınızı otel ekibine ilettim. Yanıt genellikle {window} içinde gelir."
+  staff_active_ack:
+    text: "Talebinizle bir çalışan ilgileniyor. Asistan bu sırada duraklatıldı."
+  emergency:
+    status: draft_unreviewed
+    text: "Yangın veya tıbbi acil durumda lütfen hemen 112'yi, başka kişilerden kaynaklanan tehlike durumunda 110'u arayın. Otel ekibini şimdi bilgilendiriyorum."
+  opt_out_confirm:
+    status: draft_unreviewed
+    text: "Artık bizden otomatik mesaj almayacaksınız. Buradan soru sormaya devam edebilirsiniz."
+  off_topic_redirect:
+    text: "Bu konuda yardımcı olamıyorum. Otel, varış veya rezervasyonunuzla ilgili soruları yanıtlayabilirim."
+  off_topic_person:
+    text: "Bu konuda yardımcı olamıyorum. Bir çalışanla görüşmek ister misiniz?"
+  card_warning:
+    text: "Lütfen sohbette kart veya kimlik bilgilerinizi göndermeyin. Bu bilgileri kaydetmedim. Ödemeler için lütfen resepsiyona başvurun."
+  other_guest_refusal:
+    text: "Diğer misafirler hakkında bilgi veremem; bu, yakınlar ve resmî makamlar için de geçerlidir. Lütfen resepsiyona başvurun."
+  unsupported_media:
+    text: "Sesli mesajları, görselleri ve dosyaları okuyamıyorum. Lütfen konuyu kısaca yazın veya „personel“ yazın."
+  verification_ask:
+    text: "Bunun için rezervasyon numaranıza, soyadınıza ve varış tarihinize ihtiyacım var."
+  verification_failed:
+    text: "Bu bilgiler hiçbir rezervasyonla eşleşmiyor. Lütfen rezervasyon numarasını, soyadı ve varış tarihini kontrol edin."
+  verification_locked:
+    text: "Çok fazla deneme yapıldı. Lütfen {phone} numarasından resepsiyona ulaşın."
+  unsupported_language:
+    text: "Şu dillerde yanıt verebilirim: {languages}. Bir insanla görüşmeyi tercih ederseniz „personel“ yazın."
+  person_offer:
+    text: "Sizi bir çalışana yönlendirmemi ister misiniz?"
+  demo_banner:
+    text: "Demo modu: senaryolu yanıtlayıcı, dil modeli değil."
+  availability_fresh:
+    text: "Rezervasyon sistemi şu anda şunu gösteriyor: {summary}."
+  availability_cached:
+    text: "{time} itibarıyla: {summary}."
+  availability_calendar:
+    text: "Takvimimize göre ({date} tarihinde güncellendi): {summary}. Lütfen müsaitliği resepsiyonla teyit edin."
+  availability_unknown:
+    text: "Müsaitliği resepsiyona soracağım ve size döneceğim. Lütfen varış ve ayrılış tarihlerini ve misafir sayısını belirtin."
+  availability_indicative:
+    text: "Fiyatlar bağlayıcı değildir; rezervasyon, rezervasyon bağlantısı veya resepsiyon üzerinden yapılır."
+  availability_ask_dates:
+    text: "Hangi tarihlerde konaklamak istiyorsunuz (varış ve ayrılış)?"
+  availability_ask_guests:
+    text: "Kaç yetişkin ve kaç çocuk?"
+  booking_link_intro:
+    text: "{arrival} - {departure} tarihleri, {adults} yetişkin için rezervasyon bağlantısı: {url}"
+  group_lead:
+    text: "Beş ve daha fazla oda için resepsiyon bir teklif hazırlar. Talebinizi ilettim."
+  complaint_ack:
+    text: "Bunun için üzgünüm. Ekibin hemen ilgilenebilmesi için lütfen oda numaranızı ve tam olarak neyin yolunda olmadığını yazın."
+  feedback_thanks:
+    text: "Geri bildiriminiz için teşekkür ederiz."
+  review_link:
+    text: "İsterseniz buradan bir değerlendirme bırakabilirsiniz: {url}"
+  allergy_severe:
+    text: "Ağır bir alerji durumunda lütfen doğrudan ekiple görüşün; bilgilerinizi iletiyorum."
+  eta_ask:
+    text: "Ne zaman varmayı planlıyorsunuz? Lütfen bir saat belirtin."
+  eta_saved:
+    text: "Teşekkürler, varış saatinizi {eta} olarak not ettim."
+  kb_miss:
+    text: "Bu bilgi bende yok. Sorunuzu otel ekibine iletiyorum."
+  same_question:
+    text: "Sorunuzu daha iyi yanıtlayamıyorum. Bir çalışanla görüşmek ister misiniz?"
+  request_recorded:
+    text: "Talebinizi ekip için kaydettim. Resepsiyon yanıt verene kadar onaylanmış sayılmaz."
+  voice_disclosure:
+    status: draft_unreviewed
+    text: "Merhaba, ben {hotel} otelinin dijital asistanıyım. Bir yapay zekâ sistemiyim, bir insan değilim. Görüşme kaydedilmez; yazılı bir sürümü {days} gün saklanır. Gizlilik bildirimi otelin web sitesindedir. Bir insana ulaşmak için istediğiniz zaman „personel“ deyin."
+  voice_filler:
+    text: "Bir saniye lütfen."
+  voice_transfer:
+    text: "Sizi resepsiyona bağlıyorum."
+  voice_callback:
+    text: "Resepsiyona şu anda ulaşılamıyor. Bir geri arama notu alıyorum; lütfen adınızı söyleyin."
+  voice_goodbye:
+    text: "Aradığınız için teşekkür ederiz. Hoşça kalın."
+buttons:
+  person: Personel
+  book: Rezervasyon
+  eta: Varış saati
+  directions: Yol tarifi
+  parking: Otopark
+  breakfast: Kahvaltı
+  "yes": Evet
+  "no": Hayır
+  more: Daha fazla
+  verify: Rezervasyon kontrol
+  privacy: Gizlilik

@@ -1,0 +1,102 @@
+# Guest-facing system texts, English (polite, neutral). Legal texts carry status draft_unreviewed (C10).
+lang: en
+register: polite neutral
+texts:
+  disclosure:
+    status: draft_unreviewed
+    text: "Welcome. I am the AI assistant of {hotel}, not a person. I can answer questions about arrival, parking, breakfast and availability. If you would like to talk to a person, write \"staff\". Privacy notice: {privacy_url}"
+  degraded:
+    text: "The assistant is only partly available right now. Your message has been passed to the reception, which you can reach at {phone}."
+  handoff_ack:
+    text: "I have passed your message to the hotel team. A person will answer you here."
+  handoff_ack_with_window:
+    text: "I have passed your message to the hotel team. You will usually receive an answer within {window}."
+  staff_active_ack:
+    text: "A member of staff is handling your request. The assistant pauses until then."
+  emergency:
+    status: draft_unreviewed
+    text: "In case of fire or a medical emergency please call 112 at once; for danger from other people call 110. I am alerting the hotel team now."
+  opt_out_confirm:
+    status: draft_unreviewed
+    text: "You will not receive automated messages from us any more. You can still ask questions here."
+  off_topic_redirect:
+    text: "I cannot help with that. I can answer questions about the hotel, your arrival or your booking."
+  off_topic_person:
+    text: "I cannot help with that. Would you like to talk to a member of staff?"
+  card_warning:
+    text: "Please do not send card or ID details in the chat. I have not stored them. For payments please contact the reception."
+  other_guest_refusal:
+    text: "I cannot give information about other guests, including to relatives or authorities. Please contact the reception."
+  unsupported_media:
+    text: "I cannot read voice messages, images or files. Please describe briefly what it is about, or write \"staff\"."
+  verification_ask:
+    text: "For that I need your booking reference, your surname and the arrival date."
+  verification_failed:
+    text: "These details do not match a booking. Please check the booking reference, surname and arrival date."
+  verification_locked:
+    text: "Too many attempts. Please contact the reception at {phone}."
+  unsupported_language:
+    text: "I can answer in these languages: {languages}. If you prefer to talk to a person, write \"staff\"."
+  person_offer:
+    text: "Would you like me to pass you on to a member of staff?"
+  demo_banner:
+    text: "Demo mode: scripted responder, not the language model."
+  availability_fresh:
+    text: "The booking system currently shows: {summary}."
+  availability_cached:
+    text: "As of {time}: {summary}."
+  availability_calendar:
+    text: "According to our calendar (updated {date}): {summary}. Please confirm availability with the reception."
+  availability_unknown:
+    text: "I will ask the reception about availability and get back to you. Please tell me the arrival date, the departure date and the number of guests."
+  availability_indicative:
+    text: "Prices are indicative; bookings are made through the booking link or the reception."
+  availability_ask_dates:
+    text: "For which dates would you like to stay (arrival and departure)?"
+  availability_ask_guests:
+    text: "For how many adults and children?"
+  booking_link_intro:
+    text: "Here is the booking link for {arrival} to {departure}, {adults} adults: {url}"
+  group_lead:
+    text: "For requests of five rooms or more the reception prepares an offer. I have passed your request on."
+  complaint_ack:
+    text: "I am sorry about that. Please tell me your room number and what exactly is wrong so the team can take care of it right away."
+  feedback_thanks:
+    text: "Thank you for your feedback."
+  review_link:
+    text: "If you like, you can leave a review here: {url}"
+  allergy_severe:
+    text: "For a severe allergy please speak to the team directly; I am passing your details on."
+  eta_ask:
+    text: "When do you expect to arrive? Please give a time."
+  eta_saved:
+    text: "Thank you, I have noted {eta} as your arrival time."
+  kb_miss:
+    text: "I do not have that information. I am passing your question to the hotel team."
+  same_question:
+    text: "I cannot answer your question any better. Would you like to talk to a member of staff?"
+  request_recorded:
+    text: "I have recorded your request for the team. It is not confirmed until the reception replies."
+  voice_disclosure:
+    status: draft_unreviewed
+    text: "Hello, this is the digital assistant of {hotel}. I am an AI system, not a person. The call is not recorded; a text version is kept for {days} days. The privacy notice is on the hotel's website. Say \"staff\" at any time to reach a person."
+  voice_filler:
+    text: "One moment, please."
+  voice_transfer:
+    text: "I am connecting you to the reception."
+  voice_callback:
+    text: "The reception cannot be reached right now. I will note a callback; please tell me your name."
+  voice_goodbye:
+    text: "Thank you for calling. Goodbye."
+buttons:
+  person: Staff
+  book: Book
+  eta: Arrival time
+  directions: Directions
+  parking: Parking
+  breakfast: Breakfast
+  "yes": "Yes"
+  "no": "No"
+  more: More
+  verify: Check booking
+  privacy: Privacy

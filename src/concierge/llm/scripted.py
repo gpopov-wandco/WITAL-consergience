@@ -11,6 +11,7 @@ without asserting on prose.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 from dataclasses import dataclass, field
 from typing import Any
@@ -64,7 +65,7 @@ class ScriptedLLM:
         self.steps = list(steps)
 
     async def complete(self, request: LLMRequest) -> LLMResponse:
-        self.requests.append(request)
+        self.requests.append(copy.deepcopy(request))
         if not self.steps:
             raise LLMError("unknown", "ScriptedLLM has no steps left")
         step = self.steps.pop(0)
